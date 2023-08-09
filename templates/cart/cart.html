@@ -1,0 +1,35 @@
+{% extends 'main/main.html' %}
+{% load static %}
+{% block content %}
+<div class="pt-3 mb-3 d-flex justify-content-center"> 
+  <div class="d-inline-flex px-3 py-2">
+    <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">Корзина</h3>
+  </div>
+</div>
+<div class="container">
+	<div>
+		<div class="row justify-content-center">
+			<div class="col-lg-6 pt-5 mt-0" id='cart-items' style="color: black; font-family: 'Comfortaa', cursive;"></div>
+			<div class="col-lg-4 pt-5 mt-0">
+				<div class="shadow-sm p-3  mx-1 flex-column" style="border-radius: 15px; background-color: white">
+					<div class="col d-flex">
+						<div class="d-inline-flex me-3 p-2">
+							<span style="font-size: 17px;">Итого к оплате:</span>
+						</div>
+						<div class="d-inline-flex">
+							<span class="fw-bold" style="font-size: 26px;" id="cart-total-price" >{{cart.get_cart_total_price|floatformat:"0"}}₽</span>
+						</div>
+					</div>
+					<div class="col">
+							<p class="text-center mt-4" style="font-size: 14px;" id="cart-total-count" >{{cart.get_cart_total_count}} товаров</p>
+					</div>
+					<div class="col">
+							<a id='checkout-btn' class="btn btn-outline-dark" href="{% url 'cart:checkout' %}" style="width:100%; border-radius: 15px;">Перейти к оформлению</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<script type="text/javascript" src="{% static 'js/cart.js' %}"></script>
+{% endblock content %}

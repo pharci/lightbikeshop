@@ -1,0 +1,78 @@
+{% extends 'main/main.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+	<div class="mt-4" id='product' data-product-id="{{product.id}}">
+			<div class=" row justify-content-center">
+				<div class="col-lg-5 pt-5 px-3"> 
+					<img class="thumbnail hover-shadow" style="border-radius: 15px;" src="{{product.imageURL}}">
+				</div>
+				<div class="col-lg-5 pt-5 appearance">
+
+					<div class="mb-4"> 
+			  		  <div class="d-inline-flex px-3 py-1 hover-shadow" style="border-radius: 15px; background-color: rgba(159, 190, 241);">
+			    		<h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">{{product.name}}</h3>
+			  		  </div>
+					</div>
+
+					<div class="mb-4">
+						<div class="text-start hover-shadow d-inline-flex flex-column p-3" style="border-radius: 15px; background-color: white">
+
+							{% if product.available_andrey and product.available_damir %}
+								<span class="d-flex" style="color: black;">Наличие</span>
+								<span class="d-flex" style="color: black;">
+									<i class="dot_in_product_card" style="background-color: green;"></i>
+									Метро Алексеевская
+								</span>
+								<span class="d-flex" style="color: black;">
+									<i class="dot_in_product_card" style="background-color: green;"></i>
+									Метро Солнцево
+								</span>
+
+							{% elif product.available_damir or product.available_andrey %}
+								{% if product.available_andrey %}
+									<span class="d-flex" style="color: black;">Наличие</span>
+									<span class="d-flex" style="color: black;">
+										<i class="dot_in_product_card" style="background-color: green;"></i>
+										Метро Алексеевская
+									</span>
+								{% elif product.available_damir %}	
+									<span class="d-flex" style="color: black;">Наличие</span>
+									<span class="d-flex" style="color: black;">
+										<i class="dot_in_product_card" style="background-color: green;"></i>
+										Метро Солнцево
+									</span>
+								{% endif %}
+
+							{% else %}
+								<span class="d-flex" style="color: black;">
+									<i class="dot_in_product_card" style="background-color: red;"></i>
+									Под заказ
+								</span>
+							{% endif %}
+
+						</div>
+					</div>
+
+					<div class="mb-4">
+						<div class="hover-shadow p-3 d-inline-flex" style="border-radius: 15px; background-color: white">
+							<h3 class="mb-0" style="color:black">{{ product.price|floatformat:"0" }}₽</h3>
+							<div class="add-to-cart-btn-box d-block">
+								<button id="add-to-cart-btn" data-product-id="{{ product.id }}" class="ms-5 btn btn-outline-dark shadow-none" style="">Добавить в корзину</button>
+							</div>
+						</div>
+					</div>
+
+					<div class="">
+						<div class="mt-0 hover-shadow p-3 d-inline-flex description_product flex-column" style="border-radius: 15px; background-color: white">
+							{{product.description|safe}}
+						</div>
+					</div>
+
+				</div>
+			</div>
+	</div>
+</div>
+	<script type="text/javascript" src="{% static 'js/product_datail.js' %}"></script>
+{% endblock content %}

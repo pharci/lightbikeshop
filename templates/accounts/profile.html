@@ -1,0 +1,113 @@
+{% extends 'main/main.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+  #confirmationOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 9999;
+  }
+
+  .overlay-content {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .overlay-content h2 {
+    margin-top: 0;
+  }
+</style>
+<div class="container">
+    <div class="row justify-content-center">
+          <div id="confirmationOverlay">
+            <div class="col-lg-5 col-11 overlay-content position-absolute top-50 start-50 translate-middle" style="border-radius: 15px;">
+              <h2>Вы уверены что хотите отменить заказ?</h2>
+              <p>Вернуть его уже никак не получится.</p>
+              <button id="confirmBtn" class="btn btn-outline-success me-2">Отменить заказ</button>
+              <button id="cancelBtn" class="btn btn-outline-danger">Назад</button>
+            </div>
+          </div>
+
+        <div class="col-lg-3">
+
+            
+            <div class="pt-3 mb-3 d-flex justify-content-center"> 
+              <div class="d-inline-flex px-3 py-2">
+                <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">Профиль</h3>
+              </div>
+            </div>
+
+            <div class="shadow-sm p-3 mt-3" style="border-radius: 15px; background-color: white;">
+                <p>Почта: {{ user.email }}</p>
+                <a class="btn btn-outline-dark" href="{% url 'accounts:logout' %}">Выйти</a>
+            </div>
+        </div>
+
+
+        <div class="col-lg-5">
+            
+          <div class="pt-3 mb-3 d-flex justify-content-center"> 
+            <div class="d-inline-flex px-3 py-2">
+              <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">Заказы</h3>
+            </div>
+          </div>
+
+          {% for order in orders|dictsortreversed:"date_ordered" %}
+              {% if order.status != 'Завершен' and order.status != 'Отменен' %}
+
+              <div class="p-3 shadow-sm mt-3" id='{{ order.order_id}}' style="border-radius: 15px; background-color: white;">
+                <h4 class="m-2"><strong>Номер заказа:</strong> {{order.order_id}}</h4>
+                <p class="m-2"><strong>Статус:</strong> {{order.status}}</p>
+                <p class="m-2"><strong>Дата заказа:</strong> {{ order.date_ordered|date:"d.n.Y, H:i" }}</p>
+                    {% for item in order.items.all %}
+                      <p class="m-2"><strong></strong>{{ item.product.name }} - {{ item.quantity }} шт. - {{ item.product.price|floatformat:0}}₽</p>
+                    {% endfor %}
+                <p class="m-2 mt-3"><strong>Количество товаров:</strong> {{ order.get_total_count }}</p>
+                {% if order.status == 'Создан' %}
+                <button class="cancel_order btn btn-outline-danger float-end" data-order-id="{{ order.order_id }}" id="buttom-{{ order.order_id }}">Отменить</button>
+                {% endif %}
+                <p class="m-2"><strong>Итоговая цена заказа:</strong> {{ order.get_total_price|floatformat:0}}₽</p>
+                </div>
+
+              {% endif %}
+          {% endfor %}
+
+          <div class="pt-3 d-flex justify-content-center"> 
+             <div class="graft d-inline-flex px-3 py-2">
+                <button class="btn btn-outline-dark" id='dropdown-button'>Показать историю заказов</button>
+             </div>
+          </div>
+          <div id='dropdown-container' style='display: none;'>
+              {% for order in orders|dictsortreversed:"date_ordered" %}
+                {% if order.status == 'Отменен' or order.status == 'Завершен'%}
+                  
+                  <div class="p-3 shadow-sm mt-3" style="border-radius: 15px; background-color: white;">
+                    <h4 class="m-2"><strong>Номер заказа:</strong> {{order.order_id}}</h4>
+                    <p class="m-2"><strong>Статус:</strong> {{order.status}}</p>
+                    <p class="m-2"><strong>Дата заказа:</strong> {{ order.date_ordered|date:"d.n.Y, H:i" }}</p>
+                        {% for item in order.items.all %}
+                          <p class="m-2"><strong></strong>{{ item.product.name }} - {{ item.quantity }} шт. - {{ item.product.price|floatformat:0}}₽</p>
+                        {% endfor %}
+                    <p class="m-2 mt-3"><strong>Количество товаров:</strong> {{ order.get_total_count }}</p>
+                    <p class="m-2"><strong>Итоговая цена заказа:</strong> {{ order.get_total_price|floatformat:0}}₽</p>
+                  </div>
+
+                {% endif %}
+
+            {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+<script type="text/javascript" src="{% static 'js/profile.js' %}"></script>
+{% endblock content %}

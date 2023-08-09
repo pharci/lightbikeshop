@@ -1,0 +1,251 @@
+{% extends 'main/main.html' %}
+{% load static %}
+{% block content %}
+
+
+<div class="swiper infoswiper mt-3 px-3">
+  <div class="swiper-wrapper">
+    {% for photo in photos %}
+      <div class="swiper-slide infoswiper-slide">
+        <a href="{{ photo.get_absolute_url }}">
+          <img src="{{ photo.image.url }}" alt="{{ photo.title }}">
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination infoswiper-pagination"></div>
+</div>
+
+
+<div>
+  <div class="col-lg-8 swiper brendswiper mt-3 px-3">
+    <div class="pt-3 mb-3 d-flex"> 
+      <div class="d-inline-flex pe-3 py-2">
+        <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive; font-size: 18px;">Бренды</h3>
+      </div>
+    </div>
+    <div class="swiper-wrapper">
+      {% for brand in brands %}
+          <div class="swiper-slide brendswiper-slide">
+              <a href="{{ brand.get_absolute_url }}">
+                <div class="brendswiper-img">
+                  <img src="{{ brand.image.url }}" class="border" alt="{{ brand.title }}">
+                </div>
+                <div class="brendswiper-box">
+                  <span class="brendswiper-title">{{ brand.title }}</span>
+                </div>
+              </a>
+          </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div>
+  <div class="col-lg-8 swiper recswiper mt-3 px-3">
+    <div class="pt-3 mb-3 d-flex"> 
+      <div class="d-inline-flex pe-3 py-2">
+        <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive; font-size: 18px;">Рекомендуем</h3>
+      </div>
+    </div>
+    <div class="swiper-wrapper py-1">
+      {% for product in products %}
+
+      <div class="swiper-slide col-lg-3 col-5 p-2 shadow-sm h-auto product-card" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
+        <div class="h-100">
+          {% if product.new %}
+          <div class="d-flex">
+            <span class="product-badges" title="NEW">NEW</span>
+          </div>
+          {% endif %}
+          <img class="thumbnail"  src="{{ product.image.url }}">
+
+          <div>
+            <div class="box-element product flex-column d-flex">
+              <div class="">
+                <div class="mb-1">
+                  <div class="text-start">
+                    {% if product.available_andrey or product.available_damir %}
+                    <span class="d-flex" style="color: black;">
+                      <i class="dot_in_product_card" style="background-color: green;"></i>
+                      В наличии 
+                    </span>
+                    {% else %}
+                      <span class="d-flex" style="color: black;">
+                        <i class="dot_in_product_card" style="background-color: red;"></i>
+                        Под заказ
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+                <p class="text-start" style="color: rgba(0, 0, 0, 1); font-size: 18px;">{{product.name}}</p>
+              </div>
+
+              <div class="mt-auto">
+                <h5 class="text-start" style="color: rgba(0, 0, 0, 1); ">{{ product.price|floatformat:"0" }}₽</h5>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+
+<div class="container col-lg-8 mt-3 px-3">
+    <div class="pt-3 mb-3 d-flex"> 
+      <div class="d-inline-flex pe-3 py-2">
+        <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive; font-size: 18px;">Где получить заказ?</h3>
+      </div>
+    </div>
+    <div class="shadow-sm p-2" style="border-radius: 15px; background-color: white"> 
+      <div class="row">
+        <div class="col-md-9 col-sm-12">
+          <iframe src="https://yandex.ru/map-widget/v1/?um=constructor%3A943e8b981dde83761a086bac55e0a24439fd75b8fb6dc6fb280c2829a5d13b72&amp;source=constructor&amp;apikey=ae068af9-edb0-413f-bfc5-2e6ce196122d" width="100%" height="280px" frameborder="0" allowfullscreen="true" class="map_extramobile" style="display: block; border-radius: 10px"></iframe>
+        </div>
+        <div class="col-md-3 col-sm-12">
+          <p class="h5 text-left mb-3 mt-1">Пункты самовывоза:</p>
+          <p class="text-left mb-2">• Станция метро Алексеевская</p>  
+          <p class="text-left mb-3">• Станция метро Солнцево</p> 
+          <p><a href="{% url 'store:faq' %}#faq-chapter-4" class="btn btn-md btn-outline-dark" style="font-family: 'Comfortaa', cursive;">Подробнее</a></p>
+          <br> 
+          <i>*время встречи обсуждается с менеджером после оформления заказа</i>  
+        </div>
+      </div>
+    </div>
+</div>
+
+
+
+<div class="container col-lg-8 my-5 px-3">
+
+    <div class="row d-flex justify-content-center">
+
+      <div class="col d-flex justify-content-end"> 
+        <a href="https://vk.com/light_bikeshop">
+          <div class="d-inline-flex p-3 justify-content-center align-items-center hover-shadow">
+            <img src="{% static 'images/vk-icon.png' %}" width="40" height="40">
+          </div>
+        </a>
+      </div>
+
+      <div class="col-3 d-flex justify-content-center"> 
+        <a href="https://www.youtube.com/@LightBikeShop">
+          <div class="d-inline-flex p-3 justify-content-center align-items-center hover-shadow">
+            <img src="{% static 'images/yt-icon.png' %}" width="40" height="40">
+          </div>
+        </a>
+      </div>
+
+      <div class="col d-flex justify-content-start"> 
+        <a href="https://instagram.com/light_bikeshop"> 
+          <div class="d-inline-flex p-3 justify-content-center align-items-center hover-shadow">
+            <img src="{% static 'images/inst-icon.png' %}" width="40" height="40">
+          </div>
+        </a>
+      </div>
+
+      <div class="w-100"></div>
+
+      <div class="col-lg-4 d-flex mt-5 justify-content-center"> 
+        <a href="https://t.me/light_bikeshop">
+          <div class="d-inline-flex p-3 hover-shadow">
+            <span class="me-3" style="color: black;">
+              Задать вопрос в Telegram
+            </span>
+            <img src="{% static 'images/tg-icon.png' %}" width="25" height="25">
+          </div>
+        </a>
+      </div>
+
+    </div>
+    
+</div>
+
+
+  <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+<script>
+  var infoswiper = new Swiper(".infoswiper", {
+    breakpoints: {
+    991: {
+      slidesPerView: 2,
+    },
+    576: {
+      slidesPerView: 1,
+    },
+  },
+    centeredSlides: true,
+    spaceBetween: 30,
+    pagination: {
+      el: ".infoswiper-pagination",
+      clickable: true,
+    },
+    loop: false,
+    autoplay: {
+      delay: 3000,
+    },
+    speed: 1000,
+    effect: "slide",
+  });
+
+  var brandswiper = new Swiper(".brendswiper", {
+    slidesPerView: 4,
+    breakpoints: {
+    991: {
+      spaceBetween: 30,
+      slidesPerView: 7,
+    },
+    576: {
+      spaceBetween: 25,
+      slidesPerView: 4,
+    },
+  },
+    centeredSlides: false,
+    spaceBetween: 15,
+    loop: false,
+    autoplay: {
+      delay: 3500,
+    },
+    speed: 1000,
+    effect: "slide",
+  });
+
+  var recswiper = new Swiper(".recswiper", {
+    slidesPerView: 2,
+    breakpoints: {
+    991: {
+      spaceBetween: 30,
+      slidesPerView: 4,
+    },
+    576: {
+      spaceBetween: 25,
+      slidesPerView: 2,
+    },
+  },
+    centeredSlides: false,
+    spaceBetween: 25,
+    loop: false,
+    autoplay: {
+      delay: 3500,
+    },
+    speed: 1000,
+    effect: "slide",
+  });
+
+
+
+  document.addEventListener('DOMContentLoaded', function () {
+        const productCards = document.querySelectorAll('.product-card');
+        productCards.forEach(card => {
+            card.addEventListener('click', function () {
+                const url = card.getAttribute('data-url');
+                if (url) {
+                    window.location.href = url;
+                }
+            });
+        });
+    });
+</script>
+{% endblock content %}
