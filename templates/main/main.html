@@ -173,25 +173,25 @@
  				</div>
      		</div>
 
- 		<div class="footer-mobile">
+ 		<div class="footer-mobile border-top">
 		    <div class="row d-flex justify-content-around">
 		        <div class="col-2 py-1">
-		            <a href="{% url 'store:news' %}" id="homeButton" class="shadow-none btn text-white d-flex flex-column align-items-center pt-1 pb-0" title="Главная">
-		                <img src="{% static 'images/home.png' %}" role="link" width="25" height="25" class="mb-1" id="homeButtonImage">
+		            <a href="{% url 'store:news' %}" id="homeButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Главная">
+		                <img src="{% static 'images/home-black.png' %}" role="link" width="25" height="25" class="mb-1" id="homeButtonImage">
 		                <span style="font-size: 11px" id="homeButtonText"> Главная </span>
 		            </a>
 		         </div>
 
 		         <div class="col-2 py-1">
-		            <a href="{% url 'products:catalog' %}" id="catalogButton" class="shadow-none btn text-white d-flex flex-column align-items-center pt-1 pb-0" title="Каталог">
-		                <img src="{% static 'images/catalog.png' %}" role="link" width="25" height="25" class="mb-1" id="catalogButtonImage">
+		            <a href="{% url 'products:catalog' %}" id="catalogButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Каталог">
+		                <img src="{% static 'images/catalog-black.png' %}" role="link" width="25" height="25" class="mb-1" id="catalogButtonImage">
 		                <span style="font-size: 11px" id="catalogButtonText"> Каталог </span>
 		            </a>
 		         </div>
 
 		         <div class="col-2 py-1 cart-mobile-box">
-		            <a href="{% url 'cart:cart' %}" id="cartButton" class="shadow-none text-white btn d-flex flex-column align-items-center pt-1 pb-0" title="Корзина">
-		                <img src="{% static 'images/cart.png' %}" role="link" width="25" height="25" class="mb-1" id="cartButtonImage">
+		            <a href="{% url 'cart:cart' %}" id="cartButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Корзина">
+		                <img src="{% static 'images/cart-black.png' %}" role="link" width="25" height="25" class="mb-1" id="cartButtonImage">
 		                <span style="font-size: 11px" id="cartButtonText"> Корзина </span>
 		                <div class="cart-count">
 		               		<span class="cart-count-text">{{cartItems}}</span>
@@ -200,8 +200,8 @@
 		         </div>
 
 		         <div class="col-2 py-1">
-		            <a href="{% url 'store:faq' %}" id="faqButton" class="shadow-none btn text-white d-flex flex-column align-items-center pt-1 pb-0" title="FAQ">
-		                <img src="{% static 'images/faq.png' %}" role="link" width="25" height="25" class="mb-1" id="faqButtonImage">
+		            <a href="{% url 'store:faq' %}" id="faqButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="FAQ">
+		                <img src="{% static 'images/faq-black.png' %}" role="link" width="25" height="25" class="mb-1" id="faqButtonImage">
 		                <span style="font-size: 11px" id="faqButtonText"> FAQ </span>
 		            </a>
 		         </div>
@@ -209,15 +209,15 @@
 
 		         {% if user.is_authenticated %}
 		         <div class="col-2 py-1">
-		            <a href="{% url 'accounts:profile' %}" id="profileButton" class="shadow-none btn text-white d-flex flex-column align-items-center pt-1 pb-0" title="Войти">
-		                <img src="{% static 'images/profile.png' %}" role="link" width="25" height="25" class="mb-1" id="profileButtonImage">
+		            <a href="{% url 'accounts:profile' %}" id="profileButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Войти">
+		                <img src="{% static 'images/profile-black.png' %}" role="link" width="25" height="25" class="mb-1" id="profileButtonImage">
 		                <span style="font-size: 11px" id="profileButtonText"> Профиль </span>
 		            </a>
 		         </div>
 					{% else %}
 		         <div class="col-2 py-1">
-		            <a href="{% url 'accounts:login' %}" id="loginButton" class="shadow-none btn text-white d-flex flex-column align-items-center pt-1 pb-0" title="Войти">
-		                <img src="{% static 'images/profile.png' %}" role="link" width="25" height="25" class="mb-1" id="loginButtonImage">
+		            <a href="{% url 'accounts:login' %}" id="loginButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Войти">
+		                <img src="{% static 'images/profile-black.png' %}" role="link" width="25" height="25" class="mb-1" id="loginButtonImage">
 		                <span style="font-size: 11px" id="loginButtonText"> Войти </span>
 		            </a>
 		         </div>

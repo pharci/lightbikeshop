@@ -2,9 +2,9 @@ const currentURL = window.location.pathname;
 
     // Функция для применения стилей активной кнопке
     function setActiveButton(button, buttonImage, buttonText) {
-        button.style.backgroundColor = 'white';
-        buttonImage.src = buttonImage.src.replace('.png', '-black.png');
-        buttonText.style.color = 'black';
+        button.style.backgroundColor = '#585e6c';
+        buttonImage.src = buttonImage.src.replace('-black.png', '.png');
+        buttonText.style.color = 'white';
     }
 
     // Получаем кнопки навигации по их идентификаторам

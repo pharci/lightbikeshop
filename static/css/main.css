@@ -331,19 +331,19 @@ body {
     bottom: 0;
     position: fixed;
     width: 100%;
-    background-color: #000;
+    background-color: #ffffff;
     height: 60px;
     z-index: 9999;
 }
 
 
 .footer-mobile a:focus {
-  background-color: gray;
+  background-color: #777f92;
 }
 
 
 .categories-blocks {
-  margin: 0.5rem;
+  margin: 0.4rem;
   width: 45%;
 }
 
@@ -351,7 +351,7 @@ body {
 
 @media screen and (min-width: 480px) {
   .categories-blocks {
-    margin: 0.7rem;
+    margin: 0.6rem;
     width: 45%;
   }
 }
