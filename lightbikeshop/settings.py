@@ -22,7 +22,7 @@ AUTH_USER_MODEL = 'accounts.User'
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['lightbikeshop.ru', 'www.lightbikeshop.ru', 'localhost', '45.9.41.240']
+ALLOWED_HOSTS = ['lightbikeshop.ru', 'www.lightbikeshop.ru', 'localhost']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
