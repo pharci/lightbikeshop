@@ -51,7 +51,7 @@
     <div class="swiper-wrapper py-1">
       {% for product in products %}
 
-      <div class="swiper-slide col-lg-3 col-5 p-2 shadow-sm h-auto product-card" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
+      <div class="swiper-slide p-2 shadow-sm h-auto product-card ms-0" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
         <div class="h-100">
           {% if product.new %}
           <div class="d-flex">
@@ -103,7 +103,7 @@
     <div class="shadow-sm p-2" style="border-radius: 15px; background-color: white"> 
       <div class="row">
         <div class="col-md-9 col-sm-12">
-          <iframe src="https://yandex.ru/map-widget/v1/?um=constructor%3A943e8b981dde83761a086bac55e0a24439fd75b8fb6dc6fb280c2829a5d13b72&amp;source=constructor&amp;apikey=ae068af9-edb0-413f-bfc5-2e6ce196122d" width="100%" height="280px" frameborder="0" allowfullscreen="true" class="map_extramobile" style="display: block; border-radius: 10px"></iframe>
+          <iframe src="https://yandex.ru/map-widget/v1/?um=constructor%3A943e8b981dde83761a086bac55e0a24439fd75b8fb6dc6fb280c2829a5d13b72&amp;source=constructor&amp;apikey=ae068af9-edb0-413f-bfc5-2e6ce196122d" width="100%" height="100%" frameborder="0" allowfullscreen="true" class="map_extramobile" style="display: block; border-radius: 10px"></iframe>
         </div>
         <div class="col-md-3 col-sm-12">
           <p class="h5 text-left mb-3 mt-1">Пункты самовывоза:</p>
