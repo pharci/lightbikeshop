@@ -348,7 +348,10 @@ body {
   width: 45%;
 }
 
-
+.the-header-logobox {
+  margin-right: 1rem;
+  margin-left: 1rem;
+}
 
 @media screen and (min-width: 480px) {
   .categories-blocks {
@@ -358,6 +361,11 @@ body {
 
   .product-card {
     margin: 0.6rem;
+  }
+
+  .the-header-logobox {
+    margin-right: 3rem;
+    margin-left: 1rem;
   }
 }
 
@@ -371,6 +379,11 @@ body {
 
   .product-card {
     margin: 0.7rem;
+  }
+
+  .the-header-logobox {
+    margin-right: 3rem;
+    margin-left: 1rem;
   }
 
   .footer {
@@ -419,6 +432,12 @@ body {
 
 
 @media screen and (min-width: 991px) {
+
+  .the-header-logobox {
+    margin-right: 5rem;
+    margin-left: 1rem;
+  }
+
   .categories-blocks {
     margin: 1rem;
     width: 28%;

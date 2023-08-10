@@ -35,15 +35,15 @@
 		<header class="header">
 			<div class="the-header border-bottom" style="font-family: 'Comfortaa', cursive;">
 				<div class="the-header-inner d-flex align-items-center justify-content-center">
-					<div class="the-header-logobox d-flex justify-content-center px-5">
+					<div class="the-header-logobox d-flex justify-content-center">
 						<a class="the-header-logo" href="{% url 'store:news' %}">LightShop</a>
 					</div>
 					<div class="search-box col-lg-2 col-md-4 me-3">
 						<div id="searchBlock">
 							<form method="GET" action="{% url 'products:search' %}" id="search-form" class="needs-validation" novalidate>
 								<div class="d-flex">
-						    		<input name='q' type="text" class="form-control" placeholder="Поиск товаров..." style="border-radius: 10px 0 0 10px;">
-						    		<button type="submit" class="btn btn-outline-dark" id="search-button" style="border-radius: 0 10px 10px 0;">
+						    		<input name='q' type="text" class="form-control shadow-none" placeholder="Поиск товаров..." style="border-radius: 10px 0 0 10px;">
+						    		<button type="submit" class="btn btn-outline-dark shadow-none" id="search-button" style="border-radius: 0 10px 10px 0;">
 						    			<img src="{% static 'images/search-icon.png' %}" width="20" height="20">
 						    		</button>
 						    	</div>
