@@ -11,7 +11,7 @@
 	<div class="row justify-content-center">
 		{% for product in products %}
 
-      <div class="col-lg-2 col-5 p-2 m-3 h-auto product-card hover-shadow" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
+      <div class="col-lg-2 col-5 p-2 h-auto product-card hover-shadow" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
         <div class="h-100">
           {% if product.new %}
           <div class="d-flex">
