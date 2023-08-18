@@ -4,7 +4,7 @@ from django.contrib.sessions.backends.db import SessionStore
 def navbar(request):
 	cartItems = 0
 
-	categories = Category.objects.exclude(slug= u'clothes').exclude(slug= u'workshop')
+	categories = Category.objects.all()
 
 	# Проверяем, является ли пользователь аутентифицированным
 	if request.user.is_authenticated:

@@ -16,6 +16,7 @@ from datetime import datetime
 from .utils import cartData
 from django.core import serializers
 import random
+from accounts.utils import send_telegram_message
 
 def create_cart(user):
     try:
@@ -31,50 +32,50 @@ def order_confirmed(request):
     return render(request, 'cart/order_confirmed.html')
 
 def checkout(request):
+
     if request.method == 'POST':
         form = CheckoutForm(request.POST)
 
         order_id = random.randint(10000000, 99999999)
 
         request.session['order_id'] = order_id
-
+        print(form)
         if form.is_valid():
             # Получение данных из формы
-            last_name = form.cleaned_data['last_name']
-            first_name = form.cleaned_data['first_name']
-            middle_name = form.cleaned_data['middle_name']
-            phone_number = form.cleaned_data['phone_number']
-            address = form.cleaned_data['address']
-            city = form.cleaned_data['city']
-            zip_code = form.cleaned_data['zip_code']
-            delivery_value = form.cleaned_data['delivery_value']
+            receiving_method = request.POST.get('receiving_method')
+            contact_phone = request.POST.get('contact_phone')
+            user_name = request.POST.get('user_name')
+            pickup_location = request.POST.get('pickup_location')
+            delivery_address = request.POST.get('delivery_address')
+            delivery_method = request.POST.get('delivery_method')
+            order_notes = request.POST.get('order_notes')
             # Создание пользователя
             if request.user.is_authenticated:
                 user = request.user
                 order = Order.objects.create(
                     user=user,
                     order_id=order_id,
-                    first_name=first_name,
-                    last_name=last_name,
-                    middle_name=middle_name,
-                    phone_number=phone_number,
-                    address=address,
-                    zip_code=zip_code,
-                    city=city,
-                    delivery_value=delivery_value
+                    user_name=user_name,
+                    contact_phone=contact_phone,
+                    pickup_location=pickup_location,
+                    delivery_address=delivery_address,
+                    delivery_method=delivery_method,
+                    receiving_method=receiving_method,
+                    order_notes=order_notes
                 )
             else:
                 order = Order.objects.create(
                     order_id=order_id,
-                    first_name=first_name,
-                    last_name=last_name,
-                    middle_name=middle_name,
-                    phone_number=phone_number,
-                    address=address,
-                    zip_code=zip_code,
-                    city=city,
-                    delivery_value=delivery_value
+                    user_name=user_name,
+                    contact_phone=contact_phone,
+                    pickup_location=pickup_location,
+                    delivery_address=delivery_address,
+                    delivery_method=delivery_method,
+                    receiving_method=receiving_method,
+                    order_notes=order_notes
                 )
+
+            order.save()
 
             items, cart = cartData(request)
 
@@ -88,9 +89,11 @@ def checkout(request):
 
                 cart.clear()
 
-        context = {'order_id': order_id}
+            context = {'order_id': order_id}
 
-        return render(request, 'cart/order_confirmed.html', context)
+            send_telegram_message(order, request)
+
+            return render(request, 'cart/order_confirmed.html', context)
 
     else:
         form = CheckoutForm()
@@ -182,7 +185,7 @@ def delete_order(request):
 
     if request.method == 'POST':
         # Удаляем заказ
-        order.status = 'Отменен'
+        order.status = 'canceled'
         order.save()
 
         # Возвращаем JSON-ответ с подтверждением удаления

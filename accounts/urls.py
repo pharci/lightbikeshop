@@ -8,9 +8,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('profile/', views.profile_view, name='profile'),
     path('recovery/', views.recovery_view, name='recovery'),
-    path('verify_code_login/', views.verify_code_login_view, name='verify_code_login'),
-    path('verify_code_registration/', views.verify_code_registration_view, name='verify_code_registration'),
-    path('verify_code_recovery/', views.verify_code_recovery_view, name='verify_code_recovery'),
+    path('verify_code/', views.verify_code, name='verify_code'),
     path('recovery_input_password/', views.recovery_input_password_view, name='recovery_input_password'),
     path('check_email_availability/', views.check_email_availability, name='check_email_availability'),
 ]

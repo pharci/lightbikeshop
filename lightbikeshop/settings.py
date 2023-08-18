@@ -22,7 +22,7 @@ AUTH_USER_MODEL = 'accounts.User'
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['lightbikeshop.ru', 'www.lightbikeshop.ru', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['lightbikeshop.ru', 'www.lightbikeshop.ru', 'localhost']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -81,16 +81,6 @@ DATABASES = {
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
-
-#DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.mysql',
-#        'NAME': 'a96605x0_light',
-#        'HOST': 'a96605x0.beget.tech',
-#        'USER': 'a96605x0_light',
-#        'PASSWORD': 'TGJP1*zY'
-#    }
-#}
 
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators

@@ -33,7 +33,6 @@ $(document).ready(function() {
         }
 
         if (action === 'add') {
-            console.log($("#remove-from-cart-btn").length)
             if ($("#remove-from-cart-btn").length === 0) {
                 var decreaseButton = $('<button>').attr('id', 'remove-from-cart-btn').attr('data-product-id', productId).text('-').addClass('btn btn-outline-danger shadow-none');
                 $(".add-to-cart-btn-box").append(decreaseButton)

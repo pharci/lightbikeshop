@@ -32,7 +32,6 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 15px;
 }
 
 .infoswiper-slide a {
@@ -78,7 +77,6 @@ body {
 
 
 .brands-catalog {
-  width: 25%;
   padding: 0.2rem;
 }
 
@@ -344,9 +342,9 @@ body {
 
 
 .categories-blocks {
-  margin: 0.4rem;
-  width: 45%;
+  margin: 0.5rem;
 }
+
 
 .the-header-logobox {
   margin-right: 1rem;
@@ -356,7 +354,6 @@ body {
 @media screen and (min-width: 480px) {
   .categories-blocks {
     margin: 0.6rem;
-    width: 45%;
   }
 
   .product-card {
@@ -374,7 +371,6 @@ body {
 
   .categories-blocks {
     margin: 0.7rem;
-    width: 45%;
   }
 
   .product-card {
@@ -440,7 +436,6 @@ body {
 
   .categories-blocks {
     margin: 1rem;
-    width: 28%;
   }
 
   .product-card {
@@ -448,7 +443,6 @@ body {
   }
 
   .brands-catalog {
-    width: 12%;
     padding-right: 2rem;
   }
 

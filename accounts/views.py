@@ -1,215 +1,102 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import logout, login, authenticate
-
-from .forms import RegistrationForm, LoginForm, VerificationCodeForm, RecoveryForm, RecoveryInputPasswordForm
-
 from django.http import JsonResponse
 import json
-
-from .models import Order, OrderItem, User
-from cart.models import Cart
-
-from .captcha import verify_recaptcha
-from .utils import generate_verification_code, send_verification_code
-
-import datetime
-from datetime import timedelta
 from django.utils import timezone
-
-from django.contrib.auth.hashers import make_password, check_password
-from django.middleware import csrf
 from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.hashers import make_password
 
+from .forms import (
+    RegistrationForm,
+    LoginForm,
+    VerificationCodeForm,
+    RecoveryForm,
+    RecoveryInputPasswordForm,
+)
+from .models import Order, User
+from cart.models import Cart
+from .captcha import verify_recaptcha
+from .utils import generate_verification_code, send_verification_code
 from .security import generate_token, check_token
-
 from django.conf import settings
+
 @csrf_protect
 def login_view(request):
-
     if request.method == 'POST':
-
         recaptcha_response = request.POST.get('g-recaptcha-response')
 
-        print(recaptcha_response)
-
-        if verify_recaptcha(recaptcha_response):
-
-            form = LoginForm(request.POST)
-
-            if form.is_valid():
-                email = form.cleaned_data['email']
-                password = form.cleaned_data['password']
-                
-                user = authenticate(request, email=email, password=password)
-                if user is not None:
-                    # Проверяем, есть ли уже ограничение на ввод кода
-                    if request.session.get('verification_attempts', 0) >= 5:
-
-                        messages.error(request, 'Слишком много попыток. Попробуйте позже.')
-                        return redirect('accounts:login')
-
-                    verification_code = generate_verification_code()
-                    send_verification_code(email, verification_code)
-
-                    request.session['verification_code'] = verification_code
-                    request.session['verification_code_expiration'] = str(timezone.now() + timezone.timedelta(minutes=5))
-                    request.session['user_id'] = user.id
-
-                    generate_token(request, 'login')
-
-                    return redirect('accounts:verify_code_login')
-                else:
-                    messages.error(request, 'Неправильная почта или пароль.')
-                    return redirect('accounts:login')
-            else:
-                for field, errors in form.errors.items():
-                    messages.error(request, f'{field}: {", ".join(errors)}')
-                return redirect('accounts:login')
-        else:
+        if not verify_recaptcha(recaptcha_response):
             messages.error(request, 'Извините, мы заметили подозрительную активность, попробуйте еще раз.')
             return redirect('accounts:login')
+
+        form = LoginForm(request.POST)
+
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            password = form.cleaned_data['password']
+            user = authenticate(request, email=email, password=password)
+
+            if user is not None:
+                verification_code = generate_verification_code()
+                send_verification_code(email, verification_code)
+
+                request.session['verification_code'] = verification_code
+                request.session['verification_code_expiration'] = str(timezone.now() + timezone.timedelta(minutes=5))
+                request.session['user_id'] = user.id
+                request.session['action'] = 'login'
+
+                generate_token(request, 'login')
+
+                return redirect('accounts:verify_code')
+            else:
+                messages.error(request, 'Неправильная почта или пароль.')
+        else:
+            for field, errors in form.errors.items():
+                messages.error(request, f'{field}: {", ".join(errors)}')
     else:
-        form = LoginForm(request)
-    
+        form = LoginForm()
+
     context = {'form': form, "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY}
     return render(request, 'accounts/login.html', context)
 
 @check_token
 @csrf_protect
-def verify_code_login_view(request):
-    
-    user_id = request.session.get('user_id')
-    if not user_id:
-        return redirect('accounts:login')
-    
-    user = User.objects.get(id=user_id)
+def verify_code(request):
+    verification_code_expiration = timezone.datetime.strptime(request.session.get('verification_code_expiration'), '%Y-%m-%d %H:%M:%S.%f%z')
 
-    # Проверяем, истекло ли время действия кода
-    verification_code_expiration = datetime.datetime.strptime(request.session.get('verification_code_expiration'), '%Y-%m-%d %H:%M:%S.%f%z')
     if timezone.now() > verification_code_expiration:
-        del request.session['verification_code']
-        del request.session['verification_code_expiration']
-        del request.session['user_id']
+        clear_verification_session_data(request)
         messages.error(request, 'Время проверочного кода истекло. Попробуйте получить новый.')
         return redirect('accounts:login')
 
     if request.method == 'POST':
         code = request.POST.get('code')
         stored_code = request.session.get('verification_code')
-
-        # Проверяем, сколько попыток ввода кода уже было
         verification_attempts = request.session.get('verification_attempts', 0)
 
         if verification_attempts >= 5:
-
-            request.session.set_expiry(timedelta(minutes=30))
-
+            clear_verification_session_data(request)
             messages.error(request, 'Слишком много попыток. Попробуйте позже.')
             return redirect('accounts:login')
 
         if code == stored_code:
+            action = request.session.get('action')
 
-            # Успешная аутентификация
-            login(request, user)
-            del request.session['verification_code']
-            del request.session['verification_code_expiration']
-            del request.session['user_id']
+            if action == 'login':
+                user_id = request.session.get('user_id')
+                if user_id:
+                    user = User.objects.get(id=user_id)
+                    login(request, user)
+                    clear_verification_session_data(request)
+                    return redirect('store:news')
+                else:
+                    return redirect('accounts:login')
 
-            return redirect('store:news')
-        else:
-
-            # Неверный код, увеличиваем счетчик попыток
-            request.session['verification_attempts'] = verification_attempts + 1
-            messages.error(request, 'Неправильный проверочный код. Осталось попыток: {}'.format(5 - verification_attempts))
-            return redirect('accounts:verify_code_login')
-
-    return render(request, 'accounts/verify_code_login.html')
-
-
-@csrf_protect
-def register_view(request):
-    if request.method == 'POST':
-
-        recaptcha_response = request.POST.get('g-recaptcha-response')
-
-        if verify_recaptcha(recaptcha_response):
-
-            form = RegistrationForm(request.POST)
-
-            if form.is_valid():
-                email = form.cleaned_data['email']
-                password = form.cleaned_data['password1']
-                
-                # Проверяем, есть ли уже ограничение на регистрацию
-                if request.session.get('registration_attempts', 0) >= 5:
-                    messages.error(request, 'Слишком много попыток. Попробуйте позже.')
-                    return redirect('accounts:register')
-
-                verification_code = generate_verification_code()
-                send_verification_code(email, verification_code)
-
-                request.session['verification_code'] = verification_code
-                request.session['verification_code_expiration'] = str(timezone.now() + timedelta(minutes=5))
-                request.session['registration_email'] = email
-                request.session['password_hash'] = make_password(password)
-
-                generate_token(request, 'register')
-
-                return redirect('accounts:verify_code_registration')
-
-            else:
-                for field, errors in form.errors.items():
-                    messages.error(request, f'{field}: {", ".join(errors)}')
-                return redirect('accounts:register')
-
-        else:
-            messages.error(request, 'Извините, мы заметили подозрительную активность, попробуйте еще раз.')
-            return redirect('accounts:login')
-
-    else:
-        form = RegistrationForm()
-    
-    context = {'form': form, "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY}
-    return render(request, 'accounts/register.html', context)
-
-@check_token
-@csrf_protect
-def verify_code_registration_view(request):
-    email = request.session.get('registration_email')
-    password_hash = request.session.get('password_hash')
-    if not email:
-        return redirect('accounts:register')
-    
-    # Проверяем, истекло ли время действия кода
-    verification_code_expiration = datetime.datetime.strptime(request.session.get('verification_code_expiration'), '%Y-%m-%d %H:%M:%S.%f%z')
-    if timezone.now() > verification_code_expiration:
-        del request.session['verification_code']
-        del request.session['verification_code_expiration']
-        del request.session['registration_email']
-        del request.session['password_hash']
-        messages.error(request, 'Время проверочного кода истекло. Попробуйте зарегистрироваться позже.')
-        return redirect('accounts:register')
-    
-    if request.method == 'POST':
-        form = VerificationCodeForm(request.POST)
-        if form.is_valid():
-            code = form.cleaned_data['code']
-            stored_code = request.session.get('verification_code')
-
-            # Проверяем, сколько попыток ввода кода уже было
-            verification_attempts = request.session.get('verification_attempts', 0)
-            if verification_attempts >= 5:
-                del request.session['verification_code']
-                del request.session['verification_code_expiration']
-                del request.session['registration_email']
-                del request.session['password_hash']
-                messages.error(request, 'Слишком много попыток. Попробуйте зарегистрироваться позже.')
-                return redirect('accounts:register')
-
-            if code == stored_code:
-                # Успешная регистрация
+            elif action == 'registration':
+                email = request.session.get('registration_email')
+                password_hash = request.session.get('password_hash')
 
                 user = User.objects.create_user(email=email, password='')
                 user.set_unusable_password()
@@ -220,178 +107,153 @@ def verify_code_registration_view(request):
                 cart.save()
 
                 order_id = request.session.get('order_id')
-
                 if order_id:
                     order = Order.objects.get(order_id=order_id)
                     order.user = user
                     order.save()
-
                     del request.session['order_id']
-                
-                del request.session['verification_code']
-                del request.session['verification_code_expiration']
-                del request.session['registration_email']
-                del request.session['password_hash']
 
+                clear_verification_session_data(request)
                 login(request, user)
-
                 messages.success(request, 'Регистрация успешно завершена. Выполняется вход...')
-
                 return redirect('accounts:profile')
-            else:
-                # Неверный код, увеличиваем счетчик попыток
-                request.session['verification_attempts'] = verification_attempts + 1
-                messages.error(request, 'Неправильный проверочный код. Осталось попыток: {}'.format(5 - verification_attempts))
-                return redirect('accounts:verify_code_registration')
-    else:
-        form = VerificationCodeForm()
-    
-    context = {'form': form}
-    return render(request, 'accounts/verify_code_registration.html', context)
 
+            elif action == 'recovery':
+                clear_verification_session_data(request)
+                messages.success(request, 'Осталось только ввести новый пароль...')
+                return redirect('accounts:recovery_input_password')
+        else:
+            request.session['verification_attempts'] = verification_attempts + 1
+            attempts_left = 5 - verification_attempts
+            messages.error(request, f'Неправильный проверочный код. Осталось попыток: {attempts_left}')
+
+    action = request.session.get('action')
+    return render(request, 'accounts/verify_code.html', {'action': action})
+
+@csrf_protect
+def register_view(request):
+    if request.method == 'POST':
+        recaptcha_response = request.POST.get('g-recaptcha-response')
+
+        if not verify_recaptcha(recaptcha_response):
+            messages.error(request, 'Извините, мы заметили подозрительную активность, попробуйте еще раз.')
+            return redirect('accounts:register')
+
+        form = RegistrationForm(request.POST)
+
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            password = form.cleaned_data['password1']
+
+            registration_attempts = request.session.get('registration_attempts', 0)
+            if registration_attempts >= 5:
+                clear_registration_session_data(request)
+                messages.error(request, 'Слишком много попыток. Попробуйте позже.')
+                return redirect('accounts:register')
+
+            verification_code = generate_verification_code()
+            send_verification_code(email, verification_code)
+
+            request.session['verification_code'] = verification_code
+            request.session['verification_code_expiration'] = str(timezone.now() + timezone.timedelta(minutes=5))
+            request.session['registration_email'] = email
+            request.session['password_hash'] = make_password(password)
+            request.session['action'] = 'registration'
+
+            generate_token(request, 'register')
+
+            return redirect('accounts:verify_code')
+        else:
+            for field, errors in form.errors.items():
+                messages.error(request, f'{field}: {", ".join(errors)}')
+    else:
+        form = RegistrationForm()
+
+    context = {'form': form, "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY}
+    return render(request, 'accounts/register.html', context)
 
 @csrf_protect
 def recovery_view(request):
     if request.method == 'POST':
-
         recaptcha_response = request.POST.get('g-recaptcha-response')
 
-        if verify_recaptcha(recaptcha_response):
-
-            form = RecoveryForm(request.POST)
-
-            if form.is_valid():
-                email = form.cleaned_data['email']
-                
-                # Проверяем, есть ли уже ограничение на восстановление пароля
-                if request.session.get('registration_attempts', 0) >= 5:
-                    messages.error(request, 'Слишком много попыток. Попробуйте позже.')
-                    return redirect('accounts:register')
-
-                verification_code = generate_verification_code()
-                send_verification_code(email, verification_code)
-
-                request.session['verification_code'] = verification_code
-                request.session['verification_code_expiration'] = str(timezone.now() + timedelta(minutes=5))
-                request.session['recovery_email'] = email
-
-                generate_token(request, 'recovery')
-
-                return redirect('accounts:verify_code_recovery')
-
-            else:
-                for field, errors in form.errors.items():
-                    messages.error(request, f'{field}: {", ".join(errors)}')
-                return redirect('accounts:recovery')
-
-        else:
+        if not verify_recaptcha(recaptcha_response):
             messages.error(request, 'Извините, мы заметили подозрительную активность, попробуйте еще раз.')
-            return redirect('accounts:login')
+            return redirect('accounts:recovery')
 
-    else:
-        form = RecoveryForm()
-    
-    context = {'form': form, "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY}
-    return render(request, 'accounts/recovery.html', context)
+        form = RecoveryForm(request.POST)
 
-
-@check_token
-@csrf_protect
-def verify_code_recovery_view(request):
-    email = request.session.get('recovery_email')
-
-    if not email:
-        return redirect('accounts:recovery')
-    
-    # Проверяем, истекло ли время действия кода
-    verification_code_expiration = datetime.datetime.strptime(request.session.get('verification_code_expiration'), '%Y-%m-%d %H:%M:%S.%f%z')
-    if timezone.now() > verification_code_expiration:
-        del request.session['verification_code']
-        del request.session['verification_code_expiration']
-        del request.session['recovery_email']
-
-        messages.error(request, 'Время проверочного кода истекло. Попробуйте еще раз.')
-        return redirect('accounts:recovery')
-    
-    if request.method == 'POST':
-        form = VerificationCodeForm(request.POST)
         if form.is_valid():
-            code = form.cleaned_data['code']
-            stored_code = request.session.get('verification_code')
+            email = form.cleaned_data['email']
 
-            verification_attempts = request.session.get('verification_attempts', 0)
-
-            if verification_attempts >= 5:
-                del request.session['verification_code']
-                del request.session['verification_code_expiration']
-                del request.session['recovery_email']
+            recovery_attempts = request.session.get('recovery_attempts', 0)
+            if recovery_attempts >= 5:
+                clear_recovery_session_data(request)
                 messages.error(request, 'Слишком много попыток. Попробуйте позже.')
                 return redirect('accounts:recovery')
 
-            if code == stored_code:
+            verification_code = generate_verification_code()
+            send_verification_code(email, verification_code)
 
-                del request.session['verification_code']
-                del request.session['verification_code_expiration']
+            request.session['verification_code'] = verification_code
+            request.session['verification_code_expiration'] = str(timezone.now() + timezone.timedelta(minutes=5))
+            request.session['recovery_email'] = email
+            request.session['action'] = 'recovery'
 
-                messages.success(request, 'Осталось только ввести новый пароль...')
+            generate_token(request, 'recovery')
 
-                return redirect('accounts:recovery_input_password')
-            else:
-                # Неверный код, увеличиваем счетчик попыток
-                request.session['verification_attempts'] = verification_attempts + 1
-                messages.error(request, 'Неправильный проверочный код. Осталось попыток: {}'.format(5 - verification_attempts))
-                return redirect('accounts:verify_code_recovery')
+            return redirect('accounts:verify_code')
+        else:
+            for field, errors in form.errors.items():
+                messages.error(request, f'{field}: {", ".join(errors)}')
     else:
-        form = VerificationCodeForm()
-    
-    context = {'form': form}
-    return render(request, 'accounts/verify_code_recovery.html', context)
+        form = RecoveryForm()
+
+    context = {'form': form, "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY}
+    return render(request, 'accounts/recovery.html', context)
 
 @check_token
 @csrf_protect
 def recovery_input_password_view(request):
     if request.method == 'POST':
-
         form = RecoveryInputPasswordForm(request.POST)
 
         if form.is_valid():
             password = form.cleaned_data['password1']
             email = request.session.get('recovery_email')
-            
-            # Проверяем, есть ли уже ограничение на восстановление пароля
-            if request.session.get('registration_attempts', 0) >= 5:
+
+            recovery_attempts = request.session.get('recovery_attempts', 0)
+            if recovery_attempts >= 5:
+                clear_recovery_session_data(request)
                 messages.error(request, 'Слишком много попыток. Попробуйте позже.')
-                return redirect('accounts:recovery')
+                return redirect('accounts:recovery_input_password')
 
             user = User.get_user_by_email(email=email)
 
-            if user is not None:
-
+            if user:
                 user.set_password(password)
-                user = authenticate(request, email=email, password=password)
-                login(request, user)
+                user.save()
+                authenticated_user = authenticate(request, email=email, password=password)
 
+                if authenticated_user:
+                    login(request, authenticated_user)
+                    clear_recovery_session_data(request)
+                    return redirect('accounts:profile')
+                else:
+                    messages.error(request, 'Произошла ошибка, попробуйте еще раз.')
             else:
-
                 messages.error(request, 'Произошла ошибка, попробуйте еще раз.')
-                return redirect('accounts:recovery')
 
-            del request.session['recovery_email']
-
-            return redirect('accounts:profile')
-
+            clear_recovery_session_data(request)
+            return redirect('accounts:recovery_input_password')
         else:
             messages.error(request, 'Пароли не совпадают.')
 
-            return redirect('accounts:recovery_input_password')
-
     else:
         form = RecoveryInputPasswordForm()
-    
+
     context = {'form': form}
     return render(request, 'accounts/recovery_input_password.html', context)
-
-
 
 @login_required
 def profile_view(request):
@@ -412,3 +274,36 @@ def check_email_availability(request):
             'is_taken': User.objects.filter(email=email).exists()
         }
         return JsonResponse(data)
+
+
+def clear_verification_session_data(request):
+    if 'verification_code' in request.session:
+        del request.session['verification_code']
+    if 'verification_code_expiration' in request.session:
+        del request.session['verification_code_expiration']
+    if 'user_id' in request.session:
+        del request.session['user_id']
+    if 'action' in request.session:
+        del request.session['action']
+
+def clear_registration_session_data(request):
+    if 'verification_code' in request.session:
+        del request.session['verification_code']
+    if 'verification_code_expiration' in request.session:
+        del request.session['verification_code_expiration']
+    if 'registration_email' in request.session:
+        del request.session['registration_email']
+    if 'password_hash' in request.session:
+        del request.session['password_hash']
+    if 'action' in request.session:
+        del request.session['action']
+
+def clear_recovery_session_data(request):
+    if 'verification_code' in request.session:
+        del request.session['verification_code']
+    if 'verification_code_expiration' in request.session:
+        del request.session['verification_code_expiration']
+    if 'recovery_email' in request.session:
+        del request.session['recovery_email']
+    if 'action' in request.session:
+        del request.session['action']

@@ -63,20 +63,42 @@
           </div>
 
           {% for order in orders|dictsortreversed:"date_ordered" %}
-              {% if order.status != 'Завершен' and order.status != 'Отменен' %}
+              {% if order.status != 'canceled' and order.status != 'completed' %}
 
-              <div class="p-3 shadow-sm mt-3" id='{{ order.order_id}}' style="border-radius: 15px; background-color: white;">
-                <h4 class="m-2"><strong>Номер заказа:</strong> {{order.order_id}}</h4>
-                <p class="m-2"><strong>Статус:</strong> {{order.status}}</p>
-                <p class="m-2"><strong>Дата заказа:</strong> {{ order.date_ordered|date:"d.n.Y, H:i" }}</p>
-                    {% for item in order.items.all %}
-                      <p class="m-2"><strong></strong>{{ item.product.name }} - {{ item.quantity }} шт. - {{ item.product.price|floatformat:0}}₽</p>
-                    {% endfor %}
-                <p class="m-2 mt-3"><strong>Количество товаров:</strong> {{ order.get_total_count }}</p>
-                {% if order.status == 'Создан' %}
-                <button class="cancel_order btn btn-outline-danger float-end" data-order-id="{{ order.order_id }}" id="buttom-{{ order.order_id }}">Отменить</button>
-                {% endif %}
-                <p class="m-2"><strong>Итоговая цена заказа:</strong> {{ order.get_total_price|floatformat:0}}₽</p>
+                <div class="p-3 shadow-sm mt-3" id='{{ order.order_id}}' style="border-radius: 15px; background-color: white;">
+                  <h4 class="m-2">Заказ № {{order.order_id}} - {{ order.get_status_display }}</h4>
+                  <p class="m-2"><span class="text-secondary">Дата оформления:</span> {{ order.date_ordered|date:"d.n.Y, H:i" }}</p>
+
+                  {% if order.receiving_method == 'pickup' %}
+                    <p class="mt-4 m-2"><span class="text-secondary">Метод получения:</span> Самовывоз</p>
+                    <p class="m-2"><span class="text-secondary">Пункт самовывоза:</span> Метро {{ order.get_pickup_location_display }}</p>
+                  {% else %}
+                    <p class="mt-4 m-2"><span class="text-secondary">Метод получения:</span> Доставка</p>
+                    <p class="m-2"><span class="text-secondary">Адрес:</span> {{ order.delivery_address }}</p>
+                    <p class="m-2"><span class="text-secondary">Способ доставки:</span> {{ order.get_delivery_method_display }}</p>
+                  {% endif %}
+
+                  <h5 class="mt-4 m-2">Товары: </h5>
+
+                  {% for item in order.items.all %}
+                    <p class="m-3">{{ item.product.name }} - {{ item.quantity }} шт. - {{ item.product.price|floatformat:0}}₽</p>
+                  {% endfor %}
+
+
+                  <p class="m-2 mt-4"><span class="text-secondary">Количество товаров:</span> {{ order.get_total_count }}</p> 
+                  <p class="m-2"><span class="text-secondary">Итоговая цена заказа:</span> {{ order.get_total_price|floatformat:0}}₽</p>
+
+                  <div class="justify-content-end d-flex">
+                    {% if order.status != 'canceled' and order.status != 'completed' %}
+                      <a href="https://t.me/light_bikeshop" class="btn btn-outline-primary me-2" style="font-family: 'Comfortaa', cursive;">Помощь
+                      </a>
+                    {% endif %}
+                    
+                    {% if order.status == 'created' %}
+                      <button class="cancel_order btn btn-outline-danger " data-order-id="{{ order.order_id }}" id="buttom-{{ order.order_id }}">  Отменить
+                      </button>
+                    {% endif %}
+                  </div>
                 </div>
 
               {% endif %}
@@ -89,22 +111,35 @@
           </div>
           <div id='dropdown-container' style='display: none;'>
               {% for order in orders|dictsortreversed:"date_ordered" %}
-                {% if order.status == 'Отменен' or order.status == 'Завершен'%}
-                  
-                  <div class="p-3 shadow-sm mt-3" style="border-radius: 15px; background-color: white;">
-                    <h4 class="m-2"><strong>Номер заказа:</strong> {{order.order_id}}</h4>
-                    <p class="m-2"><strong>Статус:</strong> {{order.status}}</p>
-                    <p class="m-2"><strong>Дата заказа:</strong> {{ order.date_ordered|date:"d.n.Y, H:i" }}</p>
-                        {% for item in order.items.all %}
-                          <p class="m-2"><strong></strong>{{ item.product.name }} - {{ item.quantity }} шт. - {{ item.product.price|floatformat:0}}₽</p>
-                        {% endfor %}
-                    <p class="m-2 mt-3"><strong>Количество товаров:</strong> {{ order.get_total_count }}</p>
-                    <p class="m-2"><strong>Итоговая цена заказа:</strong> {{ order.get_total_price|floatformat:0}}₽</p>
-                  </div>
+                {% if order.status == 'canceled' or order.status == 'completed' %}
+
+                  <div class="p-3 shadow-sm mt-3" id='{{ order.order_id}}' style="border-radius: 15px; background-color: white;">
+                    <h4 class="m-2">Заказ № {{order.order_id}} - {{ order.get_status_display }}</h4>
+                    <p class="m-2"><span class="text-secondary">Дата оформления:</span> {{ order.date_ordered|date:"d.n.Y, H:i" }}</p>
+
+                    {% if order.receiving_method == 'pickup' %}
+                      <p class="mt-4 m-2"><span class="text-secondary">Метод получения:</span> Самовывоз</p>
+                      <p class="m-2"><span class="text-secondary">Пункт самовывоза:</span> Метро {{ order.get_pickup_location_display }}</p>
+                    {% else %}
+                      <p class="mt-4 m-2"><span class="text-secondary">Метод получения:</span> Доставка</p>
+                      <p class="m-2"><span class="text-secondary">Адрес:</span> {{ order.delivery_address }}</p>
+                      <p class="m-2"><span class="text-secondary">Способ доставки:</span> {{ order.get_delivery_method_display }}</p>
+                    {% endif %}
+
+                    <h5 class="mt-4 m-2">Товары: </h5>
+
+                    {% for item in order.items.all %}
+                      <p class="m-3">{{ item.product.name }} - {{ item.quantity }} шт. - {{ item.product.price|floatformat:0}}₽</p>
+                    {% endfor %}
+
+
+                    <p class="m-2 mt-4"><span class="text-secondary">Количество товаров:</span> {{ order.get_total_count }}</p>
+
+                    <p class="m-2"><span class="text-secondary">Итоговая цена заказа:</span> {{ order.get_total_price|floatformat:0}}₽</p>
+                    </div>
 
                 {% endif %}
-
-            {% endfor %}
+              {% endfor %}
             </div>
         </div>
     </div>

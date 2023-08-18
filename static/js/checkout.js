@@ -1,63 +1,73 @@
-function toggleFields(deliveryMethod) {
-        var pickupButton = document.getElementById('pickupButton');
-        var deliveryButton = document.getElementById('deliveryButton');
-        var deliveryFields = document.getElementById('deliveryFields');
-        var deliveryMethodInput = document.getElementById('deliveryMethodInput');
-        
-        if (deliveryMethod === 'pickup') {
-            pickupButton.classList.add('active');
-            deliveryButton.classList.remove('active');
-            deliveryFields.style.display = 'none';
-            deliveryMethodInput.value = 'pickup';
-        } else if (deliveryMethod === 'delivery') {
-            pickupButton.classList.remove('active');
-            deliveryButton.classList.add('active');
-            deliveryFields.style.display = 'block';
-            deliveryMethodInput.value = 'delivery';
-        }
-    }
-
-
 window.addEventListener('DOMContentLoaded', function() {
-  const nameInput = document.getElementById("name");
-  const middleNameInput = document.getElementById("middle_name");
-  const numberInput = document.getElementById("number");
-  const addressInput = document.getElementById("address");
-  const cityInput = document.getElementById("city");
-  const zip_codeInput = document.getElementById("zip_code");
-  const delivery_valueInput = document.getElementById("delivery_value");
-  const deliveryMethodInput = document.getElementById('deliveryMethodInput');
-  const checkoutButton = document.getElementById("checkout-button");
+  const userNameInput = document.getElementById("user_name");
+  const contactPhoneInput = document.getElementById("contact_phone");
+  const deliveryAddressInput = document.getElementById("delivery_address");
+  const pickupLocationInput = document.getElementById('pickup_location');
+  const deliveryMethodInput = document.getElementById('delivery_method');
+
   const pickupButton = document.getElementById('pickupButton');
   const deliveryButton = document.getElementById('deliveryButton');
+  const checkoutButton = document.getElementById("checkout-button");
 
-  function enableCheckoutButton() {
-    let isFormValid = nameInput.value.trim() !== "" &&
-                      middleNameInput.value.trim() !== "" &&
-                      numberInput.value.trim() !== "";
-
-    if (deliveryMethodInput.value === 'pickup') {
-      // No additional checks needed for pickup
-    } else if (deliveryMethodInput.value === 'delivery') {
-      isFormValid = isFormValid &&
-                    addressInput.value.trim() !== "" &&
-                    cityInput.value.trim() !== "" &&
-                    zip_codeInput.value.trim() !== "" &&
-                    delivery_valueInput.value.trim() !== "";
+  function toggleCheckoutButton() {
+    console.log(1)
+    if (
+      (pickupButton.classList.contains('active') && userNameInput.value !== '' && contactPhoneInput.value !== '' && pickupLocationInput.value !== '') ||
+      (deliveryButton.classList.contains('active') && userNameInput.value !== '' && contactPhoneInput.value !== '' && deliveryAddressInput.value !== '' && deliveryMethodInput.value !== '')
+    ) {
+      checkoutButton.disabled = false;
+    } else {
+      checkoutButton.disabled = true;
     }
-
-    checkoutButton.disabled = !isFormValid;
   }
 
-  enableCheckoutButton();
+  function toggleFields(receivingMethod) {
+    if (receivingMethod === 'pickup') {
+      pickupButton.classList.add('active');
+      deliveryButton.classList.remove('active');
+      document.getElementById('pickupFields').style.display = 'block';
+      document.getElementById('deliveryFields').style.display = 'none';
+      pickupLocationInput.hidden = false;
+      deliveryAddressInput.hidden = true;
+      deliveryMethodInput.hidden = true;
+      pickupLocationInput.disabled = false;
+      deliveryAddressInput.disabled = true;
+      deliveryMethodInput.disabled = true;
 
-  pickupButton.addEventListener("click", enableCheckoutButton);
-  deliveryButton.addEventListener("click", enableCheckoutButton);
-  nameInput.addEventListener("input", enableCheckoutButton);
-  middleNameInput.addEventListener("input", enableCheckoutButton);
-  numberInput.addEventListener("input", enableCheckoutButton);
-  addressInput.addEventListener("input", enableCheckoutButton);
-  cityInput.addEventListener("input", enableCheckoutButton);
-  zip_codeInput.addEventListener("input", enableCheckoutButton);
-  delivery_valueInput.addEventListener("input", enableCheckoutButton);
+    } else if (receivingMethod === 'delivery') {
+      deliveryButton.classList.add('active');
+      pickupButton.classList.remove('active');
+      document.getElementById('pickupFields').style.display = 'none';
+      document.getElementById('deliveryFields').style.display = 'block';
+      pickupLocationInput.hidden = true;
+      deliveryAddressInput.hidden = false;
+      deliveryMethodInput.hidden = false;
+      pickupLocationInput.disabled = true;
+      deliveryAddressInput.disabled = false;
+      deliveryMethodInput.disabled = false;
+
+
+
+    }
+    toggleCheckoutButton();
+  }
+
+  userNameInput.addEventListener('input', toggleCheckoutButton);
+  contactPhoneInput.addEventListener('input', toggleCheckoutButton);
+  deliveryAddressInput.addEventListener('input', toggleCheckoutButton);
+  pickupLocationInput.addEventListener('change', toggleCheckoutButton);
+  deliveryMethodInput.addEventListener('change', toggleCheckoutButton);
+
+  pickupButton.addEventListener('click', function () {
+    toggleFields('pickup');
+    receivingMethodInput.value = 'pickup';
+  });
+
+  deliveryButton.addEventListener('click', function () {
+    toggleFields('delivery');
+    receivingMethodInput.value = 'delivery';
+  });
+
+  // Инициализация состояния кнопки при загрузке страницы
+  toggleCheckoutButton();
 });

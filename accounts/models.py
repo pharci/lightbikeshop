@@ -115,31 +115,42 @@ class User(AbstractBaseUser):
 class Order(models.Model):
 
     STATUS_CHOICES = (
-        ('Создан', 'Создан'),
-        ('В обработке', 'В обработке'),
-        ('В доставке', 'В доставке'),
-        ('Готов к выдаче', 'Готов к выдаче'),
-        ('Отменен', 'Отменен'),
-        ('Завершен', 'Завершен'),
+        ('created', 'Создан'),
+        ('processing', 'В обработке'),
+        ('goes_to_point', 'Едет в пункт выдачи'),
+        ('shipped', 'Отправлен'),
+        ('ready_for_shipping', 'Готов к выдаче'),
+        ('canceled', 'Отменен'),
+        ('completed', 'Завершен'),
     )
 
     DELIVERY_CHOICES = (
-        ('Почта России', 'Почта России'),
-        ('Сдек', 'Сдек'),
-        ('Boxberry', 'Boxberry')
+        ('russian_post', 'Почта России'),
+        ('sdek', 'Сдек'),
+        ('boxberry', 'Boxberry'),
+    )
+
+    PICKUP_CHOICES = (
+        ('alekseevskaya', 'Алексеевская'),
+        ('colntsevo', 'Солнцево')
+    )
+
+    RECEIVING_CHOICES = (
+        ('delivery', 'Доставка'),
+        ('pickup', 'Самовывоз')
     )
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    status = models.CharField('Статус', max_length=200, choices=STATUS_CHOICES, default='Создан')
-    order_id = models.PositiveIntegerField()
-    first_name = models.CharField('Имя', max_length=200, null=False)
-    middle_name = models.CharField('Фамилия', max_length=200, null=False)
-    last_name = models.CharField('Отчество', max_length=200, null=False, blank=True)
-    address = models.CharField('Адрес', max_length=200, null=True, blank=True)
-    city = models.CharField('Город', max_length=200, null=True, blank=True)
-    phone_number = models.CharField('Телефон', max_length=200, null=False)
-    zip_code = models.CharField('Индекс', max_length=200, null=True, blank=True)
-    delivery_value = models.CharField('Способ доставки', max_length=200, null=True, blank=True, choices=DELIVERY_CHOICES)
+    order_id = models.PositiveIntegerField('Номер заказа', unique=True)
+    status = models.CharField('Статус', max_length=200, choices=STATUS_CHOICES, default='created')
+    user_name = models.CharField('ФИО', max_length=200, null=False)
+    contact_phone = models.CharField('Телефон', max_length=20)
+    order_notes = models.TextField('Комментарий к заказу', null=True, blank=True)
+    receiving_method = models.CharField('Метод получения', max_length=200, null=True, blank=True, choices=RECEIVING_CHOICES)
+    delivery_method = models.CharField('Способ доставки', max_length=200, null=True, blank=True, choices=DELIVERY_CHOICES)
+    delivery_address = models.TextField('Адрес доставки', null=True, blank=True)
+    pickup_location = models.CharField('Пункт самовывоза', max_length=100, null=True, blank=True, choices=PICKUP_CHOICES)
+    tracking_code = models.CharField('Код для отслеживания', max_length=50, null=True, blank=True)
     date_ordered = models.DateTimeField('Дата создания', auto_now_add=True)
     # Другие поля вашей модели Order
 
@@ -154,10 +165,12 @@ class Order(models.Model):
         total = sum([item.quantity for item in orderitems])
         return total 
 
+    def __str__(self):
+        return f"Заказ {self.order_id}"
+
     class Meta:
         verbose_name = 'Заказ'
         verbose_name_plural = 'Заказы'
-
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')

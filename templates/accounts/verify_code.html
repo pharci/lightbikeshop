@@ -5,7 +5,9 @@
 
 <div class="pt-3 mb-3 d-flex justify-content-center"> 
   <div class="d-inline-flex px-3 py-2">
-    <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">Восстановление</h3>
+    <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">
+    {% if action == 'login' %}Вход{% elif action == 'registration' %}Регистрация{% else %}Восстановление{% endif %}
+    </h3>
   </div>
 </div>
 <div class="container">
@@ -14,12 +16,12 @@
 
             <div class="card-body">
                 
-                <form method="POST" action="{% url 'accounts:verify_code_recovery' %}" id="code-form">
+                <form method="POST" action="{% url 'accounts:verify_code' %}" id="code-form">
                   {% csrf_token %}
                   <p class="text-center">Мы отправили код на вашу почту.</p>
                   <div class="d-flex">
                     <input type="text" name="code" placeholder="Код" id="id_code" class="form-control me-3">
-                    <button type="submit" class="btn btn-outline-dark" id="button">Submit</button>
+                    <button type="submit" class="btn btn-outline-dark" id="button">Продолжить</button>
                   </div>
                   <small id="code-validity-error" class="text-danger" style="display: none;">Введите 6 цифр которые мы отправили на почту.</small>
                   {% if messages %}
