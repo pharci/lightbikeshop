@@ -20,9 +20,9 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 AUTH_USER_MODEL = 'accounts.User'
 
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['lightbikeshop.ru', 'www.lightbikeshop.ru', 'localhost']
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -113,8 +113,10 @@ USE_L10N = True
 
 USE_TZ = True
 
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
-#STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static/'),)
+STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 STATIC_URL = '/static/'
 
 MEDIA_URL = '/images/'

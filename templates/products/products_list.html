@@ -10,47 +10,59 @@
 <div class="container">
 	<div class="row justify-content-center">
 		{% for product in products %}
-
-      <div class="col-lg-2 col-5 p-2 h-auto product-card hover-shadow" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
-        <div class="h-100">
-          {% if product.new %}
-          <div class="d-flex">
-            <span class="product-badges" title="NEW">NEW</span>
-          </div>
-          {% endif %}
-          <img class="thumbnail"  src="{{ product.image.url }}">
-
-          <div>
-            <div class="box-element product flex-column d-flex">
-              <div class="">
-                <div class="mb-1">
-                  <div class="text-start">
-                    {% if product.available_andrey or product.available_damir %}
-                    <span class="d-flex" style="color: black;">
-                      <i class="dot_in_product_card" style="background-color: green;"></i>
-                      В наличии 
-                    </span>
-                    {% else %}
-                      <span class="d-flex" style="color: black;">
-                        <i class="dot_in_product_card" style="background-color: red;"></i>
-                        Под заказ
-                      </span>
-                    {% endif %}
+      <div class="col-lg-2 col-5 p-2 d-flex flex-column product-card hover-shadow" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
+        {% if product.new %}
+        <div class="d-flex">
+          <span class="product-badges" title="NEW">NEW</span>
+        </div>
+        {% endif %}
+        
+        <div>
+            <div class="swiper product-image-swiper">
+              <div class="swiper-wrapper">
+                {% for image in product.images.all %}
+                  <div class="swiper-slide product-image-slide">
+                    <div class="product-image">
+                      <img src="{{ image.image.url }}">
+                    </div>
                   </div>
-                </div>
-                <p class="text-start" style="color: rgba(0, 0, 0, 1); font-size: 18px;">{{product.name}}</p>
+                {% endfor %}
               </div>
-
-              <div class="mt-auto">
-                <h5 class="text-start" style="color: rgba(0, 0, 0, 1); ">{{ product.price|floatformat:"0" }}₽</h5>
-              </div>
+              <div class="swiper-pagination product-image-pagination"></div>
             </div>
+
+
+
+          <div class="box-element product px-1 mt-2">
+            <div class="d-flex">
+              <h5 class="text-start me-2" style="color: rgba(0, 0, 0, 1); ">
+              {{ product.price|floatformat:"0" }} ₽
+              </h5>
+              {% if product.available_andrey or product.available_damir %}
+              <span class="d-flex" style="color: black;">
+                <i class="dot_in_product_card" style="background-color: green;"></i>
+                В наличии 
+              </span>
+              {% else %}
+                <span class="d-flex" style="color: black;">
+                  <i class="dot_in_product_card" style="background-color: red;"></i>
+                  Под заказ
+                </span>
+              {% endif %}
+            </div>
+            <p class="card-title product-card-title" style="color: rgba(0, 0, 0, 1); font-size: 18px;">
+              {{product.name}}
+            </p>
           </div>
         </div>
+        <div class='mt-auto p-1 pt-2'>
+            <button id="add-to-cart-btn" data-product-id="{{ product.id }}" class="btn btn-outline-success shadow-none"> Купить </button>
+          </div>
       </div>
-      {% endfor %}
+    {% endfor %}
 	</div>
 </div>
+<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 <script>
 	document.addEventListener('DOMContentLoaded', function () {
         const productCards = document.querySelectorAll('.product-card');
@@ -63,5 +75,35 @@
             });
         });
     });
+
+
+var productImageSwiper = new Swiper(".product-image-swiper", {
+  slidesPerView: 1,
+  centeredSlides: false,
+  spaceBetween: 0,
+  loop: false,
+  effect: "slide",
+  pagination: {
+    el: '.product-image-pagination',
+    clickable: true,
+    renderBullet: function (index, className) {
+        return '<div class="' + className + '"><span class="product-slider-pagination-bullet"></span></div>';
+      },
+  },
+});
+
+var swipers = document.querySelectorAll('.swiper');
+
+swipers.forEach(function (swiper, swiperindex) {
+  var paginationBullets = swiper.querySelectorAll('.swiper-pagination-bullet');
+
+  if (window.innerWidth > 768) {
+    paginationBullets.forEach(function (bullet, index) {
+      bullet.addEventListener('mouseenter', function () {
+        productImageSwiper[swiperindex].slideTo(index);
+      });
+    });
+  }
+});
 </script>
 {% endblock content %}

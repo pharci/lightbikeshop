@@ -5,9 +5,25 @@
 <div class="container">
 	<div class="mt-4" id='product' data-product-id="{{product.id}}">
 			<div class=" row justify-content-center">
-				<div class="col-lg-5 pt-5 px-3"> 
-					<img class="thumbnail hover-shadow" style="border-radius: 15px;" src="{{product.imageURL}}">
-				</div>
+
+				<div class="col-lg-5 pt-5 px-3 product-datail-image-block">
+					<div class="swiper product-detail-image-swiper" style="border-radius: 15px;">
+				    <div class="swiper-wrapper">
+				        {% for image in product.images.all %}
+				            <div class="swiper-slide product-detail-image-slide">
+				                <div class="product-detail-image">
+				                    <img class="thumbnail" style="border-radius: 15px;" src="{{ image.image.url }}">
+				                </div>
+				            </div>
+				        {% endfor %}
+				    </div>
+				    <div class="swiper-button-next"></div>
+				    <div class="swiper-button-prev"></div>
+					</div>
+					<div class="swiper-pagination product-detail-image-pagination pt-3"></div>
+	      </div>
+
+
 				<div class="col-lg-5 pt-5 appearance">
 
 					<div class="mb-4"> 
@@ -59,7 +75,7 @@
 						<div class="hover-shadow p-3 d-inline-flex" style="border-radius: 15px; background-color: white">
 							<h3 class="mb-0" style="color:black">{{ product.price|floatformat:"0" }}₽</h3>
 							<div class="add-to-cart-btn-box d-block">
-								<button id="add-to-cart-btn" data-product-id="{{ product.id }}" class="ms-3 btn btn-outline-dark shadow-none" style="">Добавить в корзину</button>
+								<button id="add-to-cart-btn" data-product-id="{{ product.id }}" class="ms-3 btn btn-outline-dark shadow-none">Добавить в корзину</button>
 							</div>
 						</div>
 					</div>
@@ -74,5 +90,36 @@
 			</div>
 	</div>
 </div>
-	<script type="text/javascript" src="{% static 'js/product_datail.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/product_datail.js' %}"></script>
+<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+<script type="text/javascript">
+
+var jsonData = {{ images|safe }};
+    
+    // Используйте цикл для построения элементов
+var bullets = [];
+for (var i = 0; i < jsonData.length; i++) {
+    var imageUrl = jsonData[i].fields.image;
+    bullets.push(`<div class="swiper-pagination-bullet" tabindex="0" aria-current="true"><img class="product-mini-image" src=/images/${imageUrl}></span></div>`);
+}
+
+var productDetailImageSwiper = new Swiper(".product-detail-image-swiper", {
+        slidesPerView: 1,
+        centeredSlides: false,
+        spaceBetween: 20,
+        loop: false,
+        effect: "slide",
+        navigation: {
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+        },
+        pagination: {
+            el: '.swiper-pagination',
+            clickable: true,
+            renderBullet: function (index, className) { 
+            		return bullets[index];
+            },
+        },
+    });
+</script>
 {% endblock content %}

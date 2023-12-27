@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from .models import * 
 from django.db.models import Q
 from django.http import JsonResponse
+from django.core.serializers import serialize
 
 def product_list(request, category=None, brand=None):
 
@@ -40,8 +41,9 @@ def product_list(request, category=None, brand=None):
 def product_detail(request, category_slug, id, slug):
 
 	product = get_object_or_404(Product, id=id, slug=slug)
+	images = serialize('json', product.images.all())
 
-	context = {'product': product}
+	context = {'product': product, 'images': images}
 
 	return render(request, 'products/product_detail.html', context)
 

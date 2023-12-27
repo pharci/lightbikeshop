@@ -28,6 +28,7 @@ class Brand(models.Model):
 	def get_absolute_url(self):
 		return reverse('products:product_list_by_brand', args=[self.slug])
 
+
 class Product(models.Model):
 	category = models.ForeignKey(Category, null=True, on_delete=models.PROTECT)
 	brand = models.ForeignKey(Brand, null=True, blank=True, on_delete=models.CASCADE)
@@ -38,7 +39,6 @@ class Product(models.Model):
 	count = models.PositiveSmallIntegerField('Количество в наличии', null=True)
 	new = models.BooleanField('Новый?', default=True)
 	rec = models.BooleanField('Рекоммендуемый?', default=False)
-	image = models.ImageField('Картинка', null=True, blank=True, upload_to='products/')
 	description = models.TextField('Описание')
 	created = models.DateTimeField('Дата создания', auto_now_add=True)
 	updated = models.DateTimeField('Дата последнего обновления', auto_now=True)
@@ -52,6 +52,13 @@ class Product(models.Model):
 		verbose_name = 'Товар'
 		verbose_name_plural = 'Товары'
 
+	def get_absolute_url(self):
+		return reverse('products:product_detail', args=[self.category.slug, self.id, self.slug])
+
+class ProductImage(models.Model):
+	product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
+	image = models.ImageField(upload_to='products/', default='images/no-photo.jpg')
+
 	@property
 	def imageURL(self):
 		try:
@@ -59,6 +66,3 @@ class Product(models.Model):
 		except:
 			url = ''
 		return url
-
-	def get_absolute_url(self):
-		return reverse('products:product_detail', args=[self.category.slug, self.id, self.slug])

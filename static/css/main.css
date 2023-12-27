@@ -10,6 +10,27 @@ body {
   background-color: #f4f4f4;
 }
 
+p {
+  margin: 0px;
+}
+
+a {
+  text-decoration: none;
+  color: black;
+  transition: color 0.3s, opacity 0.3s;
+}
+
+.cart-items a:hover {
+  color: black;
+  opacity: 0.7;
+}
+
+.product-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .product-badges {
   color: black;
   font-size: 9px;
@@ -19,6 +40,7 @@ body {
   padding-left: 3px;
   padding-right: 3px;
   position: absolute;
+  z-index: 9999;
 }
 
 .infoswiper {
@@ -129,37 +151,53 @@ body {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 120px;
+      width: 110px;
       height: 25px;
       background-color: white;
-      border: 1px solid grey;
-      border-radius: 10px;
+      outline: 1px solid #b8b9ba;
+      border-radius: 7px;
       color: black;
       font-size: 13px;
       overflow: hidden;
     }
 
 .counter button {
-	padding: 0;
+  display: flex;
+	padding-bottom: 3px;
 	margin-top: 0;
-    width: 25px;
-    height: 25px;
-    background-color: white;
-    color: black;
-    font-size: 18px;
-    cursor: pointer;
-    transition:.1s;
-    border: none;
-    }
+  width: 25px;
+  height: 25px;
+  background-color: white;
+  color: black;
+  font-size: 25px;
+  font-weight: 300;
+  cursor: pointer;
+  transition:.1s;
+  border: none;
+  outline: 1px solid #dddfe0;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
 
+.counter button:focus {
+  outline: 1px solid #dddfe0;
+}
+  
 .counter button:hover{
 	opacity: .6;
+  background-color: #dddfe0;
 }
 
 .counter span {
-      flex-grow: 1;
-      text-align: center;
-    }
+  flex-grow: 1;
+  text-align: center;
+}
+
+
+
+
+
 
 .appearance div {
 	display: none;
@@ -168,8 +206,6 @@ body {
 .thumbnail{
 	width: 100%;
 }
-
-
 
 
 .header {
@@ -351,6 +387,116 @@ body {
   margin-left: 1rem;
 }
 
+
+
+
+/*Слайдер фото в списке товаров*/
+.product-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 15px;
+}
+
+.product-image-swiper .swiper-pagination-bullet{
+    height: 100%;
+    width: 100%;
+    flex-grow: 1;
+    display: flex;
+    background-color: rgba(255, 255, 255, 0);
+    }
+
+.product-image-swiper .product-image-pagination {
+  height: 2%;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  position: absolute;
+}
+
+.product-slider-pagination-bullet {
+  display: flex;
+  height: 2px;
+  width: 100%;
+  background-color: rgb(158, 161, 169);
+  margin-top: auto;
+}
+
+.product-slider-pagination-bullet.active {
+  background-color: rgb(123, 125, 131);
+}
+
+
+
+/*Слайдер фото на странице товара*/
+
+.product-detail-image-pagination {
+  position: relative !important;
+  display: flex;
+}
+
+.product-datail-image-block .swiper-pagination-bullet {
+  opacity: 100%;
+  height: 70%;
+  width: 70%;
+  display: flex;
+  box-sizing: border-box;
+  background-color: rgba(255, 255, 255, 0);
+}
+
+.product-datail-image-block .swiper-pagination-bullets {
+  width: 70% !important;
+}
+
+.product-datail-image-block .product-mini-image {
+  display: flex;
+  width: 100%;
+  border-radius: 15px;
+
+}
+
+.product-datail-image-block .swiper-pagination-bullet-active {
+  outline: 1px solid #000;
+  border-radius: 15px;
+}
+
+
+/*Стрелки влево-вправо на странице товара*/
+.swiper-button-next,
+.swiper-button-prev {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50%;
+  background-color: white;
+  color: black !important;
+  top: 50%;
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, 0.15);
+  background-repeat: no-repeat;
+  background-size: 50% auto;
+  background-position: center;
+}
+
+/* Позиционирование стрелок */
+.swiper-button-next {
+  background-image: url("/static/images/next.png");
+}
+
+.swiper-button-prev {
+  background-image: url("/static/images/prev.png");
+}
+.swiper-button-next::after {
+  display: none;
+}
+
+.swiper-button-prev::after {
+  display: none;
+}
+/**/
+
+
+
+
 @media screen and (min-width: 480px) {
   .categories-blocks {
     margin: 0.6rem;
@@ -426,24 +572,16 @@ body {
   }
 }
 
+@media screen and (min-width: 768px) {
+
+  .product-image-swiper .product-image-pagination {
+    height: 100%;
+  }
+
+}
 
 @media screen and (min-width: 991px) {
 
-  .the-header-logobox {
-    margin-right: 5rem;
-    margin-left: 1rem;
-  }
-
-  .categories-blocks {
-    margin: 1rem;
-  }
-
-  .product-card {
-    margin: 1rem;
-  }
-
-  .brands-catalog {
-    padding-right: 2rem;
-  }
+  
 
 }

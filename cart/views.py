@@ -17,6 +17,8 @@ from .utils import cartData
 from django.core import serializers
 import random
 from accounts.utils import send_telegram_message
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 def create_cart(user):
     try:
@@ -25,7 +27,68 @@ def create_cart(user):
         Cart.objects.create(user=user)
 
 def cart(request):
-    return render(request, "cart/cart.html")
+
+    items, cart = cartData(request)
+
+    for item in items:
+        item.total = item.product.price * item.quantity
+
+    cart.quantity = cart.get_cart_total_count()
+    cart.total = cart.get_cart_total_price()
+
+    context = {'items': items, 'cart': cart}
+
+    return render(request, "cart/cart.html", context)
+
+@require_POST
+def add_to_cart(request, product_id):
+
+    items, cart = cartData(request)
+
+    product = get_object_or_404(Product, pk=product_id)
+
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+
+    item_quantity = cart_item.quantity + 1
+    item_total_price = item_quantity * product.price
+
+    cart_item.quantity += 1
+    cart_item.save()
+
+    response_data = {
+        'cart_total_price': cart.get_cart_total_price(),
+        'cart_total_count': cart.get_cart_total_count(),
+        'item_quantity': item_quantity,
+        'item_total_price': item_total_price,
+    }
+
+    return JsonResponse(response_data)
+
+
+@require_POST
+def remove_from_cart(request, product_id):
+
+    items, cart = cartData(request)
+
+    product = get_object_or_404(Product, pk=product_id)
+
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+
+    item_quantity = cart_item.quantity + 1
+    item_total_price = item_quantity * product.price
+
+    cart_item.quantity -= 1
+    cart_item.save()
+
+    response_data = {
+        'cart_total_price': cart.get_cart_total_price(),
+        'cart_total_count': cart.get_cart_total_count(),
+        'item_quantity': item_quantity,
+        'item_total_price': item_total_price,
+    }
+
+    return JsonResponse(response_data)
+
 
 def order_confirmed(request):
 
@@ -102,81 +165,6 @@ def checkout(request):
 
     context = {'form': form, 'items': items, 'cart': cart}
     return render(request, 'cart/checkout.html', context)
-
-
-def cart_data(request):
-    items, cart = cartData(request)
-    items_list = []
-    for item in items:
-        items_list.append({
-            'product': {
-                'imageURL': item.product.imageURL,
-                'name': item.product.name,
-                'id': item.product.id
-            },
-            'quantity': item.quantity,
-            'stock_count': item.product.count,
-            'product_total_price': cart.get_product_total_price(item.product),
-        })
-
-    cart = {'cart_total_price': cart.get_cart_total_price(), 'cart_total_count': cart.get_cart_total_count()}
-
-    return JsonResponse({'items': items_list, 'cart': cart})
-
-def product_edit(request):
-    product_id = request.GET.get('product_id')
-    action = request.GET.get('action')
-
-    product = Product.objects.get(id=product_id)
-    stock_count = product.count
-
-    if product_id:
-
-        if request.user.is_authenticated:
-                cart = Cart.objects.get(user=request.user)
-
-        else:
-            cart_id = request.session['cart_id']
-            cart = Cart.objects.get(id=cart_id)
-
-        count = cart.get_product_count(product)
-
-        if action == 'add' and count < stock_count:
-            cart.add_product(product)
-
-        elif action == 'remove':
-            cart.remove_product(product)
-
-        count = cart.get_product_count(product)
-        product_total_price = cart.get_product_total_price(product)
-
-        cart_total_price = cart.get_cart_total_price()
-        cart_total_count = cart.get_cart_total_count()
-
-        return JsonResponse({'cart_total_price': cart_total_price, 'cart_total_count': cart_total_count, "count": count, 'stock_count': stock_count, 'product_total_price': product_total_price})
-
-
-    return JsonResponse({'success': False})
-
-def product_check_count(request):
-    product_id = request.GET.get('product_id')
-    product = Product.objects.get(id=product_id)
-
-    if product_id:
-
-        if request.user.is_authenticated:
-            cart = Cart.objects.get(user=request.user)
-
-        else:
-            cart = Cart.objects.get(id=request.session['cart_id'])
-
-
-        count = cart.get_product_count(product)
-
-        return JsonResponse({"count": count, 'stock_count': product.count})
-
-
-    return JsonResponse({'success': False})
 
 def delete_order(request):
     # Получаем объект заказа по его идентификатору
