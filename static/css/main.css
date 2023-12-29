@@ -20,15 +20,6 @@ a {
   transition: color 0.3s, opacity 0.3s;
 }
 
-.cart-items a:hover {
-  color: black;
-  opacity: 0.7;
-}
-
-.error {
-  color: red;
-  font-size: 14px;
-}
 
 /*-------------------------Крестик у товара в корзине------------------*/
 .delete-btn {
@@ -126,6 +117,20 @@ a {
 
 
 
+
+
+
+
+.categories-blocks {
+  margin: 0.5rem;
+}
+
+
+.the-header-logobox {
+  margin-right: 1rem;
+  margin-left: 1rem;
+}
+
 .brands-catalog {
   padding: 0.2rem;
 }
@@ -152,6 +157,11 @@ a {
   cursor: pointer;
 }
 
+
+
+
+
+
 .grecaptcha-badge { visibility: hidden; }
 
 .red-shadow {
@@ -176,18 +186,18 @@ a {
 
 
 .counter {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 110px;
-      height: 25px;
-      background-color: white;
-      outline: 1px solid #b8b9ba;
-      border-radius: 7px;
-      color: black;
-      font-size: 13px;
-      overflow: hidden;
-    }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  height: 25px;
+  background-color: white;
+  outline: 1px solid #b8b9ba;
+  border-radius: 7px;
+  color: black;
+  font-size: 13px;
+  overflow: hidden;
+}
 
 .counter button {
   display: flex;
@@ -302,37 +312,53 @@ a {
 }
 
 
+
+/* -----------------------Коризна------------------------------- */
+
 .cart-mobile-box {
   position: relative;
 }
 
 .cart-count {
-    align-items: center;
-    background-color: #ff102b;
-    border-radius: 10px;
-    display: flex;
-    height: 18px;
-    justify-content: center;
-    position: absolute;
-    right: 1px;
-    top: 4px;
-    transition: opacity .3s;
-    width: 18px;
+  align-items: center;
+  background-color: #ff102b;
+  border-radius: 10px;
+  display: flex;
+  height: 18px;
+  justify-content: center;
+  position: absolute;
+  right: 1px;
+  top: 4px;
+  transition: opacity .3s;
+  width: 18px;
 }
 
 .cart-count-text {
-    color: #fff;
-    font-size: 11px;
-    font-weight: bold;
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
 }
 
 .the-header-menu-cart-box {
   position: relative;
 }
 
+.cart-items a:hover {
+  color: black;
+  opacity: 0.7;
+}
 
-
-
+.cart_counter {
+	vertical-align: middle;
+	text-align: center;
+	background-color: rgba(0, 179, 255, 0.9);
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	font-size: 14px;
+	color: white;
+}
+/* ------------------------------------------------------------------- */
 
 
 .product_name {
@@ -357,16 +383,6 @@ a {
   width: 4px;
 }
 
-.cart_counter {
-	vertical-align: middle;
-	text-align: center;
-	background-color: rgba(0, 179, 255, 0.9);
-	width: 20px;
-	height: 20px;
-	border-radius: 50%;
-	font-size: 14px;
-	color: white;
-}
 
 .page-wrapper {
   padding-bottom: 5%;
@@ -374,7 +390,7 @@ a {
 
 
 
-
+/* ---------------------------Подвал------------------------------ */
 
 .footer {
   margin-top: auto;
@@ -382,43 +398,34 @@ a {
 }
 
 .footer-content {
-    bottom: -10000px;
-    left: -10000px;
-    opacity: 0;
-    overflow: hidden;
-    position: absolute;
-    visibility: hidden;
+  bottom: -10000px;
+  left: -10000px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  visibility: hidden;
   }
 
 .footer-mobile {
-    bottom: 0;
-    position: fixed;
-    width: 100%;
-    background-color: #ffffff;
-    height: 60px;
-    z-index: 9999;
+  bottom: 0;
+  position: fixed;
+  width: 100%;
+  background-color: #ffffff;
+  height: 60px;
+  z-index: 9999;
 }
 
 
 .footer-mobile a:focus {
   background-color: #777f92;
 }
-
-
-.categories-blocks {
-  margin: 0.5rem;
-}
-
-
-.the-header-logobox {
-  margin-right: 1rem;
-  margin-left: 1rem;
-}
+/* --------------------------------------------------------------- */
 
 
 
 
-/*Слайдер фото в списке товаров*/
+
+/*------------------Слайдер фото в списке товаров-----------------*/
 .product-image img {
   display: block;
   width: 100%;
@@ -454,10 +461,14 @@ a {
 .product-slider-pagination-bullet.active {
   background-color: rgb(123, 125, 131);
 }
+/* ------------------------------------------------------------------ */
 
 
 
-/*Слайдер фото на странице товара*/
+
+
+
+/*-------------------------Слайдер фото на странице товара---------------*/
 
 .product-detail-image-pagination {
   position: relative !important;
@@ -488,9 +499,13 @@ a {
   outline: 1px solid #000;
   border-radius: 15px;
 }
+/* ---------------------------------------------------------------------- */
 
 
-/*Стрелки влево-вправо на странице товара*/
+
+
+
+/*-------------------Стрелки влево-вправо на странице товара--------------*/
 .swiper-button-next,
 .swiper-button-prev {
   width: 40px !important;
@@ -504,8 +519,13 @@ a {
   background-size: 50% auto;
   background-position: center;
 }
+/* ---------------------------------------------------------------------- */
 
-/* Позиционирование стрелок */
+
+
+
+
+/* --------------Позиционирование стрелок слайдера на странице товара--------- */
 .swiper-button-next {
   background-image: url("/static/images/next.png");
 }
@@ -520,7 +540,7 @@ a {
 .swiper-button-prev::after {
   display: none;
 }
-/**/
+/*-----------------------------------------------------------------------------*/
 
 
 
