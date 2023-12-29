@@ -54,37 +54,46 @@
       <div class="swiper-slide p-2 shadow-sm h-auto product-card ms-0" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
         <div class="h-100">
           {% if product.new %}
-          <div class="d-flex">
-            <span class="product-badges" title="NEW">NEW</span>
-          </div>
-          {% endif %}
-          <img class="thumbnail"  src="{{ product.image.url }}">
-
-          <div>
-            <div class="box-element product flex-column d-flex">
-              <div class="">
-                <div class="mb-1">
-                  <div class="text-start">
-                    {% if product.available_andrey or product.available_damir %}
-                    <span class="d-flex" style="color: black;">
-                      <i class="dot_in_product_card" style="background-color: green;"></i>
-                      В наличии 
-                    </span>
-                    {% else %}
-                      <span class="d-flex" style="color: black;">
-                        <i class="dot_in_product_card" style="background-color: red;"></i>
-                        Под заказ
-                      </span>
-                    {% endif %}
-                  </div>
-                </div>
-                <p class="text-start" style="color: rgba(0, 0, 0, 1); font-size: 18px;">{{product.name}}</p>
+        <div class="d-flex">
+          <span class="product-badges" title="NEW">NEW</span>
+        </div>
+        {% endif %}
+        
+        <div>
+          {% for image in product.images.all %}
+            {% if forloop.first %}
+              <div class="product-image">
+                <img src="{{ image.image.url }}">
               </div>
+            {% endif %}
+          {% endfor %}
 
-              <div class="mt-auto">
-                <h5 class="text-start" style="color: rgba(0, 0, 0, 1); ">{{ product.price|floatformat:"0" }}₽</h5>
-              </div>
+
+
+          <div class="box-element product px-1 mt-2">
+            <div class="d-flex">
+              <h5 class="text-start me-2" style="color: rgba(0, 0, 0, 1); ">
+              {{ product.price|floatformat:"0" }} ₽
+              </h5>
+              {% if product.available_andrey or product.available_damir %}
+              <span class="d-flex" style="color: black;">
+                <i class="dot_in_product_card" style="background-color: green;"></i>
+                В наличии 
+              </span>
+              {% else %}
+                <span class="d-flex" style="color: black;">
+                  <i class="dot_in_product_card" style="background-color: red;"></i>
+                  Под заказ
+                </span>
+              {% endif %}
             </div>
+            <p class="card-title product-card-title" style="color: rgba(0, 0, 0, 1); font-size: 18px;">
+              {{product.name}}
+            </p>
+          </div>
+        </div>
+        <div class='mt-auto p-1 pt-2'>
+            <button class="add-to-cart-btn btn btn-outline-success shadow-none" data-product-id="{{ product.id }}"> Купить </button>
           </div>
         </div>
       </div>

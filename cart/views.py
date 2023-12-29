@@ -74,7 +74,7 @@ def remove_from_cart(request, product_id):
 
     cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
 
-    item_quantity = cart_item.quantity + 1
+    item_quantity = cart_item.quantity - 1
     item_total_price = item_quantity * product.price
 
     cart_item.quantity -= 1
@@ -89,6 +89,41 @@ def remove_from_cart(request, product_id):
 
     return JsonResponse(response_data)
 
+@require_POST
+def delete_from_cart(request, product_id):
+
+    items, cart = cartData(request)
+
+    product = get_object_or_404(Product, pk=product_id)
+
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+
+    cart_item.delete()
+
+    response_data = {
+        'cart_total_price': cart.get_cart_total_price(),
+        'cart_total_count': cart.get_cart_total_count(),
+        'item_quantity': 0,
+        'item_total_price': 0,
+    }
+
+    return JsonResponse(response_data)
+
+@require_POST
+def check_item_count(request, product_id):
+
+    items, cart = cartData(request)
+
+    product = get_object_or_404(Product, pk=product_id)
+
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+
+    response_data = {
+        'item_quantity': cart_item.quantity,
+        'product_count': product.count,
+    }
+
+    return JsonResponse(response_data)
 
 def order_confirmed(request):
 

@@ -25,6 +25,34 @@ a {
   opacity: 0.7;
 }
 
+.error {
+  color: red;
+  font-size: 14px;
+}
+
+/*-------------------------Крестик у товара в корзине------------------*/
+.delete-btn {
+  display: inline-block;
+}
+
+.delete-btn img {
+  opacity: 70%;
+}
+
+.delete-btn img.rotate {
+  transform: rotate(45deg);
+  transition: transform 0.3s ease-in-out;
+}
+
+.delete-btn img.rotate-reverse {
+  transform: rotate(0deg);
+  transition: transform 0.3s ease-in-out;
+}
+/*---------------------------------------------------------------------*/
+
+
+
+
 .product-card-title {
   display: -webkit-box;
   -webkit-line-clamp: 2;

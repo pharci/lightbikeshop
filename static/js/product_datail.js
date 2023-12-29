@@ -2,95 +2,111 @@ $('.appearance div:eq(0)').fadeIn(300, function(){
   $(this).next().fadeIn(300, arguments.callee);
 });
 
-$(document).ready(function() {
-// Обработка кнопки "Добавить в корзину"
-  $(document).on('click', '#remove-from-cart-btn, #add-to-cart-btn', function(event) {
-    
-    var btn = $(event.target);
-    var productId = btn.attr('data-product-id');
 
-    if (btn.is('#add-to-cart-btn')) {
-        var action = 'add';
-    } else if (btn.is('#remove-from-cart-btn')) {
-        var action = 'remove';
+function updateCartData(response, productId) {
+    $('#cart-total-price').text(response.cart_total_price + '₽');
+    $('#cart-total-count').text(response.cart_total_count + ' товаров');
+    $('.cart-count-text').text(response.cart_total_count);
+
+    var productElement = $('#product-' + productId);
+
+    productElement.find('.product-quantity').text(response.item_quantity + ' шт.');
+    productElement.find('.product-total-price').text(response.item_total_price + ' ₽');
+
+}
+
+    // Функция для отправки AJAX-запроса на сервер
+function sendAjaxRequest(url, product_id, successCallback) {
+  $.ajax({
+    url: url + product_id + '/',
+    type: 'POST',
+    dataType: 'json',
+    headers: {
+      "X-CSRFToken": getToken('csrftoken')
+    },
+    success: successCallback,
+    error: function(xhr, status, error) {
+      console.error(error);
     }
-
-    var url = '/product_edit/?product_id=' + productId + '&action=' + action;
-
-    $.ajax({
-      url: url,
-      type: 'GET',
-      success: function(response) {
-        var quantityInCart = response.count;
-        var quantityInStock = response.stock_count;
-
-        $('.cart-count-text').text(response.cart_total_count);
-
-        if (quantityInCart === quantityInStock) {
-            $("#add-to-cart-btn").prop('disabled', true);
-        } else {
-            $("#add-to-cart-btn").prop('disabled', false);
-        }
-
-        if (action === 'add') {
-            if ($("#remove-from-cart-btn").length === 0) {
-                var decreaseButton = $('<button>').attr('id', 'remove-from-cart-btn').attr('data-product-id', productId).text('-').addClass('btn btn-outline-danger shadow-none');
-                $(".add-to-cart-btn-box").append(decreaseButton)
-            }
-
-            if (quantityInCart > 0) {
-                btn.text('В корзине ' + quantityInCart + ' шт.')
-                btn.removeClass('btn-outline-dark')
-                btn.addClass('btn-outline-success')
-        }}
-
-        else if (action === 'remove')
-            if (quantityInCart > 0) {
-                $("#add-to-cart-btn").text('В корзине ' + quantityInCart + ' шт.')
-                $("#add-to-cart-btn").removeClass('btn-outline-dark')
-                $("#add-to-cart-btn").addClass('btn-outline-success')
-            }
-            else if (quantityInCart === 0) {
-                $("#add-to-cart-btn").text('Добавить в корзину')
-                $("#add-to-cart-btn").removeClass('btn-outline-success')
-                $("#add-to-cart-btn").addClass('btn-outline-dark')
-                btn.remove();
-            }
-      }
-    });
   });
+}
 
-});
+// Функция для добавления товара в корзину
+function addToCart(product_id) {
+  sendAjaxRequest('/add_to_cart/', product_id, function(response) {
+    updateCartData(response, product_id);
+  });
+}
+
+// Функция для удаления товара из корзины
+function removeFromCart(product_id) {
+  sendAjaxRequest('/remove_from_cart/', product_id, function(response) {
+    updateCartData(response, product_id);
+  });
+}
+
+function updateButtonStyles(product_id, item_quantity, product_count) {
+  var addButton = $('#product-' + product_id).find('.add-to-cart-btn')
+  var deleteButton = $('#product-' + product_id).find('.remove-from-cart-btn')
+
+  if (item_quantity === 1) {
+    deleteButton.prop('disabled', true);
+    deleteButton.css('background-color', '#dddfe0');
+  } else {
+    deleteButton.prop('disabled', false);
+    deleteButton.css('background-color', '');
+  }
+
+  if (item_quantity === product_count) {
+    addButton.prop('disabled', true);
+    addButton.css('background-color', '#dddfe0');
+  } else {
+    addButton.prop('disabled', false);
+    addButton.css('background-color', '');
+  }
+}
 
 
 $(document).ready(function() {
-    var product_id = $("#product").data("product-id");
-    
-    $.ajax({
-        url: '/product_check_count/',
-        type: 'GET',
-        data: {
-            'product_id': product_id
-        },
-        success: function(response) {
-                var count = response.count;
-                var stock_count = response.stock_count;
+        var productElements = $('.product');
 
-                if (count >= stock_count) {
-                    $("#add-to-cart-btn").prop('disabled', true);
-                }
-                if (count > 0) {
-                    $("#add-to-cart-btn").text('В корзине ' + count + ' шт.')
-                    $("#add-to-cart-btn").removeClass('btn-outline-dark')
-                    $("#add-to-cart-btn").addClass('btn-outline-success')
-                    if ($("#remove-from-cart-btn").length === 0) {
-                        var decreaseButton = $('<button>').attr('id', 'remove-from-cart-btn').attr('data-product-id', product_id).text('-').addClass('btn btn-outline-danger shadow-none');
-                        $(".add-to-cart-btn-box").append(decreaseButton)
-                    }
-                }
-        },
-        error: function(xhr, errmsg, err) {
-            console.log(xhr.status + ": " + xhr.responseText);
-        }
-    });
-});
+        productElements.each(function() {
+          var product_id = $(this).data('product-id');
+
+          sendAjaxRequest('/check_item_count/', product_id, function(response) {
+
+            updateButtonStyles(product_id, response.item_quantity, response.product_count)
+
+          });
+        });
+
+
+        // Обработчик события для кнопки "Добавить в корзину"
+        $('.add-to-cart-btn').click(function() {
+
+          var product_id = $(this).data('product-id');
+
+          sendAjaxRequest('/check_item_count/', product_id, function(response) {
+
+            if (response.item_quantity < response.product_count) {
+              updateButtonStyles(product_id, response.item_quantity + 1, response.product_count)
+              addToCart(product_id);
+            };
+
+          });
+        });
+ 
+        // Обработчик события для кнопки "Удалить из корзины"
+        $('.remove-from-cart-btn').click(function() {
+          var product_id = $(this).data('product-id');
+
+          sendAjaxRequest('/check_item_count/', product_id, function(response) {
+
+            if (response.item_quantity >= 1) {
+              updateButtonStyles(product_id, response.item_quantity - 1, response.product_count)
+              removeFromCart(product_id);
+            };
+
+          });
+        });
+  });

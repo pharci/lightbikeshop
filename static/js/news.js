@@ -48,7 +48,7 @@ var recswiper = new Swiper(".recswiper", {
   breakpoints: {
   991: {
     spaceBetween: 30,
-    slidesPerView: 4,
+    slidesPerView: 5,
   },
   576: {
     spaceBetween: 25,
