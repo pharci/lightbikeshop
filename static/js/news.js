@@ -44,19 +44,35 @@ var brandswiper = new Swiper(".brendswiper", {
 });
 
 var recswiper = new Swiper(".recswiper", {
-  slidesPerView: 2,
+  slidesPerView: 1,
   breakpoints: {
-  991: {
+  1600: {
+    spaceBetween: 30,
+    slidesPerView: 5,
+  },
+  1280: {
     spaceBetween: 30,
     slidesPerView: 4,
+  },
+  991: {
+    spaceBetween: 30,
+    slidesPerView: 3,
+  },
+  640: {
+    spaceBetween: 25,
+    slidesPerView: 3,
   },
   576: {
     spaceBetween: 25,
     slidesPerView: 2,
   },
+  420: {
+    spaceBetween: 20,
+    slidesPerView: 2,
+  },
 },
   centeredSlides: false,
-  spaceBetween: 25,
+  spaceBetween: 20,
   loop: false,
   speed: 1000,
   effect: "slide",
