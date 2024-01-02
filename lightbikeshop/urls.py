@@ -6,6 +6,7 @@ from django.conf import settings
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('grappelli/', include('grappelli.urls')),
+    path('nested_admin/', include('nested_admin.urls')),
     path('', include(('store.urls', 'store'), namespace='store')),
     path('', include(('products.urls', 'products'), namespace='products')),
     path('', include(('accounts.urls', 'accounts'), namespace='accounts')),

@@ -4,63 +4,100 @@
 
 <div class="pt-3 d-flex justify-content-center"> 
   <div class="d-inline-flex px-3 py-2">
-    <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">{% if category %}{{ category.name }}{% elif brand %}{{ brand }}{% elif notfound %}Ничего не найдено{% else %}Найденные товары{% endif %}</h3>
+    <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">{% if category %}{{ category.name }}{% else %}Товары{% endif %}</h3>
   </div>
 </div>
 <div class="container">
-	<div class="row justify-content-center">
-		{% for product in products %}
-      <div class="col-lg-2 col-5 p-2 d-flex flex-column product-card hover-shadow" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
-        {% if product.new %}
-        <div class="d-flex">
-          <span class="product-badges" title="NEW">NEW</span>
-        </div>
-        {% endif %}
-        
-        <div>
-            <div class="swiper product-image-swiper">
-              <div class="swiper-wrapper">
-                {% for image in product.images.all %}
-                  <div class="swiper-slide product-image-slide">
-                    <div class="product-image">
-                      <img src="{{ image.image.url }}">
-                    </div>
+  <div class="row">
+    <div class="filter-block col-lg-2">
+      <form method="get" action="{% if category %}{% url 'products:product_list' category.slug %}{% else %}{% url 'products:product_list' %}{% endif %}" class="p-3">
+          <div class="form-group">
+
+              <div class="brands-block mb-3">
+                <h5 class="fw-bold" style="color: black; font-family: 'Comfortaa', cursive;">Бренды</h5>
+                {% for brand in brands %}
+                  <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="brand" value="{{ brand.slug }}" id="brand_{{ brand.slug }}"
+                             {% if brand.slug in selected_brands %} checked {% endif %}>
+                      <label class="form-check-label" for="brand_{{ brand.slug }}">
+                          {{ brand.name }}
+                      </label>
                   </div>
                 {% endfor %}
               </div>
-              <div class="swiper-pagination product-image-pagination"></div>
-            </div>
+              <div class="attributes-block">
+                {% for attribute_name, values in grouped_attributes.items %}
+                  <div class="attribute-block mb-3">
+                    <h5 class="fw-bold" style="color: black; font-family: 'Comfortaa', cursive;">{{ attribute_name }}</h5>
+                    {% for attr_value in values %}
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="attribute" value="{{ attr_value }}" id="attr_{{ attr_value }}"
+                                   {% if attr_value.id|stringformat:"s" in selected_attributes %} checked {% endif %}>
+                        <label class="form-check-label" for="attr_{{ attr_value.id }}">{{ attr_value }}</label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endfor %}
+              </div>
+          </div>
 
-
-
-          <div class="box-element product px-1 mt-2">
+          <button type="submit" class="btn btn-outline-dark">Фильтровать</button>
+      </form>
+    </div>
+  	<div class="col row justify-content-center">
+  		{% for product in products %}
+        {% for variant in product.variants.all %}
+          <div class="col-md-2 col-5 p-2 d-flex flex-column product-card hover-shadow" style="background-color: white; border-radius: 15px;" data-url="{{ variant.get_absolute_url }}">
+            {% if variant.new %}
             <div class="d-flex">
-              <h5 class="text-start me-2" style="color: rgba(0, 0, 0, 1); ">
-              {{ product.price|floatformat:"0" }} ₽
-              </h5>
-              {% if product.available_andrey or product.available_damir %}
-              <span class="d-flex" style="color: black;">
-                <i class="dot_in_product_card" style="background-color: green;"></i>
-                В наличии 
-              </span>
-              {% else %}
-                <span class="d-flex" style="color: black;">
-                  <i class="dot_in_product_card" style="background-color: red;"></i>
-                  Под заказ
-                </span>
-              {% endif %}
+              <span class="product-badges" title="NEW">NEW</span>
             </div>
-            <p class="card-title product-card-title" style="color: rgba(0, 0, 0, 1); font-size: 18px;">
-              {{product.name}}
-            </p>
+            {% endif %}
+            
+            <div>
+
+              <div class="swiper product-image-swiper">
+                <div class="swiper-wrapper">
+                    {% for image in variant.images.all %}
+                      <div class="swiper-slide product-image-slide">
+                        <div class="product-image">
+                          <img src="{{ image.image.url }}">
+                        </div>
+                      </div>
+                    {% endfor %}
+                </div>
+                <div class="swiper-pagination product-image-pagination"></div>
+              </div>
+
+              <div class="box-element product px-1 mt-2">
+                <div class="d-flex">
+                  <h5 class="text-start me-2" style="color: rgba(0, 0, 0, 1); ">
+                  {{ variant.price|floatformat:"0" }} ₽
+                  </h5>
+                  <span class="d-flex" style="color: black;">
+                    {% if variant.count %}
+                    <i class="dot_in_product_card" style="background-color: green;"></i>
+                    В наличии 
+                    {% else %}
+                    <i class="dot_in_product_card" style="background-color: red;"></i>
+                    Под заказ
+                    {% endif %}
+                  </span>
+                </div>
+                <p class="card-title product-card-title" style="color: rgba(0, 0, 0, 1); font-size: 18px;">
+                  {{variant.get_full_name}}
+                </p>
+              </div>
+
+            </div>
+            <div class='mt-auto p-1 pt-2'>
+                <button class="add-to-cart-btn btn btn-outline-success shadow-none" data-product-id="{{ product.id }}"> Купить </button>
+              </div>
           </div>
-        </div>
-        <div class='mt-auto p-1 pt-2'>
-            <button class="add-to-cart-btn btn btn-outline-success shadow-none" data-product-id="{{ product.id }}"> Купить </button>
-          </div>
-      </div>
-    {% endfor %}
-	</div>
+        {% endfor %}
+      {% endfor %}
+  	</div>
+  </div>
 </div>
 <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 <script>

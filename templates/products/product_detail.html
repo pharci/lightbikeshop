@@ -8,17 +8,17 @@
 
 				<div class="col-lg-5 pt-5 px-3 product-datail-image-block">
 					<div class="swiper product-detail-image-swiper" style="border-radius: 15px;">
-				    <div class="swiper-wrapper">
-				        {% for image in product.images.all %}
-				            <div class="swiper-slide product-detail-image-slide">
+					    <div class="swiper-wrapper">
+			                {% for image in variant.images.all %}
+			                  <div class="swiper-slide product-detail-image-slide">
 				                <div class="product-detail-image">
-				                    <img class="thumbnail" style="border-radius: 15px;" src="{{ image.image.url }}">
-				                </div>
-				            </div>
-				        {% endfor %}
-				    </div>
-				    <div class="swiper-button-next"></div>
-				    <div class="swiper-button-prev"></div>
+			                      <img class="thumbnail" style="border-radius: 15px;" src="{{ image.image.url }}">
+			                    </div>
+			                  </div>
+			                {% endfor %}
+					    </div>
+					    <div class="swiper-button-next"></div>
+					    <div class="swiper-button-prev"></div>
 					</div>
 					<div class="swiper-pagination product-detail-image-pagination pt-3"></div>
 	      		</div>
@@ -28,61 +28,48 @@
 
 					<div class="mb-4"> 
 			  		  <div class="d-inline-flex px-3 py-1 hover-shadow" style="border-radius: 15px; background-color: rgba(159, 190, 241);">
-			    		<h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">{{product.name}}</h3>
+			    		<h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">{{variant.get_full_name}}</h3>
 			  		  </div>
 					</div>
 
 					<div class="mb-4">
 						<div class="text-start hover-shadow d-inline-flex flex-column p-3" style="border-radius: 15px; background-color: white">
-
-							{% if product.available_andrey and product.available_damir %}
-								<span class="d-flex" style="color: black;">Наличие</span>
-								<span class="d-flex" style="color: black;">
-									<i class="dot_in_product_card" style="background-color: green;"></i>
-									Метро Алексеевская
-								</span>
-								<span class="d-flex" style="color: black;">
-									<i class="dot_in_product_card" style="background-color: green;"></i>
-									Метро Солнцево
-								</span>
-
-							{% elif product.available_damir or product.available_andrey %}
-								{% if product.available_andrey %}
-									<span class="d-flex" style="color: black;">Наличие</span>
-									<span class="d-flex" style="color: black;">
-										<i class="dot_in_product_card" style="background-color: green;"></i>
-										Метро Алексеевская
-									</span>
-								{% elif product.available_damir %}	
-									<span class="d-flex" style="color: black;">Наличие</span>
-									<span class="d-flex" style="color: black;">
-										<i class="dot_in_product_card" style="background-color: green;"></i>
-										Метро Солнцево
-									</span>
-								{% endif %}
-
-							{% else %}
-								<span class="d-flex" style="color: black;">
-									<i class="dot_in_product_card" style="background-color: red;"></i>
-									Под заказ
-								</span>
-							{% endif %}
-
+							<span class="d-flex" style="color: black;">
+			                  {% if variant.count %}
+			                  <i class="dot_in_product_card" style="background-color: green;"></i>
+			                  В наличии: {{ variant.count }} шт.
+			                  {% else %}
+			                  <i class="dot_in_product_card" style="background-color: red;"></i>
+			                  Под заказ
+			                  {% endif %}
+			                </span>
 						</div>
 					</div>
 
 					<div class="mb-4">
 						<div class="hover-shadow p-3 d-inline-flex" style="border-radius: 15px; background-color: white">
-							<h3 class="mb-0" style="color:black">{{ product.price|floatformat:"0" }}₽</h3>
+							<h3 class="mb-0" style="color:black">{{ variant.price|floatformat:"0" }}₽</h3>
 							<div class="add-to-cart-btn-box d-block">
 								<button class="add-to-cart-btn ms-3 btn btn-outline-dark shadow-none" data-product-id="{{ product.id }}">Добавить в корзину</button>
 							</div>
 						</div>
 					</div>
 
-					<div class="">
-						<div class="mt-0 hover-shadow p-3 d-inline-flex description_product flex-column" style="border-radius: 15px; background-color: white">
+					<div class="mb-4">
+						<div class="mt-0 hover-shadow p-3 d-inline-flex description_product flex-column" style="font-size: 15px; border-radius: 15px; background-color: white">
+							<h5>Описание</h5>
 							{{product.description|safe}}
+						</div>
+					</div>
+
+					<div class="mb-4">
+						<div class="hover-shadow p-3 d-inline-flex flex-column" style="border-radius: 15px; background-color: white">
+							<h5>Характеристики</h5>
+							{% for attribute in attributes %}
+								<div class="mt-2 d-block">
+									{{ attribute.attribute }}: {{ attribute.value }}{{ attribute.unit }}
+								</div>
+							{% endfor %}
 						</div>
 					</div>
 
@@ -94,13 +81,13 @@
 <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
 <script type="text/javascript">
 
-var jsonData = {{ images|safe }};
+var jsonData = {{ image_urls|safe }};
     
-    // Используйте цикл для построения элементов
+
 var bullets = [];
 for (var i = 0; i < jsonData.length; i++) {
-    var imageUrl = jsonData[i].fields.image;
-    bullets.push(`<div class="swiper-pagination-bullet" tabindex="0" aria-current="true"><img class="product-mini-image" src=/images/${imageUrl}></span></div>`);
+    var imageUrl = jsonData[i];
+    bullets.push(`<div class="swiper-pagination-bullet" tabindex="0" aria-current="true"><img class="product-mini-image" src=${imageUrl}></span></div>`);
 }
 
 var productDetailImageSwiper = new Swiper(".product-detail-image-swiper", {
