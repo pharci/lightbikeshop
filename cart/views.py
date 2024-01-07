@@ -4,8 +4,9 @@ import json
 import datetime
 from django.db.models import Q
 from .models import Cart, CartItem
-from accounts.models import Order, OrderItem, User
-from products.models import Product
+from accounts.models import User
+from orders.models import Order, OrderItem
+from store.models import Product
 from .forms import CheckoutForm
 import uuid
 import random
@@ -31,7 +32,7 @@ def cart(request):
     items, cart = cartData(request)
 
     for item in items:
-        item.total = item.product.price * item.quantity
+        item.total = item.product_variant.price * item.count
 
     cart.quantity = cart.get_cart_total_count()
     cart.total = cart.get_cart_total_price()

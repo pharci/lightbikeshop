@@ -1,0 +1,71 @@
+{% extends 'main.html' %}
+{% load static %}
+{% block content %}
+<!-- Slideshow container -->
+<div class="container p-0">
+  <div>
+    <div class="row justify-content-center m-0">
+      <div class="pt-3 d-flex justify-content-center"> 
+        <div class=" d-inline-flex px-3 py-2">
+          <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">Запчасти</h3>
+        </div>
+      </div>
+
+      {% for category in categories %}
+        {% if not category.is_part %}
+          <div class="hover-shadow categories-blocks col-lg-3 col-5 categories-blocks">
+            <a href="{{ category.get_absolute_url }}">
+              <div class="">
+                <img src="{{ category.image.url }}" class="thumbnail" alt="{{ category.name }}">
+              </div>
+            </a>
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      <div class="pt-3 d-flex col-lg-10 justify-content-center"> 
+        <div class="d-inline-flex px-3 py-2">
+          <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">Другие категории</h3>
+        </div>
+      </div>
+      {% for category in categories %}
+          {% if category.is_part %}
+          <div class="hover-shadow categories-blocks col-lg-3 col-5 categories-blocks">
+            <a href="{{ category.get_absolute_url }}">
+              <div class="">
+                <img src="{{ category.image.url }}" class="thumbnail" alt="{{ category.name }}">
+              </div>
+            </a>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div>
+    <div class="row mt-4 justify-content-center p-2 m-0">
+
+      <div class="p-3 d-flex col-lg-10 col-12"> 
+        <div class="d-inline-flex pe-3 py-2">
+          <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive; font-size: 18px;">Бренды</h3>
+        </div>
+      </div>
+
+      <div class="row col-lg-10 col-12">
+        {% for brand in brands %}
+            <div class="brands-catalog col-lg-2 col-3">
+                <a href="{% url 'store:product_list' %}?brand={{ brand.slug }}">
+                  <div class="brands-catalog-img">
+                    <img src="{{ brand.image.url }}" class="border thumbnail" alt="{{ brand.title }}">
+                  </div>
+                  <div class="brands-catalog-box mb-2">
+                    <span class="brands-catalog-title">{{ brand.title }}</span>
+                  </div>
+                </a>
+            </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

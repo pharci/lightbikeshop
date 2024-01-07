@@ -7,9 +7,13 @@ def cartData(request):
 
     else:
         
-        cart_id = request.session['cart_id']
+        session_key = request.session.session_key
 
-        cart = Cart.objects.get(id=cart_id)
+        if not session_key:
+            request.session.create()
+            session_key = request.session.session_key
+
+        cart, created = Cart.objects.get_or_create(session_key=session_key)
 
     items = cart.items.all()
 
