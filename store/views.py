@@ -4,47 +4,56 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.core.serializers import serialize
 from collections import defaultdict
+from django.core.paginator import Paginator
 
-def product_list(request, category_slug=None):
-    category = None
-    products = Product.objects.all()
-    variants = ProductVariant.objects.all()
-    brands = Brand.objects.all()
-    attribute_values = AttributeValue.objects.all().order_by('attribute__name').distinct()
-    print(attribute_values)
+def get_brands(category_slug):
+    query = Brand.objects.all()
+    if category_slug:
+        query = query.filter(products__category__slug=category_slug).distinct()
+    return query
+
+def get_variants(selected_brands, request, selected_attributes, category_slug=None):
+    filter_conditions = Q()
 
     if category_slug:
-        category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(category=category)
-        brands = Brand.objects.filter(products__category=category).distinct()
-        attribute_values = AttributeValue.objects.filter(
-            variant__product__category=category).order_by('attribute__name').distinct()
+        filter_conditions &= Q(product__category__slug=category_slug)
+    if selected_brands:
+        filter_conditions &= Q(product__brand__slug__in=selected_brands)
+    if selected_attributes:
+        filter_conditions &= Q(attribute_variants__value__value_en__in=selected_attributes)
+
+    return ProductVariant.objects.select_related('product').prefetch_related('attribute_variants').filter(filter_conditions).distinct()
+
+def get_attribute_variants(category_slug):
+    return Attribute.objects.filter(
+        attribute_variants__variant__product__category__slug=category_slug,
+        attribute_variants__is_filter=True
+    ).distinct()
+
+def product_list(request, category_slug=None):
+    category = get_object_or_404(Category, slug=category_slug) if category_slug else None
+
+    brands = get_brands(category_slug)
+    attributes = get_attribute_variants(category_slug)
 
     selected_brands = request.GET.getlist('brand')
+    selected_attributes = [value for attribute in attributes for value in request.GET.getlist(f'{attribute.slug}')]
 
-    if selected_brands:
-        products = products.filter(brand__slug__in=selected_brands)
+    variants = get_variants(selected_brands, request, selected_attributes, category_slug)
 
-    selected_attributes = request.GET.getlist('attribute')
-    if selected_attributes:
-        products = products.filter(
-            variants__attributes__value__in=selected_attributes
-        ).distinct()
+    paginator = Paginator(variants, 32)
+    page_obj = paginator.get_page(request.GET.get('page'))
 
-    grouped_attributes = defaultdict(list)
-    for attr_value in attribute_values:
-        grouped_attributes[attr_value.attribute.name].append(attr_value.value)
-
-    grouped_attributes = {key: list(set(values)) for key, values in grouped_attributes.items()}
-
-    return render(request, 'store/products_list.html', {
-        'products': products,
+    context = {
         'category': category,
         'brands': brands,
         'selected_brands': selected_brands,
-        'grouped_attributes': dict(grouped_attributes),
+        'attributes': attributes,
         'selected_attributes': selected_attributes,
-    })
+        'page_obj': page_obj,
+    }
+
+    return render(request, 'store/products_list.html', context)
     
 
 def product_detail(request, category_slug, brand_slug, sku, slug):
@@ -52,13 +61,13 @@ def product_detail(request, category_slug, brand_slug, sku, slug):
 
     variant = get_object_or_404(ProductVariant, sku=sku)
 
-    attributes = AttributeValue.objects.filter(variant=variant)
+    attribute_variants = AttributeVariant.objects.filter(variant=variant)
 
     images = ProductImage.objects.filter(variant=variant)
     image_urls = [image.get_image_url() for image in images]
 
 
-    context = {'product': product, 'variant': variant, 'image_urls': image_urls, 'attributes': attributes}
+    context = {'product': product, 'variant': variant, 'image_urls': image_urls, 'attribute_variants': attribute_variants}
     return render(request, 'store/product_detail.html', context)
 
 def catalog(request):

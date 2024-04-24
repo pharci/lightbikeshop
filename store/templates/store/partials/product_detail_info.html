@@ -1,0 +1,123 @@
+<!-- Информация о товаре -->
+
+<div class="col-lg-5 product-detail-info">
+
+	<div class="mb-4"> 
+
+		<div class="product-detail-title d-inline-flex px-3 py-2 product-block-shadow">
+
+			<h3 class="fw-bold mb-0">{{variant.get_full_name}}</h3>
+
+		</div>
+
+	</div>
+
+	<div class="mb-4">
+
+		<div class="product-detail-count product-block-shadow d-inline-flex p-3">
+
+			<span class="d-flex">
+
+				{% if variant.count %}
+
+					<i class="dot-green"></i>
+
+					В наличии: {{ variant.count }} шт.
+
+				{% else %}
+
+					<i class="dot-red"></i>
+
+					Под заказ
+
+				{% endif %}
+
+			</span>
+
+		</div>
+
+	</div>
+
+	<div class="mb-4">
+
+		<div class="product-detail-cart product-block-shadow p-3 d-inline-flex">
+
+			<h3 class="mb-0">{{ variant.price|floatformat:"0" }}₽</h3>
+
+			<div class="add-to-cart-btn-box d-block">
+
+				<button class="add-to-cart-btn ms-3 btn btn-outline-dark shadow-none" data-product-sku="{{ variant.sku }}">Добавить в корзину</button>
+
+			</div>
+
+		</div>
+
+	</div>
+
+	<div class="mb-4">
+
+		<div class="product-detail-description mt-0 product-block-shadow p-3 d-inline-flex flex-column">
+
+			<h5>Описание</h5>
+
+			<span>{{product.description|safe}}</span>
+
+		</div>
+
+	</div>
+
+	<div class="mb-4">
+
+		<div class="product-detail-attributes product-block-shadow p-3 d-inline-flex flex-column">
+
+			<h5>Характеристики</h5>
+
+			{% for attribute_variant in attribute_variants %}
+
+				<div class="mt-2 d-flex flex-column">
+
+					<span>{{ attribute_variant.attribute }}: {{ attribute_variant.value }}{{ attribute_variant.unit }}</span>
+
+					{% if attribute_variant.attribute.slug == 'cvet' %}
+
+						<div class="product-detail-button-container">
+
+							{% for value in attribute_variant.attribute.values.all %}
+
+								{% for variant in value.attributevariant_set.all %}
+								
+									{% if variant.value == attribute_variant.value %}
+
+										<div class="col product-detail-color-button product-detail-color-button-active">
+											<div class="product-detail-color" style='background-color: {{ value.value_en }}'></div>
+										</div>
+
+									{% else %}
+
+										<div class="col product-detail-color-button">
+
+											<a href="{{ variant.variant.get_absolute_url }}">
+												<div class="product-detail-color" style='background-color: {{ value.value_en }}'></div>
+											</a>
+
+										</div>
+
+									{% endif %}
+
+								{% endfor %}
+
+							{% endfor %}
+
+						</div>
+
+					{% endif %}
+					
+				</div>
+
+			{% endfor %}
+
+		</div>
+
+	</div>
+
+</div>

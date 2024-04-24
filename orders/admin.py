@@ -1,27 +1,41 @@
 from django.contrib import admin
 from .models import *
+import nested_admin
 
-@admin.register(OrderStatus)
-class OrderStatusAdmin(admin.ModelAdmin):
-    list_display = ('status', 'description')
+class OrderPaymentInline(nested_admin.NestedTabularInline):
+    model = OrderPayment
+    extra = 1
+    verbose_name = "Оплата"
+    verbose_name_plural = "Оплата"
+
+
+class ShippingMethodInline(nested_admin.NestedTabularInline):
+    model = ShippingMethod
+    extra = 1
+    verbose_name = "Способ получения"
+    verbose_name_plural = "Способ получения"
+
+class OrderItemInline(nested_admin.NestedTabularInline):
+    model = OrderItem
+    extra = 1
+    verbose_name = "Товары"
+    verbose_name_plural = "Товар"
+
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
-    list_display = ('user', 'address_line', 'city', 'postal_code', 'country')
-    search_fields = ('user__username', 'city', 'postal_code')
-    list_filter = ('city', 'country')
+    list_display = ('user', 'address_line', 'city')
+    search_fields = ('user__username', 'city')
+    list_filter = ('city', )
 
-class OrderItemInline(admin.TabularInline):
-    model = OrderItem
-    extra = 1
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('order_id', 'user', 'status', 'receiving_method', 'delivery_method', 'updated', 'created')
-    inlines = [OrderItemInline]
-    list_filter = ('status', 'receiving_method', 'delivery_method', 'created')
+    list_display = ('order_id', 'user', 'status', 'updated', 'created')
+    list_filter = ('status', 'created')
     search_fields = ('order_id', 'user__username', 'contact_phone')
     readonly_fields = ('order_id', 'get_total_price', 'get_total_count', 'created', 'updated')
+    inlines = [ShippingMethodInline, OrderPaymentInline, OrderItemInline]
 
     def get_total_price(self, obj):
         return obj.get_total_price()
@@ -32,16 +46,3 @@ class OrderAdmin(admin.ModelAdmin):
     get_total_count.short_description = 'Общее количество товаров'
 
 admin.site.register(OrderItem)
-
-class PromotionAdmin(admin.ModelAdmin):
-    list_display = ('code', 'discount_percentage', 'valid_from', 'valid_until', 'active', 'is_currently_valid')
-    list_filter = ('active', 'valid_from', 'valid_until')
-    search_fields = ('code', 'description')
-    list_editable = ('active', 'discount_percentage')
-
-    def is_currently_valid(self, obj):
-        return obj.is_valid()
-    is_currently_valid.boolean = True
-    is_currently_valid.short_description = 'Текущая валидность'
-
-admin.site.register(Promotion, PromotionAdmin)

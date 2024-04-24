@@ -1,0 +1,336 @@
+
+/*-------------------Стрелки влево-вправо на странице товара--------------*/
+
+.swiper-button-next,
+.swiper-button-prev {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50%;
+  background-color: white;
+  color: black !important;
+  top: 50%;
+  box-shadow: 0 .5rem 1rem rgba(0, 0, 0, 0.15);
+  background-repeat: no-repeat;
+  background-size: 50% auto;
+  background-position: center;
+}
+
+.swiper-button-next {
+  background-image: url("/static/store/images/next.png");
+}
+
+.swiper-button-prev {
+  background-image: url("/static/store/images/prev.png");
+}
+.swiper-button-next::after {
+  display: none;
+}
+
+.swiper-button-prev::after {
+  display: none;
+}
+
+/*-----------------------------------------------------------------------------*/
+
+
+/*-------------------------Блоки товара на странице товара---------------------*/
+
+.product-detail-info {
+  padding-top: 1rem;
+}
+
+
+.product-detail-title {
+  border-radius: 15px; 
+  background-color: rgba(159, 190, 241);
+  color: black; 
+  font-family: 'Comfortaa', cursive;
+  font-weight: 600;
+}
+
+.product-detail-count {
+  border-radius: 15px; 
+  background-color: white;
+  color: black;
+}
+
+.product-detail-count .dot-green {
+  background-color: green;
+  margin-top: 12px;
+  border-radius: 50%;
+  height: 4px;
+  margin-right: 6px;
+  width: 4px;
+}
+
+.product-detail-count .dot-red {
+  background-color: red;
+  margin-top: 12px;
+  border-radius: 50%;
+  height: 4px;
+  margin-right: 6px;
+  width: 4px;
+}
+
+
+
+.product-detail-cart {
+  border-radius: 15px; 
+  background-color: white;
+  color: black;
+}
+
+.product-detail-description {
+  border-radius: 15px; 
+  background-color: white
+}
+
+
+.product-detail-attributes {
+  border-radius: 15px; 
+  background-color: white
+}
+
+
+
+
+.product-detail-button-container {
+  padding-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.product-detail-color-button {
+  border-radius: 10px;
+  border: 1px solid #c6c7c8;
+  padding: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center; 
+  transition: transform 0.3s ease; 
+  flex: 1;
+  min-width: 10px;
+}
+
+.product-detail-color-button-active {
+  transform: scale(1.1);
+  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+}
+
+.product-detail-color-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+}
+
+.product-detail-color {
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  transition: opacity 0.3s ease;
+}
+
+.product-detail-color-button:hover .product-detail-color {
+  opacity: 0.8;
+}
+
+.product-block-shadow {
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, 0.075);
+}
+
+.product-block-shadow:hover {
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/*-----------------------------------------------------------------------------*/
+
+
+/*-------------------------Слайдер фото на странице товара---------------*/
+
+.product-datail-image .product-detail-img {
+  border-radius: 15px;
+}
+
+.product-datail-image .product-detail-image-swiper {
+  border-radius: 15px;
+}
+
+.product-datail-image .swiper-pagination-bullet {
+  opacity: 100%;
+  height: 70%;
+  width: 70%;
+  display: flex;
+  box-sizing: border-box;
+  background-color: rgba(255, 255, 255, 0);
+}
+
+.product-datail-image .swiper-pagination-bullets {
+  width: 70% !important;
+}
+
+.product-datail-image .product-mini-image {
+  display: flex;
+  width: 100%;
+  border-radius: 15px;
+
+}
+.product-datail-image .swiper-pagination-bullet-active {
+  outline: 1px solid #000;
+  border-radius: 15px;
+}
+
+.product-detail-image-pagination {
+  position: relative !important;
+  display: flex;
+}
+/* -----------------------------------------------------------------------*/
+
+/*------------------Слайдер фото в списке товаров-----------------*/
+.product-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 15px;
+}
+
+.product-image-swiper .swiper-pagination-bullet {
+  height: 100%;
+  width: 100%;
+  flex-grow: 1;
+  display: flex;
+  background-color: rgba(255, 255, 255, 0);
+  margin: 0 2px    !important;
+  }
+
+.product-image-swiper .swiper-pagination-bullet-active {
+  opacity: 0.7;
+}
+
+.product-image-swiper .product-image-pagination {
+  height: 2%;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  position: absolute;
+}
+
+.product-slider-pagination-bullet {
+  display: flex;
+  height: 2px;
+  width: 100%;
+  background-color: rgb(86, 90, 93);
+  margin-top: auto;
+}
+/* ------------------------------------------------------------------ */
+
+/*---------------------Пагинация списка товаров---------------------------*/
+
+.pagination {
+  justify-content: space-between;
+  padding: 0 117px 48px 314px;
+}
+
+.product-list-btn-pagination-list {
+  margin-left: auto;
+}
+
+.product-list-btn-pagination {
+  background-color: white;
+  border: 1px solid #e0e4e8;
+  transition: background-color 0.3s ease;
+  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+}
+
+.product-list-btn-pagination:hover {
+  background-color: #f4f4f4;
+}
+
+.product-list-btn-pagination-active {
+  transition: opacity 0.3s ease;
+  background-color: #282c33;
+  color: white;
+  border: 1px solid #282c33;
+  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+}
+
+.product-list-btn-pagination-active:hover {
+  opacity: 0.8;
+  background-color: #282c33;
+  color: white;
+}
+
+.product-list-btn-pagination-next {
+  transition: opacity 0.3s ease;
+  color: white;
+  background-color: #282c33;
+  border-radius: 20px;
+  padding: 0.5rem 5rem;
+}
+
+.product-list-btn-pagination-next:hover {
+  opacity: 0.8;
+  color: white;
+  background-color: #282c33;
+}
+
+/*----------------------------------------------------------------------*/
+
+
+.product-card {
+  margin-right: 1.4rem;
+  margin-bottom: 1.4rem;
+  cursor: pointer;
+  max-height: 400px;
+}
+
+.product-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.product-badges {
+  color: black;
+  font-size: 9px;
+  border: 0.1rem solid;
+  border-color: rgb(132, 210, 121);
+  border-radius: 5px;
+  padding-left: 3px;
+  padding-right: 3px;
+  position: absolute;
+  z-index: 9999;
+}
+
+
+
+@media screen and (min-width: 1220px) {
+.product-card {
+    margin-right: 1.4rem;
+    margin-bottom: 1.4rem;
+    width: calc(20% - 15px);
+}
+}
+
+@media screen and (min-width: 991px) {
+
+  .product-detail-info {
+    padding-top: 3rem;
+  }
+
+  .product-datail-image {
+    padding-top: 3rem;
+  }
+
+}
+
+@media screen and (min-width: 768px) {
+
+  .product-image-swiper .product-image-pagination {
+    height: 100%;
+  }
+
+}

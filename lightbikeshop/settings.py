@@ -24,20 +24,32 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+
 INSTALLED_APPS = [
+    # Апи + Документация
+    'drf_yasg', 
+    'rest_framework',
+    # ...
+    # Админка
     'nested_admin',
-    'grappelli',
+    # ...
+    # Встроенное
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # ...
+    # Приложения
     'accounts',
     'orders',
     'cart',
     'store',
     'cms',
+    # ...
+    # утилиты
+    'compressor',
 ]
 
 MIDDLEWARE = [
@@ -73,16 +85,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'lightbikeshop.wsgi.application'
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'lightdb',
+#         'USER': 'pharci',
+#         'PASSWORD': 'Tosha3301Alex2005',
+#         'HOST': 'db',
+#         'PORT': 5432,
+#     }
+# }
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'lightdb',
-        'USER': 'pharci',
-        'PASSWORD': 'Tosha3301Alex2005',
-        'HOST': 'db',
-        'PORT': 5432,
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -112,11 +132,35 @@ USE_TZ = True
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
 
-# STATICFILES_DIRS = [
-#     os.path.join(BASE_DIR, 'static'),
-# ]
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
 STATIC_URL = '/static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
+}
+
+if DEBUG:
+    MIDDLEWARE += [
+        'debug_toolbar.middleware.DebugToolbarMiddleware',
+    ]
+    INSTALLED_APPS += [
+        'debug_toolbar',
+    ]
+    INTERNAL_IPS = ['127.0.0.1', '127.0.0.1:8000']
+
+    # this is the main reason for not showing up the toolbar
+    import mimetypes
+    mimetypes.add_type("application/javascript", ".js", True)
+
+    DEBUG_TOOLBAR_CONFIG = {
+        'INTERCEPT_REDIRECTS': False,
+    }

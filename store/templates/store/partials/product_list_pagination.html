@@ -1,0 +1,55 @@
+<div class="pagination">
+
+    {% with total_pages=page_obj.paginator.num_pages current=page_obj.number %}
+
+        {% if page_obj.has_next %}
+
+            <div>
+
+                <a class="btn product-list-btn-pagination-next shadow-none" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Далее</a>
+
+            </div>
+
+        {% endif %}
+
+        <div class="product-list-btn-pagination-list">
+
+            {% if current > 4 %}
+
+                <a class="btn product-list-btn-pagination shadow-none" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">1</a>
+
+                <span class="btn product-list-btn-pagination shadow-none">...</span>
+
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+
+                {% if num > current|add:'-4' and num < current|add:'4' %}
+
+                    {% if num == current %}
+
+                        <span class="btn product-list-btn-pagination-active shadow-none">{{ num }}</span>
+
+                    {% else %}
+
+                        <a class="btn product-list-btn-pagination shadow-none" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+
+                    {% endif %}
+
+                {% endif %}
+
+            {% endfor %}
+
+            {% if current < total_pages|add:'-3' %}
+
+                <span class="btn product-list-btn-pagination shadow-none">...</span>
+
+                <a class="btn product-list-btn-pagination shadow-none" href="?page={{ total_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ total_pages }}</a>
+
+            {% endif %}
+
+        </div>
+
+    {% endwith %}
+    
+</div>

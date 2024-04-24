@@ -76,7 +76,7 @@ class ProductVariant(models.Model):
         return f"{self.product.name} - {self.sku}"
 
     def get_absolute_url(self):
-        return reverse('store:product_detail', args=[self.product.category.slug, self.product.brand.slug, self.sku, self.product.slug])
+        return reverse('store:product_detail', args=[self.product.category.slug, self.product.brand.slug, self.product.slug, self.sku])
 
     def get_first_image_url(self):
         first_image = ProductImage.objects.filter(variant=self).first()
@@ -85,13 +85,88 @@ class ProductVariant(models.Model):
         return ''
 
     def get_full_name(self):
-        main_attributes = self.attributes.filter(is_main=True)
-        attribute_values = [f'{attr.value}{attr.unit}' for attr in main_attributes]
-        return f"{self.product.name} {' '.join(attribute_values)}"
+        main_attributes = self.attribute_variants.filter(is_main=True)
+        attribute_values = [f'{attr.value.value}{attr.attribute.unit}' for attr in main_attributes]
+        return f"{self.product.category.name} {self.product.brand.name} {self.product.name} {' '.join(attribute_values)}"
 
     class Meta:
         verbose_name = 'Вариация товара'
         verbose_name_plural = 'Вариации товаров'
+
+
+class Attribute(models.Model):
+    name = models.CharField("Атрибут", max_length=100)
+    slug = models.SlugField(max_length=200, unique=True)
+    unit = models.CharField("Единица измерения", max_length=10, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Атрибут'
+        verbose_name_plural = 'Атрибуты'
+
+class AttributeValue(models.Model):
+    attribute = models.ForeignKey(Attribute, verbose_name="Атрибут", related_name='values', on_delete=models.CASCADE)
+    value = models.CharField("Значение", max_length=100)
+    value_en = models.CharField("Значение EN", max_length=100, blank=True)
+
+    def __str__(self):
+        return self.value
+
+    class Meta:
+        verbose_name = 'Значение атрибута'
+        verbose_name_plural = 'Значения атрибутов'
+
+class AttributeVariant(models.Model):
+    variant = models.ForeignKey(ProductVariant, verbose_name="Вариация продукта", related_name='attribute_variants', on_delete=models.CASCADE)
+    attribute = models.ForeignKey(Attribute, verbose_name="Атрибут", related_name='attribute_variants', on_delete=models.CASCADE)
+    value = models.ForeignKey(AttributeValue, verbose_name="Значение", on_delete=models.CASCADE)
+    is_main = models.BooleanField("Отображать в названии", default=False)
+    is_filter = models.BooleanField("Отображать в фильтре", default=True)
+
+    def __str__(self):
+        return f"{self.attribute.name}: {self.value.value}"
+    
+    class Meta:
+        verbose_name = 'Атрибут варианта товара'
+        verbose_name_plural = 'Атрибуты варианта товара'
+        unique_together = ('variant', 'attribute')
+
+
+class Warehouse(models.Model):
+    name = models.CharField("Название", max_length=100)
+    address_line = models.TextField(max_length=254)
+
+    def __str__(self):
+        return f"{self.name}"
+
+    class Meta:
+        verbose_name = 'Склады'
+        verbose_name_plural = 'Склад'
+
+
+class Inventory(models.Model):
+    product_variant = models.ForeignKey(ProductVariant, related_name='inventory', on_delete=models.PROTECT)
+    warehouse = models.ForeignKey(Warehouse, related_name='inventory', on_delete=models.PROTECT, null=True)
+    stock_level = models.IntegerField("Количество", default=0, validators=[MinValueValidator(0)])
+    low_stock_threshold = models.PositiveIntegerField("Порог низкого запаса", default=5)
+    low_stock_alert = models.BooleanField("На исходе", default=False)
+
+    def save(self, *args, **kwargs):
+        if self.stock_level <= self.low_stock_threshold:
+            self.low_stock_alert = True
+        else:
+            self.low_stock_alert = False
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Инвентарь для {self.product_variant}"
+
+    class Meta:
+        verbose_name = 'Инвентарь'
+        verbose_name_plural = 'Инвентарь'
 
 
 class ProductImage(models.Model):
@@ -137,51 +212,3 @@ class ProductReview(models.Model):
         verbose_name = 'Отзыв о продукте'
         verbose_name_plural = 'Отзывы о продуктах'
         unique_together = ['product_variant', 'user']
-
-
-class Attribute(models.Model):
-    name = models.CharField("Атрибут", max_length=100)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        verbose_name = 'Атрибут'
-        verbose_name_plural = 'Атрибуты'
-
-class AttributeValue(models.Model):
-    variant = models.ForeignKey(ProductVariant, verbose_name="Вариация продукта", related_name='attributes', on_delete=models.CASCADE)
-    attribute = models.ForeignKey(Attribute, verbose_name="Атрибут", on_delete=models.CASCADE)
-    value = models.CharField("Значение", max_length=100)
-    unit = models.CharField("Единица измерения", max_length=100, blank=True)
-    is_main = models.BooleanField("Отображать в названии", default=False)
-
-    def __str__(self):
-        return f"{self.attribute.name}: {self.value}"
-    
-    class Meta:
-        verbose_name = 'Значение атрибута'
-        verbose_name_plural = 'Значение атрибутов'
-        unique_together = ('variant', 'attribute')
-
-
-class Inventory(models.Model):
-    product_variant = models.OneToOneField(ProductVariant, related_name='inventory', on_delete=models.CASCADE)
-    stock_level = models.IntegerField("Количество", default=0, validators=[MinValueValidator(0)])
-    low_stock_threshold = models.PositiveIntegerField("Порог низкого запаса", default=5)
-    low_stock_alert = models.BooleanField("На исходе", default=False)
-
-    def save(self, *args, **kwargs):
-        if self.stock_level <= self.low_stock_threshold:
-            self.low_stock_alert = True
-        else:
-            self.low_stock_alert = False
-
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Инвентарь для {self.product_variant}"
-
-    class Meta:
-        verbose_name = 'Инвентарь'
-        verbose_name_plural = 'Инвентарь'

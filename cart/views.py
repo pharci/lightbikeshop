@@ -6,7 +6,7 @@ from django.db.models import Q
 from .models import Cart, CartItem
 from accounts.models import User
 from orders.models import Order, OrderItem
-from store.models import Product
+from store.models import ProductVariant
 from .forms import CheckoutForm
 import uuid
 import random
@@ -21,11 +21,6 @@ from accounts.utils import send_telegram_message
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
-def create_cart(user):
-    try:
-        Cart.objects.get(user=user)
-    except Cart.DoesNotExist:
-        Cart.objects.create(user=user)
 
 def cart(request):
 
@@ -34,7 +29,7 @@ def cart(request):
     for item in items:
         item.total = item.product_variant.price * item.count
 
-    cart.quantity = cart.get_cart_total_count()
+    cart.count = cart.get_cart_total_count()
     cart.total = cart.get_cart_total_price()
 
     context = {'items': items, 'cart': cart}
@@ -42,18 +37,20 @@ def cart(request):
     return render(request, "cart/cart.html", context)
 
 @require_POST
-def add_to_cart(request, product_id):
+def add_to_cart(request):
+
+    product_sku = request.POST.get('product_sku')
 
     items, cart = cartData(request)
 
-    product = get_object_or_404(Product, pk=product_id)
+    product_variant = get_object_or_404(ProductVariant, sku=product_sku)
 
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product_variant=product_variant)
 
-    item_quantity = cart_item.quantity + 1
-    item_total_price = item_quantity * product.price
+    item_quantity = cart_item.count + 1
+    item_total_price = item_quantity * product_variant.price
 
-    cart_item.quantity += 1
+    cart_item.count += 1
     cart_item.save()
 
     response_data = {
@@ -67,18 +64,20 @@ def add_to_cart(request, product_id):
 
 
 @require_POST
-def remove_from_cart(request, product_id):
+def remove_from_cart(request):
+
+    product_sku = request.POST.get('product_sku')
 
     items, cart = cartData(request)
 
-    product = get_object_or_404(Product, pk=product_id)
+    product_variant = get_object_or_404(ProductVariant, sku=product_sku)
 
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product_variant=product_variant)
 
-    item_quantity = cart_item.quantity - 1
-    item_total_price = item_quantity * product.price
+    item_quantity = cart_item.count - 1
+    item_total_price = item_quantity * product_variant.price
 
-    cart_item.quantity -= 1
+    cart_item.count -= 1
     cart_item.save()
 
     response_data = {
@@ -91,13 +90,15 @@ def remove_from_cart(request, product_id):
     return JsonResponse(response_data)
 
 @require_POST
-def delete_from_cart(request, product_id):
+def delete_from_cart(request):
+
+    product_sku = request.POST.get('product_sku')
 
     items, cart = cartData(request)
 
-    product = get_object_or_404(Product, pk=product_id)
+    product_variant = get_object_or_404(ProductVariant, sku=product_sku)
 
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product_variant=product_variant)
 
     cart_item.delete()
 
@@ -111,20 +112,36 @@ def delete_from_cart(request, product_id):
     return JsonResponse(response_data)
 
 @require_POST
-def check_item_count(request, product_id):
+def check_item_count(request):
+
+    product_sku = request.POST.get('product_sku')
 
     items, cart = cartData(request)
 
-    product = get_object_or_404(Product, pk=product_id)
+    product_variant = get_object_or_404(ProductVariant, sku=product_sku)
 
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product_variant=product_variant)
 
     response_data = {
-        'item_quantity': cart_item.quantity,
-        'product_count': product.count,
+        'item_quantity': cart_item.count,
+        'product_count': product_variant.count,
     }
 
     return JsonResponse(response_data)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def order_confirmed(request):
 

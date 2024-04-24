@@ -1,112 +1,37 @@
 {% extends 'main.html' %}
 {% load static %}
-
+{% load compress %}
 {% block content %}
+<!-- Страница товара -->
+
 <div class="container">
-	<div class="mt-4" class='product' data-product-id="{{product.id}}">
-			<div class=" row justify-content-center">
 
-				<div class="col-lg-5 pt-5 px-3 product-datail-image-block">
-					<div class="swiper product-detail-image-swiper" style="border-radius: 15px;">
-					    <div class="swiper-wrapper">
-			                {% for image in variant.images.all %}
-			                  <div class="swiper-slide product-detail-image-slide">
-				                <div class="product-detail-image">
-			                      <img class="thumbnail" style="border-radius: 15px;" src="{{ image.image.url }}">
-			                    </div>
-			                  </div>
-			                {% endfor %}
-					    </div>
-					    <div class="swiper-button-next"></div>
-					    <div class="swiper-button-prev"></div>
-					</div>
-					<div class="swiper-pagination product-detail-image-pagination pt-3"></div>
-	      		</div>
+	<div class="mt-4" class='product-detail' data-product-sku="{{variant.sku}}">
 
+		<div class=" row justify-content-center">
 
-				<div class="col-lg-5 pt-5 appearance">
+			{% include 'store/partials/product_detail_images.html' with images=variant.images.all %}
 
-					<div class="mb-4"> 
-			  		  <div class="d-inline-flex px-3 py-1 hover-shadow" style="border-radius: 15px; background-color: rgba(159, 190, 241);">
-			    		<h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive;">{{variant.get_full_name}}</h3>
-			  		  </div>
-					</div>
+			{% include 'store/partials/product_detail_info.html' with variant=variant product=product %}
 
-					<div class="mb-4">
-						<div class="text-start hover-shadow d-inline-flex flex-column p-3" style="border-radius: 15px; background-color: white">
-							<span class="d-flex" style="color: black;">
-			                  {% if variant.count %}
-			                  <i class="dot_in_product_card" style="background-color: green;"></i>
-			                  В наличии: {{ variant.count }} шт.
-			                  {% else %}
-			                  <i class="dot_in_product_card" style="background-color: red;"></i>
-			                  Под заказ
-			                  {% endif %}
-			                </span>
-						</div>
-					</div>
+		</div>
 
-					<div class="mb-4">
-						<div class="hover-shadow p-3 d-inline-flex" style="border-radius: 15px; background-color: white">
-							<h3 class="mb-0" style="color:black">{{ variant.price|floatformat:"0" }}₽</h3>
-							<div class="add-to-cart-btn-box d-block">
-								<button class="add-to-cart-btn ms-3 btn btn-outline-dark shadow-none" data-product-id="{{ product.id }}">Добавить в корзину</button>
-							</div>
-						</div>
-					</div>
-
-					<div class="mb-4">
-						<div class="mt-0 hover-shadow p-3 d-inline-flex description_product flex-column" style="font-size: 15px; border-radius: 15px; background-color: white">
-							<h5>Описание</h5>
-							{{product.description|safe}}
-						</div>
-					</div>
-
-					<div class="mb-4">
-						<div class="hover-shadow p-3 d-inline-flex flex-column" style="border-radius: 15px; background-color: white">
-							<h5>Характеристики</h5>
-							{% for attribute in attributes %}
-								<div class="mt-2 d-block">
-									{{ attribute.attribute }}: {{ attribute.value }}{{ attribute.unit }}
-								</div>
-							{% endfor %}
-						</div>
-					</div>
-
-				</div>
-			</div>
 	</div>
+
 </div>
+{% endblock content %}
+
+{% block javascript %}
+{{ block.super }}
+{% compress js %}
 <script type="text/javascript" src="{% static 'store/js/product_datail.js' %}"></script>
-<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+
+<link rel="stylesheet" type="text/css" href="{% static 'store/css/store.css' %}">
+
 <script type="text/javascript">
 
-var jsonData = {{ image_urls|safe }};
-    
-
-var bullets = [];
-for (var i = 0; i < jsonData.length; i++) {
-    var imageUrl = jsonData[i];
-    bullets.push(`<div class="swiper-pagination-bullet" tabindex="0" aria-current="true"><img class="product-mini-image" src=${imageUrl}></span></div>`);
-}
-
-var productDetailImageSwiper = new Swiper(".product-detail-image-swiper", {
-        slidesPerView: 1,
-        centeredSlides: false,
-        spaceBetween: 20,
-        loop: false,
-        effect: "slide",
-        navigation: {
-            nextEl: '.swiper-button-next',
-            prevEl: '.swiper-button-prev',
-        },
-        pagination: {
-            el: '.swiper-pagination',
-            clickable: true,
-            renderBullet: function (index, className) { 
-            		return bullets[index];
-            },
-        },
-    });
+	var imagesData = {{ image_urls|safe }};
+	
 </script>
-{% endblock content %}
+{% endcompress %}
+{% endblock %}

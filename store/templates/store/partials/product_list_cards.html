@@ -1,0 +1,91 @@
+<div class="col-lg-10 row">
+
+    {% for variant in page_obj %}
+
+        <div class="col-md-2 col-5 p-2 d-flex flex-column product-card hover-shadow" style="background-color: white; border-radius: 15px;" data-url="{{ variant.get_absolute_url }}">
+
+            {% if variant.new %}
+
+                <div class="d-flex">
+
+                    <span class="product-badges" title="NEW">NEW</span>
+
+                </div>
+
+            {% endif %}
+
+            <div>
+
+                <div class="swiper product-image-swiper">
+
+                    <div class="swiper-wrapper">
+
+                        {% for image in variant.images.all %}
+
+                        <div class="swiper-slide product-image-slide">
+
+                            <div class="product-image">
+
+                                <img src="{{ image.image.url }}">
+
+                            </div>
+
+                        </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                    <div class="swiper-pagination product-image-pagination"></div>
+
+                </div>
+
+                <div class="box-element product px-1 mt-2">
+
+                    <div class="d-flex">
+
+                        <h5 class="text-start me-2" style="color: rgba(0, 0, 0, 1); ">
+
+                            {{ variant.price|floatformat:"0" }} ₽
+
+                        </h5>
+
+                        <span class="d-flex" style="color: black;">
+
+                            {% if variant.count %}
+
+                                <i class="dot_in_product_card" style="background-color: green;"></i>
+                                В наличии 
+
+                            {% else %}
+
+                                <i class="dot_in_product_card" style="background-color: red;"></i>
+                                Под заказ
+
+                            {% endif %}
+
+                        </span>
+
+                    </div>
+
+                    <p class="card-title product-card-title" style="color: rgba(0, 0, 0, 1); font-size: 18px;">
+
+                        {{variant.get_full_name}}
+
+                    </p>
+                </div>
+
+
+            </div>
+
+            <div class='mt-auto p-1 pt-2'>
+
+                <button class="add-to-cart-btn btn btn-outline-success shadow-none" data-product-id="{{ product.id }}"> Купить </button>
+
+            </div>
+
+        </div>
+
+    {% endfor %}
+
+</div>

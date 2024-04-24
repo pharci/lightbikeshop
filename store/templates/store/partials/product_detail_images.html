@@ -1,0 +1,33 @@
+<!-- Фотографии товара -->
+
+<div class="col-lg-5 px-3 product-datail-image">
+
+	<div class="swiper product-detail-image-swiper">
+
+	    <div class="swiper-wrapper">
+
+	        {% for image in variant.images.all %}
+
+			<div class="swiper-slide product-detail-image-slide">
+
+				<div class="product-detail-img">
+
+					<img class="thumbnail" src="{{ image.image.url }}">
+
+				</div>
+
+			</div>
+
+	        {% endfor %}
+
+	    </div>
+
+	    <div class="swiper-button-next"></div>
+
+	    <div class="swiper-button-prev"></div>
+
+	</div>
+
+	<div class="swiper-pagination product-detail-image-pagination pt-3"></div>
+
+</div>
