@@ -31,7 +31,7 @@ class AddressAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('order_id', 'user', 'status', 'updated', 'created')
+    list_display = ('order_id', 'user', 'status', 'updated', 'created') 
     list_filter = ('status', 'created')
     search_fields = ('order_id', 'user__username', 'contact_phone')
     readonly_fields = ('order_id', 'get_total_price', 'get_total_count', 'created', 'updated')

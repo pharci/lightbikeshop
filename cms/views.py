@@ -1,18 +1,20 @@
 from django.shortcuts import render, get_object_or_404
 from .models import SliderImage
-from store.models import Brand, Product
+from store.models import Brand, ProductVariant
 
  
 def news(request):
-	sliderimages = SliderImage.objects.all()
+    sliderimages = SliderImage.objects.all()
+    brands = Brand.objects.all()
+    recommended_variants = ProductVariant.objects.filter(recommendation=True)
 
-	brands = Brand.objects.all()
+    context = {
+        'sliderimages': sliderimages,
+        'brands': brands,
+        'rec': recommended_variants
+    }
 
-	products = Product.objects.filter()
-
-	context = {'sliderimages': sliderimages, "brands": brands, 'products': products}
-
-	return render(request, 'cms/news.html', context)
+    return render(request, 'cms/news.html', context)
 
 def faq(request):
 	

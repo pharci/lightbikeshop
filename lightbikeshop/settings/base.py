@@ -1,54 +1,40 @@
 import os
-import locale
+from pathlib import Path
+from dotenv import load_dotenv
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv()
 
-SECRET_KEY = 'z+ksf@)0d^qojbh4rnp4b1to$hq&*tt(3bs$gf(3i267g$k9ln'
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-RECAPTCHA_SITE_KEY = "6LdY2X8nAAAAAGuFqEOrAok4NdW8jWjhaQDNY4Vh"
-RECAPTCHA_SECRET_KEY = "6LdY2X8nAAAAAG5hXbq6_3vIeiAc2d-idi488mzo"
-
-TELEGRAM_BOT_TOKEN = '5862255999:AAGN0gv8p4J65gFs0vRD_FkglYnSBGHXJSE'
-
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+RECAPTCHA_SITE_KEY = os.getenv('RECAPTCHA_SITE_KEY')
+RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.beget.com'
 EMAIL_PORT = 2525
-EMAIL_HOST_USER = 'support@lightbikeshop.ru'
-EMAIL_HOST_PASSWORD = 'SBT*Llb4'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 AUTH_USER_MODEL = 'accounts.User'
 
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
-
-
 INSTALLED_APPS = [
-    # Апи + Документация
-    'drf_yasg', 
+    'drf_yasg',
     'rest_framework',
-    # ...
-    # Админка
     'nested_admin',
-    # ...
-    # Встроенное
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # ...
-    # Приложения
     'accounts',
     'orders',
     'cart',
     'store',
     'cms',
-    # ...
-    # утилиты
     'compressor',
 ]
 
@@ -63,6 +49,7 @@ MIDDLEWARE = [
     'cart.middlewares.CartValidationMiddleware',
     'accounts.middlewares.LoginValidationMiddleware',
     'accounts.middlewares.RegisterValidationMiddleware',
+    'store.middlewares.WishlistValidationMiddleware',
 ]
 
 ROOT_URLCONF = 'lightbikeshop.urls'
@@ -78,6 +65,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'cart.context_processors.cart_context',
             ],
         },
     },
@@ -85,24 +73,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'lightbikeshop.wsgi.application'
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'lightdb',
-#         'USER': 'pharci',
-#         'PASSWORD': 'Tosha3301Alex2005',
-#         'HOST': 'db',
-#         'PORT': 5432,
-#     }
-# }
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
-}
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -119,48 +90,31 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 LANGUAGE_CODE = 'ru-RU'
-
 TIME_ZONE = 'Europe/Moscow'
-
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-
 STATIC_URL = '/static/'
-
 MEDIA_URL = '/media/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static_root')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
+COMPRESS_URL = STATIC_URL
+COMPRESS_ROOT = os.path.join(STATIC_ROOT)
+COMPRESS_OUTPUT_DIR = 'CACHE'
+COMPRESS_STORAGE = 'compressor.storage.CompressorFileStorage'
+
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'compressor.finders.CompressorFinder',
+]
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ]
 }
-
-if DEBUG:
-    MIDDLEWARE += [
-        'debug_toolbar.middleware.DebugToolbarMiddleware',
-    ]
-    INSTALLED_APPS += [
-        'debug_toolbar',
-    ]
-    INTERNAL_IPS = ['127.0.0.1', '127.0.0.1:8000']
-
-    # this is the main reason for not showing up the toolbar
-    import mimetypes
-    mimetypes.add_type("application/javascript", ".js", True)
-
-    DEBUG_TOOLBAR_CONFIG = {
-        'INTERCEPT_REDIRECTS': False,
-    }

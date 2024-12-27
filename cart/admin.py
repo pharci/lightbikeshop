@@ -5,7 +5,7 @@ from .models import *
 class CartItemInline(admin.TabularInline):
     model = CartItem
     extra = 1
-    fields = ('product_variant', 'count')
+    fields = ('variant', 'quantity')
 
 class CartAdmin(admin.ModelAdmin):
     list_display = ('user', 'session_key', 'updated', 'created', 'get_cart_total_price', 'get_cart_total_count')

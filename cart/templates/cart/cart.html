@@ -1,5 +1,14 @@
 {% extends 'main.html' %}
 {% load static %}
+{% load compress %}
+
+{% block css %}
+  {{ block.super }}
+  {% compress css %}
+    <link rel="stylesheet" type="text/css" href="{% static 'cart/css/cart.css' %}">
+  {% endcompress %}
+{% endblock %}
+
 {% block content %}
 <div class="pt-3 d-flex justify-content-center"> 
   <div class="d-inline-flex px-3 py-2">
@@ -9,75 +18,37 @@
 <div class="container">
 	<div>
 		<div class="row justify-content-center">
+
 			<div class="col-lg-6 col-11 pt-3 mt-0" id='cart-items' style="color: black; font-size: 15px;">
+
+				{% if cart %}
 				<div class="cart-items">
-					{% for item in items %}
-					  <div class="row mb-3 hover-shadow p-2 product" id="product-{{ item.product.id }}" data-product-id="{{ item.product.id }}">
+					{% include 'cart/partials/product_list.html' with items=cart.items.all%}
+				</div>
+				{% else %}
+				<span>Товаров в корзине нет</span>
+				{% endif %}
 
-					    <div class="col-lg-3 col-3">
-					      {% with first_image=item.product.images.first %}
-							    {% if first_image %}
-							      <img class='thumbnail' src="{{ first_image.image.url }}" alt="Product Image">
-							    {% else %}
-							      <img class='thumbnail' src="{% static 'images/no-photo.jpg' %}" alt="Product Image">
-							    {% endif %}
-							  {% endwith %}
-					    </div>
+			</div>
 
-					    <div class="row flex-column col-lg col p-0">
-					    	<div class="row col align-items-center pe-0 d-flex">
-					    		<div class="col">
-										{% if item.product.available_damir or item.product.available_andrey %}
-												<span class="d-flex" style="color: gray; font-size: 16px;"><i class="dot_in_product_card" style="background-color: green;"></i>В наличии</span>
-										{% else %}
-												<span class="d-flex" style="color: gray;  font-size: 16px;"><i class="dot_in_product_card" style="background-color: red;"></i>Нет в наличии</span>
-										{% endif %}
-									</div>
-									<div class="col d-flex justify-content-end">
-											<a href="#" class="shadow-none btn p-0 delete-btn" data-product-id="{{ item.product.id }}" title="Удалить">
-											  <img src="{% static 'images/delete.png' %}" role="link" width="15" height="15" class="mb-1">
-											</a>
-								  </div>
-					    	</div>
-					    	<div class="row col align-items-center mb-2 d-flex">
-							    <div class="col d-flex align-items-center">
-							      	<a href="{{ item.product.get_absolute_url }}"><p class="fw-bold" style="font-family: 'Comfortaa', cursive;">{{ item.product.name }}</p></a>
-							    </div>
-								</div>
-						    <div class="row col align-items-center pe-0 d-flex">
-										<div class="col">
-								        <div class="counter">
-									          <button class="remove-from-cart-btn" data-product-id="{{ item.product.id }}" data-stock-count="10">-</button>
-									          		<span class="product-quantity" style="font-weight: 400; font-size: 17px">{{ item.quantity }} шт.</span>
-									          <button class="add-to-cart-btn" data-product-id="{{ item.product.id }}" data-stock-count="10">+</button>
-								        </div>
-							      </div>
-							      <div class="col-4 d-flex justify-content-end">
-							        	<p class="product-total-price" style="font-weight: 500; font-size: 19px;">{{ item.total|floatformat:0 }} ₽</p>
-							      </div>
-						    </div>
-					    </div>
-					  </div>
-					{% endfor %}
-					<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-					  <div class="modal-dialog">
-					    <div class="modal-content" style="border-radius: 15px">
-					      <div class="modal-header">
-					        <h5 class="modal-title" id="confirmDeleteModalLabel">Подтвердите удаление</h5>
-					        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-					      </div>
-					      <div class="modal-body">
-					        <p>Точно ли вы хотите удалить этот товар?</p>
-					      </div>
-					      <div class="modal-footer">
-					        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-					        <button type="button" class="btn btn-outline-danger" id="deleteConfirmBtn">Удалить</button>
-					      </div>
-					    </div>
-					  </div>
+			<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+				<div class="modal-dialog">
+					<div class="modal-content" style="border-radius: 15px">
+						<div class="modal-header">
+							<h5 class="modal-title" id="confirmDeleteModalLabel">Подтвердите удаление</h5>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+						</div>
+						<div class="modal-body">
+							<p>Точно ли вы хотите удалить этот товар?</p>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+							<button type="button" class="btn btn-outline-danger" id="deleteConfirmBtn">Удалить</button>
+						</div>
 					</div>
 				</div>
 			</div>
+
 			<div class="col-lg-4 pt-3 mt-0">
 				<div class="shadow-sm p-3  mx-1 flex-column" style="border-radius: 15px; background-color: white">
 					<div class="col d-flex">
@@ -89,16 +60,17 @@
 						</div>
 					</div>
 					<div class="col">
-							<p class="text-center mt-4" style="font-size: 14px;" id="cart-total-count" >{{cart.quantity}} товаров</p>
+						<p class="text-center mt-4" style="font-size: 14px;" id="cart-total-count" >{{cart.quantity}} товаров</p>
 					</div>
 					<div class="col">
-							<a id='checkout-btn' class="btn btn-outline-dark" href="{% url 'cart:checkout' %}" style="width:100%; border-radius: 15px;">Перейти к оформлению</a>
+						<a id='checkout-btn' class="btn btn-outline-dark" href="" style="width:100%; border-radius: 15px;">Перейти к оформлению</a>
 					</div>
 				</div>
 			</div>
+
+
 		</div>
 	</div>
 </div>
 <script type="text/javascript" src="{% static 'cart/js/cart.js' %}"></script>
-<script type="text/javascript" src="{% static 'js/add_or_remove_to_cart.js' %}"></script>
 {% endblock content %}

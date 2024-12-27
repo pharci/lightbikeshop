@@ -1,55 +1,55 @@
-<div class="pagination">
+{% load static %}
+{% load filters %}
 
+<div class="pagination">
     {% with total_pages=page_obj.paginator.num_pages current=page_obj.number %}
 
         {% if page_obj.has_next %}
-
-            <div>
-
-                <a class="btn product-list-btn-pagination-next shadow-none" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Далее</a>
-
-            </div>
-
+            <a class='load-products-btn' id="load-more" data-page="{{ current }}">Показать еще {{ remaining_items }}</a>
         {% endif %}
 
         <div class="product-list-btn-pagination-list">
-
+            {% if current > 1 %}
+                <button class="btn product-list-btn-pagination shadow-none product-pagination-prev" data-page="{{ current|add:-1 }}">
+                    <img src="{% static 'store/images/prev.png' %}" width="25" height="25">
+                </button>
+            {% endif %}
+            
+            {% if current == 1 %}
+                <span class="btn product-list-btn-pagination-active shadow-none">1</span>
+            {% else %}
+                <button class="btn product-list-btn-pagination shadow-none" data-page="1">1</button>
+            {% endif %}
+            
             {% if current > 4 %}
-
-                <a class="btn product-list-btn-pagination shadow-none" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">1</a>
-
                 <span class="btn product-list-btn-pagination shadow-none">...</span>
-
             {% endif %}
-
+            
             {% for num in page_obj.paginator.page_range %}
-
-                {% if num > current|add:'-4' and num < current|add:'4' %}
-
+                {% if num >= current|add:'-2' and num <= current|add:'2' and num != 1 and num != total_pages %}
                     {% if num == current %}
-
                         <span class="btn product-list-btn-pagination-active shadow-none">{{ num }}</span>
-
                     {% else %}
-
-                        <a class="btn product-list-btn-pagination shadow-none" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
-
+                        <button class="btn product-list-btn-pagination shadow-none pagination-mobile-none" data-page="{{ num }}">{{ num }}</button>
                     {% endif %}
-
                 {% endif %}
-
             {% endfor %}
-
-            {% if current < total_pages|add:'-3' %}
-
+            
+            {% if current < total_pages|add:-3 %}
                 <span class="btn product-list-btn-pagination shadow-none">...</span>
-
-                <a class="btn product-list-btn-pagination shadow-none" href="?page={{ total_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ total_pages }}</a>
-
             {% endif %}
-
+            
+            {% if current == total_pages %}
+                <span class="btn product-list-btn-pagination-active shadow-none">{{ total_pages }}</span>
+            {% else %}
+                <button class="btn product-list-btn-pagination shadow-none" data-page="{{ total_pages }}">{{ total_pages }}</button>
+            {% endif %}
+            
+            {% if current < total_pages %}
+                <button class="btn product-list-btn-pagination shadow-none product-pagination-next" data-page="{{ current|add:1 }}">
+                    <img src="{% static 'store/images/next.png' %}" width="25" height="25">
+                </button>
+            {% endif %}
         </div>
-
     {% endwith %}
-    
 </div>

@@ -55,7 +55,7 @@
       <div class="row col-lg-10 col-12">
         {% for brand in brands %}
             <div class="brands-catalog col-lg-2 col-3">
-                <a href="{% url 'store:product_list' %}?brand={{ brand.slug }}">
+                <a href="{{ brand.get_absolute_url }}">
                   <div class="brands-catalog-img">
                     <img src="{{ brand.image.url }}" class="border thumbnail" alt="{{ brand.title }}">
                   </div>

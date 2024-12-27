@@ -10,6 +10,27 @@ from django.db import models
 
 from .models import *
 
+class WishlistItemInline(nested_admin.NestedTabularInline):
+    model = WishlistItem
+    extra = 1
+    readonly_fields = ('added_date',)
+    fields = ('product_variant', 'added_date')  # Указываем поля для отображения
+
+class WishlistAdmin(nested_admin.NestedModelAdmin):
+    list_display = ('user_preview', 'total_items')
+    inlines = [WishlistItemInline]
+    search_fields = ('user__username',)
+
+    def user_preview(self, obj):
+        return obj.user.email
+    user_preview.short_description = 'Пользователь'
+
+    def total_items(self, obj):
+        return obj.items.count()
+    total_items.short_description = 'Количество товаров'
+
+admin.site.register(Wishlist, WishlistAdmin)
+
 class InventoryAdmin(admin.ModelAdmin):
     list_display = ('name_preview', 'image_preview', 'warehouse', 'stock_level', 'low_stock_threshold', 'low_stock_alert')
     list_filter = ('low_stock_alert', 'warehouse')
@@ -166,7 +187,6 @@ class ProductVariantAdmin(admin.ModelAdmin):
     def display_attributes(self, obj):
         attribute_variants = obj.attribute_variants.all()
         attribute_variant_str = ", ".join([f"{attr.attribute.name}: {attr.value}{attr.attribute.unit}" for attr in attribute_variants])
-        print(attribute_variant_str)
         return attribute_variant_str
 
     display_attributes.short_description = 'Атрибуты'

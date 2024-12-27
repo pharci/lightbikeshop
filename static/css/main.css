@@ -24,26 +24,6 @@ a {
 
 
 
-/*-------------------------Крестик у товара в корзине------------------*/
-.delete-btn {
-  display: inline-block;
-}
-
-.delete-btn img {
-  opacity: 70%;
-}
-
-.delete-btn img.rotate {
-  transform: rotate(45deg);
-  transition: transform 0.3s ease-in-out;
-}
-
-.delete-btn img.rotate-reverse {
-  transform: rotate(0deg);
-  transition: transform 0.3s ease-in-out;
-}
-/*---------------------------------------------------------------------*/
-
 
 .infoswiper {
   width: 100%;
@@ -135,27 +115,7 @@ a {
   text-align: center;
 }
 
-
-
-
-
-
-
 .grecaptcha-badge { visibility: hidden; }
-
-
-.hover-shadow {
-    transition: all 0.3s ease-in-out;
-    border-radius: 15px; 
-    background-color: white;
-    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, 0.075);
-}
-
-.hover-shadow:hover {
-    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-
 
 .counter {
   display: inline-flex;

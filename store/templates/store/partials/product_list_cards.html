@@ -1,91 +1,108 @@
-<div class="col-lg-10 row">
+{% load filters %}
+{% load static %}
+{% for variant in page_obj %}
+    <div class="p-2 d-flex flex-column product-card">
 
-    {% for variant in page_obj %}
+        <div class="product-card-info">
 
-        <div class="col-md-2 col-5 p-2 d-flex flex-column product-card hover-shadow" style="background-color: white; border-radius: 15px;" data-url="{{ variant.get_absolute_url }}">
+            <div class="block-badges">
 
-            {% if variant.new %}
+                {% if variant.new %}
+        
+                    <span class="product-badge-new" title="NEW">NEW</span>
 
-                <div class="d-flex">
+                {% endif %}
+                
+                <a title="В избранное" class="shadow-none product-badge-like btn p-0 add-to-wishlist" data-variant-id="{{ variant.id }}">
+                    {% if variant|is_in_wishlist:request.user %}
+                        <img src="{% static 'images/trueheart.png' %}" role="link" width="20" height="20" class="d-flex">
+                    {% else %}
+                        <img src="{% static 'images/heart.png' %}" role="link" width="20" height="20" class="d-flex">
+                    {% endif %}
+                </a>
 
-                    <span class="product-badges" title="NEW">NEW</span>
+                {% if variant.is_discounted %}
+        
+                    <span class="product-badge-sale" title="SALE">-{{ variant.old_price|discount_percentage:variant.price|floatformat:"0"}}%</span>
+        
+                {% endif %}
 
-                </div>
+            </div>
 
-            {% endif %}
+            <div class="swiper product-image-swiper"  data-url="{{ variant.get_absolute_url }}">
 
-            <div>
+                <div class="swiper-wrapper">
 
-                <div class="swiper product-image-swiper">
+                    {% for image in variant.images.all %}
 
-                    <div class="swiper-wrapper">
+                    <div class="swiper-slide product-image-slide">
 
-                        {% for image in variant.images.all %}
+                        <div class="product-image">
 
-                        <div class="swiper-slide product-image-slide">
-
-                            <div class="product-image">
-
-                                <img src="{{ image.image.url }}">
-
-                            </div>
+                            <img src="{{ image.image.url }}">
 
                         </div>
 
-                        {% endfor %}
-
                     </div>
 
-                    <div class="swiper-pagination product-image-pagination"></div>
+                    {% endfor %}
 
                 </div>
 
-                <div class="box-element product px-1 mt-2">
+                <div class="swiper-pagination product-image-pagination"></div>
 
-                    <div class="d-flex">
+            </div>
 
-                        <h5 class="text-start me-2" style="color: rgba(0, 0, 0, 1); ">
+            <div class="box-element product px-1">
 
-                            {{ variant.price|floatformat:"0" }} ₽
+                <div class="d-flex">
 
-                        </h5>
+                    <span class="text-start me-2 product-card-price">
+                        {{ variant.price|floatformat:"0"|add_thousand_separators }} ₽
+                    </span>
 
-                        <span class="d-flex" style="color: black;">
+                    <span class="d-flex product-card-count">
 
-                            {% if variant.count %}
+                        {% if variant.total_inventory %}
 
-                                <i class="dot_in_product_card" style="background-color: green;"></i>
-                                В наличии 
+                            <i class="dot-green"></i>
+                            В наличии 
 
-                            {% else %}
+                        {% else %}
 
-                                <i class="dot_in_product_card" style="background-color: red;"></i>
-                                Под заказ
+                            <i class="dot-red"></i>
+                            Под заказ
 
-                            {% endif %}
+                        {% endif %}
 
-                        </span>
+                    </span>
 
-                    </div>
-
-                    <p class="card-title product-card-title" style="color: rgba(0, 0, 0, 1); font-size: 18px;">
-
-                        {{variant.get_full_name}}
-
-                    </p>
                 </div>
 
+                {% if variant.is_discounted %}
+                <span class="old-product-card-price"> 
+                    <del>{{ variant.old_price|floatformat:"0"|add_thousand_separators }} ₽</del>
+                    Скидка продавца
+                </span>
+                {% endif %}
 
+                <p class="card-title product-card-title"  data-url="{{ variant.get_absolute_url }}">{{variant.get_full_name}}</p>
             </div>
 
-            <div class='mt-auto p-1 pt-2'>
-
-                <button class="add-to-cart-btn btn btn-outline-success shadow-none" data-product-id="{{ product.id }}"> Купить </button>
-
-            </div>
 
         </div>
 
-    {% endfor %}
+        <div class='mt-auto p-1 product-card-btn-block'>
+            {% if variant|get_variant_quantity_in_cart:cart == 0 %}
+                <button class="add-to-cart-btn shadow-none" data-product-id="{{ variant.id }}"> Купить </button>
+            {% else %}
+                <div id="quantityControl" style="">
+                    <button class="add-to-cart-btn-decrease" data-product-id="{{ variant.id }}">-</button>
+                    <span id="product-quantity-{{ variant.id }}">{{variant|get_variant_quantity_in_cart:cart}}</span>
+                    <button class="add-to-cart-btn-increase" data-product-id="{{ variant.id }}">+</button>
+                </div>
+            {% endif %}
+        </div>
 
-</div>
+    </div>
+{% endfor %}

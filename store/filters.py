@@ -1,39 +1,83 @@
-import django_filters
 from django.db.models import Q
-from .models import ProductVariant, Attribute, Brand, AttributeValue
+from .models import *
 
-def get_attribute_values(attribute_name):
-    return Attribute.objects.get(name=attribute_name).values.all()
-
-class ProductVariantFilter(django_filters.FilterSet):
-    brand = django_filters.ModelMultipleChoiceFilter(
-        field_name='product__brand',
-        queryset=Brand.objects.all(),
-        label='Бренды'
-    )
+class ProductFilter:
+    @staticmethod
+    def get_brands(category_slug=None):
+        query = Brand.objects.all()
+        if category_slug:
+            query = query.filter(products__category__slug=category_slug).distinct()
+        return query
     
-    # Вместо конкретных атрибутов мы динамически добавим их в конструкторе
-    class Meta:
-        model = ProductVariant
-        fields = ['brand']  # Изначально указываем только поля, не зависящие от атрибутов
+    @staticmethod
+    def get_categories(brand_slug=None):
+        query = Category.objects.all()
+        if brand_slug:
+            query = query.filter(products__brand__slug=brand_slug).distinct()
+        return query
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        attributes = Attribute.objects.filter(attribute_variants__is_filter=True).distinct()
-        for attribute in attributes:
-            self.filters[f'attribute_{attribute.id}'] = django_filters.ModelMultipleChoiceFilter(
-                queryset=get_attribute_values(attribute),
-                method=f'filter_attribute_{attribute.id}',
-                label=attribute.name
-            )
-            # Добавляем метод фильтрации для каждого атрибута
-            setattr(self, f'filter_attribute_{attribute.id}', self.make_attribute_filter(attribute))
+    @staticmethod
+    def get_variants_category(selected_brands, request, selected_attributes, category_slug=None):
+        products = ProductVariant.objects.select_related('product').prefetch_related('attribute_variants', 'attribute_variants__attribute').all()
 
-    def make_attribute_filter(self, attribute):
-        def filter_attribute(queryset, name, value):
-            # Создаем фильтр для конкретного значения атрибута
-            return queryset.filter(
-                Q(attribute_variants__attribute=attribute) & 
-                Q(attribute_variants__value__in=value)
-            ).distinct()
-        return filter_attribute
+        conditions = Q()
+
+        if category_slug:
+            conditions &= Q(product__category__slug=category_slug)
+
+        if selected_brands:
+            conditions &= Q(product__brand__slug__in=selected_brands)
+
+        if selected_attributes:
+
+            for attr_slug, values in selected_attributes.items():
+
+                attr_query = Q(attribute_variants__attribute__slug=attr_slug, attribute_variants__value__value_en__in=values)
+                products = products.filter(attr_query)
+
+        return products.filter(conditions).distinct()
+    
+    @staticmethod
+    def get_variants_brand(selected_categories, request, selected_attributes, brand_slug=None):
+        products = ProductVariant.objects.select_related('product').prefetch_related('attribute_variants', 'attribute_variants__attribute').all()
+
+        conditions = Q()
+
+        if brand_slug:
+            conditions &= Q(product__brand__slug=brand_slug)
+
+        if selected_categories:
+            conditions &= Q(product__category__slug__in=selected_categories)
+
+        if selected_attributes:
+
+            for attr_slug, values in selected_attributes.items():
+
+                attr_query = Q(attribute_variants__attribute__slug=attr_slug, attribute_variants__value__value_en__in=values)
+                products = products.filter(attr_query)
+
+        return products.filter(conditions).distinct()
+    
+    @staticmethod
+    def get_attributes_category(category_slug):
+        category = Category.objects.get(slug=category_slug)
+        products = Product.objects.filter(category=category)
+        variants = ProductVariant.objects.filter(product__in=products)
+        attributes = Attribute.objects.filter(attribute_variants__variant__in=variants).distinct()
+        attribute_values = AttributeValue.objects.filter(attribute__in=attributes, attribute_variants__variant__in=variants, attribute_variants__is_filter=True).distinct()
+        return {
+            attribute: attribute_values.filter(attribute=attribute)
+            for attribute in attributes
+        }
+    
+    @staticmethod
+    def get_attributes_brand(brand_slug):
+        brand = Brand.objects.get(slug=brand_slug)
+        products = Product.objects.filter(brand=brand)
+        variants = ProductVariant.objects.filter(product__in=products)
+        attributes = Attribute.objects.filter(attribute_variants__variant__in=variants).distinct()
+        attribute_values = AttributeValue.objects.filter(attribute__in=attributes, attribute_variants__variant__in=variants, attribute_variants__is_filter=True).distinct()
+        return {
+            attribute: attribute_values.filter(attribute=attribute)
+            for attribute in attributes
+        }

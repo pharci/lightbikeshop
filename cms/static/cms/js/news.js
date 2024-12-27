@@ -70,24 +70,14 @@ var recswiper = new Swiper(".recswiper", {
     spaceBetween: 20,
     slidesPerView: 2,
   },
+  300: {
+    spaceBetween: 5,
+    slidesPerView: 2,
+  }
 },
   centeredSlides: false,
-  spaceBetween: 20,
+  spaceBetween: 5,
   loop: false,
   speed: 1000,
   effect: "slide",
 });
-
-
-
-document.addEventListener('DOMContentLoaded', function () {
-      const productCards = document.querySelectorAll('.product-card');
-      productCards.forEach(card => {
-          card.addEventListener('click', function () {
-              const url = card.getAttribute('data-url');
-              if (url) {
-                  window.location.href = url;
-              }
-          });
-      });
-  });

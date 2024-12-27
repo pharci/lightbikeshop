@@ -5,6 +5,7 @@ from django.core.validators import MinValueValidator
 from decimal import Decimal
 import uuid
 from accounts.models import User
+from django.db.models import Sum
 
 class Category(models.Model):
     name = models.CharField("Название", max_length=100, unique=True)
@@ -13,7 +14,7 @@ class Category(models.Model):
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, blank=True, null=True, verbose_name="Родительская категория")
 
     def get_absolute_url(self):
-        return reverse('store:product_list', args=[self.slug])
+        return reverse('store:catalog', args=[self.slug])
 
     def __str__(self):
         return self.name
@@ -29,6 +30,9 @@ class Brand(models.Model):
     image = models.ImageField("Фото", upload_to='brands/')
     updated = models.DateTimeField("Последнее изменение", auto_now=True)
     created = models.DateTimeField("Дата создания", auto_now_add=True)
+
+    def get_absolute_url(self):
+        return reverse('store:brands', args=[self.slug])
 
     def __str__(self):
         return self.name
@@ -63,7 +67,9 @@ class Product(models.Model):
 class ProductVariant(models.Model):
     product = models.ForeignKey(Product, verbose_name="Товар", related_name='variants', on_delete=models.CASCADE)
     sku = models.CharField("Артикул", max_length=100, unique=True, blank=True)
-    price = models.DecimalField("Цена", max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    price = models.DecimalField("Цена", max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('1'))])
+    old_price = models.DecimalField("Старая цена", max_digits=10, decimal_places=2, null=True, blank=True)
+    is_discounted = models.BooleanField("Скидка", default=False)
     recommendation = models.BooleanField("Рекомендация", default=False)
     new = models.BooleanField("Новинка", default=False)
 
@@ -86,8 +92,29 @@ class ProductVariant(models.Model):
 
     def get_full_name(self):
         main_attributes = self.attribute_variants.filter(is_main=True)
-        attribute_values = [f'{attr.value.value}{attr.attribute.unit}' for attr in main_attributes]
+        attribute_values = [f'{attr.value.value}' for attr in main_attributes]
         return f"{self.product.category.name} {self.product.brand.name} {self.product.name} {' '.join(attribute_values)}"
+    
+    def total_inventory(self):
+        return self.inventory.aggregate(total=Sum('stock_level'))['total'] or 0
+    
+    def get_variant_quantity_in_cart(request, variant_id):
+        from cart.models import Cart, CartItem
+        if request.user.is_authenticated:
+            cart = Cart.objects.filter(user=request.user)
+        else:
+            session_key = request.session.session_key
+            if not session_key:
+                return 0
+            cart = Cart.objects.filter(session_key=session_key)
+
+        if cart.exists():
+            try:
+                cart_item = cart.items.get(variant__id=variant_id)
+                return cart_item.quantity
+            except CartItem.DoesNotExist:
+                return 0
+        return 0
 
     class Meta:
         verbose_name = 'Вариация товара'
@@ -108,8 +135,8 @@ class Attribute(models.Model):
 
 class AttributeValue(models.Model):
     attribute = models.ForeignKey(Attribute, verbose_name="Атрибут", related_name='values', on_delete=models.CASCADE)
-    value = models.CharField("Значение", max_length=100)
-    value_en = models.CharField("Значение EN", max_length=100, blank=True)
+    value = models.CharField("Значение (Отображаемое)", max_length=100)
+    value_en = models.CharField("Значение EN (Серверное)", max_length=100, blank=True)
 
     def __str__(self):
         return self.value
@@ -121,7 +148,7 @@ class AttributeValue(models.Model):
 class AttributeVariant(models.Model):
     variant = models.ForeignKey(ProductVariant, verbose_name="Вариация продукта", related_name='attribute_variants', on_delete=models.CASCADE)
     attribute = models.ForeignKey(Attribute, verbose_name="Атрибут", related_name='attribute_variants', on_delete=models.CASCADE)
-    value = models.ForeignKey(AttributeValue, verbose_name="Значение", on_delete=models.CASCADE)
+    value = models.ForeignKey(AttributeValue, verbose_name="Значение", related_name='attribute_variants', on_delete=models.CASCADE)
     is_main = models.BooleanField("Отображать в названии", default=False)
     is_filter = models.BooleanField("Отображать в фильтре", default=True)
 
@@ -186,14 +213,18 @@ class ProductImage(models.Model):
 
 
 class Wishlist(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wishlist')
+
+    class Meta:
+        verbose_name = 'Список избранного'
+        verbose_name_plural = 'Списки избранного'
+
+class WishlistItem(models.Model):
+    wishlist = models.ForeignKey(Wishlist, on_delete=models.CASCADE, related_name='items')
     product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
     added_date = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=['user', 'product_variant'], name='unique_user_product')
-        ]
         verbose_name = 'Избранный товар'
         verbose_name_plural = 'Избранные товары'
 

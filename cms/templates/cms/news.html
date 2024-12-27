@@ -1,8 +1,16 @@
 {% extends 'main.html' %}
 {% load static %}
+{% load compress %}
+{% block css %}
+  {{ block.super }}
+  {% compress css %}
+    <link rel="stylesheet" type="text/css" href="{% static 'store/css/store.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'cms/css/cms.css' %}">
+  {% endcompress %}
+{% endblock %}
+
+
 {% block content %}
-
-
 <div class="swiper infoswiper mt-3 px-3">
   <div class="swiper-wrapper">
     {% for sliderimage in sliderimages %}
@@ -40,64 +48,6 @@
     </div>
   </div>
 </div>
-
-<div>
-  <div class="col-lg-8 swiper recswiper mt-3 px-3">
-    <div class="pt-3 mb-3 d-flex"> 
-      <div class="d-inline-flex pe-3 py-2">
-        <h3 class="fw-bold mb-0" style="color: black; font-family: 'Comfortaa', cursive; font-size: 18px;">Рекомендуем</h3>
-      </div>
-    </div>
-    <div class="swiper-wrapper py-1">
-      {% for product in products %}
-
-        <div class="swiper-slide p-2 shadow-sm h-auto product-card ms-0" style="background-color: white; border-radius: 15px;" data-url="{{ product.get_absolute_url }}">
-            {% if product.new %}
-            <div class="d-flex">
-              <span class="product-badges" title="NEW">NEW</span>
-            </div>
-            {% endif %}
-            
-            <div>
-              {% for image in product.images.all %}
-                {% if forloop.first %}
-                  <div class="product-image">
-                    <img src="{{ image.image.url }}">
-                  </div>
-                {% endif %}
-              {% endfor %}
-
-              <div class="box-element product px-1 mt-2">
-                <div class="d-flex">
-                  <h5 class="text-start me-2" style="color: rgba(0, 0, 0, 1); ">
-                  {{ product.price|floatformat:"0" }} ₽
-                  </h5>
-                  {% if product.available_andrey or product.available_damir %}
-                  <span class="d-flex" style="color: black;">
-                    <i class="dot_in_product_card" style="background-color: green;"></i>
-                    В наличии 
-                  </span>
-                  {% else %}
-                    <span class="d-flex" style="color: black;">
-                      <i class="dot_in_product_card" style="background-color: red;"></i>
-                      Под заказ
-                    </span>
-                  {% endif %}
-                </div>
-                <p class="card-title product-card-title" style="color: rgba(0, 0, 0, 1); font-size: 18px;">
-                  {{product.name}}
-                </p>
-              </div>
-            </div>
-            <div class='mt-auto p-1 pt-2'>
-              <button class="add-to-cart-btn btn btn-outline-success shadow-none" data-product-id="{{ product.id }}"> Купить </button>
-            </div>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-</div>
-
 
 <div class="container col-lg-8 mt-3 px-3">
     <div class="pt-3 mb-3 d-flex"> 
@@ -169,7 +119,13 @@
     
 </div>
 
-
-<script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
-<script type="text/javascript" src="{% static 'cms/js/news.js' %}"></script>
 {% endblock content %}
+
+
+{% block javascript %}
+  {{ block.super }}
+  {% compress js %}
+    <script type="text/javascript" src="{% static 'store/js/product_list.js' %}"></script>
+    <script type="text/javascript" src="{% static 'cms/js/news.js' %}"></script>
+  {% endcompress %}
+{% endblock %}

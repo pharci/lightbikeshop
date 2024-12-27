@@ -1,239 +1,46 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponse
-import json
-import datetime
-from django.db.models import Q
-from .models import Cart, CartItem
-from accounts.models import User
-from orders.models import Order, OrderItem
+from django.http import JsonResponse
 from store.models import ProductVariant
-from .forms import CheckoutForm
-import uuid
-import random
-import string
 from django.core.mail import send_mail
-from django.conf import settings
-from datetime import datetime
-from .utils import cartData
-from django.core import serializers
-import random
 from accounts.utils import send_telegram_message
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from .models import Cart
 
 
 def cart(request):
 
-    items, cart = cartData(request)
-
-    for item in items:
-        item.total = item.product_variant.price * item.count
-
-    cart.count = cart.get_cart_total_count()
-    cart.total = cart.get_cart_total_price()
-
-    context = {'items': items, 'cart': cart}
-
-    return render(request, "cart/cart.html", context)
+    return render(request, "cart/cart.html")
 
 @require_POST
 def add_to_cart(request):
+    variant_id = request.POST.get('variant_id')
+    quantity = int(request.POST.get('quantity', 1))
 
-    product_sku = request.POST.get('product_sku')
-
-    items, cart = cartData(request)
-
-    product_variant = get_object_or_404(ProductVariant, sku=product_sku)
-
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product_variant=product_variant)
-
-    item_quantity = cart_item.count + 1
-    item_total_price = item_quantity * product_variant.price
-
-    cart_item.count += 1
-    cart_item.save()
-
-    response_data = {
-        'cart_total_price': cart.get_cart_total_price(),
-        'cart_total_count': cart.get_cart_total_count(),
-        'item_quantity': item_quantity,
-        'item_total_price': item_total_price,
-    }
-
-    return JsonResponse(response_data)
-
+    try:
+        variant = ProductVariant.objects.get(id=variant_id)
+    except ProductVariant.DoesNotExist:
+        return JsonResponse({'error': 'Variant not found'}, status=404)
+    
+    cart = Cart.create_cart(request)
+    cart_item = cart.add(variant, quantity)
+    
+    return JsonResponse({'success': True, 'quantity': cart_item.quantity})
 
 @require_POST
 def remove_from_cart(request):
+    variant_id = request.POST.get('variant_id')
+    quantity = int(request.POST.get('quantity', 1))
 
-    product_sku = request.POST.get('product_sku')
+    try:
+        variant = ProductVariant.objects.get(id=variant_id)
+    except ProductVariant.DoesNotExist:
+        return JsonResponse({'error': 'Variant not found'}, status=404)
+    
+    cart = Cart.get_cart(request)
+    cart_item = cart.remove(variant, quantity)
 
-    items, cart = cartData(request)
-
-    product_variant = get_object_or_404(ProductVariant, sku=product_sku)
-
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product_variant=product_variant)
-
-    item_quantity = cart_item.count - 1
-    item_total_price = item_quantity * product_variant.price
-
-    cart_item.count -= 1
-    cart_item.save()
-
-    response_data = {
-        'cart_total_price': cart.get_cart_total_price(),
-        'cart_total_count': cart.get_cart_total_count(),
-        'item_quantity': item_quantity,
-        'item_total_price': item_total_price,
-    }
-
-    return JsonResponse(response_data)
-
-@require_POST
-def delete_from_cart(request):
-
-    product_sku = request.POST.get('product_sku')
-
-    items, cart = cartData(request)
-
-    product_variant = get_object_or_404(ProductVariant, sku=product_sku)
-
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product_variant=product_variant)
-
-    cart_item.delete()
-
-    response_data = {
-        'cart_total_price': cart.get_cart_total_price(),
-        'cart_total_count': cart.get_cart_total_count(),
-        'item_quantity': 0,
-        'item_total_price': 0,
-    }
-
-    return JsonResponse(response_data)
-
-@require_POST
-def check_item_count(request):
-
-    product_sku = request.POST.get('product_sku')
-
-    items, cart = cartData(request)
-
-    product_variant = get_object_or_404(ProductVariant, sku=product_sku)
-
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product_variant=product_variant)
-
-    response_data = {
-        'item_quantity': cart_item.count,
-        'product_count': product_variant.count,
-    }
-
-    return JsonResponse(response_data)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def order_confirmed(request):
-
-    return render(request, 'cart/order_confirmed.html')
-
-def checkout(request):
-
-    if request.method == 'POST':
-        form = CheckoutForm(request.POST)
-
-        order_id = random.randint(10000000, 99999999)
-
-        request.session['order_id'] = order_id
-        print(form)
-        if form.is_valid():
-            # Получение данных из формы
-            receiving_method = request.POST.get('receiving_method')
-            contact_phone = request.POST.get('contact_phone')
-            user_name = request.POST.get('user_name')
-            pickup_location = request.POST.get('pickup_location')
-            delivery_address = request.POST.get('delivery_address')
-            delivery_method = request.POST.get('delivery_method')
-            order_notes = request.POST.get('order_notes')
-            # Создание пользователя
-            if request.user.is_authenticated:
-                user = request.user
-                order = Order.objects.create(
-                    user=user,
-                    order_id=order_id,
-                    user_name=user_name,
-                    contact_phone=contact_phone,
-                    pickup_location=pickup_location,
-                    delivery_address=delivery_address,
-                    delivery_method=delivery_method,
-                    receiving_method=receiving_method,
-                    order_notes=order_notes
-                )
-            else:
-                order = Order.objects.create(
-                    order_id=order_id,
-                    user_name=user_name,
-                    contact_phone=contact_phone,
-                    pickup_location=pickup_location,
-                    delivery_address=delivery_address,
-                    delivery_method=delivery_method,
-                    receiving_method=receiving_method,
-                    order_notes=order_notes
-                )
-
-            order.save()
-
-            items, cart = cartData(request)
-
-            # Добавление товаров в заказ
-            if cart:
-                for item in items:
-                    OrderItem.objects.create(
-                        order=order,
-                        product=item.product,
-                        quantity=item.quantity)
-
-                cart.clear()
-
-            context = {'order_id': order_id}
-
-            send_telegram_message(order, request)
-
-            return render(request, 'cart/order_confirmed.html', context)
-
+    if cart_item:
+        return JsonResponse({'success': True, 'quantity': cart_item.quantity})
     else:
-        form = CheckoutForm()
-
-    items, cart = cartData(request)
-
-    context = {'form': form, 'items': items, 'cart': cart}
-    return render(request, 'cart/checkout.html', context)
-
-def delete_order(request):
-    # Получаем объект заказа по его идентификатору
-    order_id = request.POST.get('order_id')
-    order = get_object_or_404(Order, order_id=order_id)
-
-    if request.method == 'POST':
-        # Удаляем заказ
-        order.status = 'canceled'
-        order.save()
-
-        # Возвращаем JSON-ответ с подтверждением удаления
-        response = {
-            'message': 'Заказ успешно отменён.'
-        }
-        return JsonResponse(response)
-
-    # В случае GET-запроса вернем ошибку 405 Method Not Allowed
-    return JsonResponse({'error': 'Метод не разрешен'}, status=405)
+        return JsonResponse({'error': 'Cart item not found'}, status=404)

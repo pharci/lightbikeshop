@@ -1,7 +1,16 @@
 {% extends 'main.html' %}
 {% load static %}
 {% load compress %}
+
 {% block content %}
+
+{% block css %}
+  {{ block.super }}
+  {% compress css %}
+  <link rel="stylesheet" type="text/css" href="{% static 'store/css/store.css' %}">
+  {% endcompress %}
+{% endblock %}
+
 <!-- Страница товара -->
 
 <div class="container">
@@ -25,8 +34,6 @@
 {{ block.super }}
 {% compress js %}
 <script type="text/javascript" src="{% static 'store/js/product_datail.js' %}"></script>
-
-<link rel="stylesheet" type="text/css" href="{% static 'store/css/store.css' %}">
 
 <script type="text/javascript">
 
