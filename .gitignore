@@ -1,76 +1,41 @@
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-
-*.so
+*.egg
+*.egg-info/
+dist/
+build/
 
 private.pem
 
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-*.manifest
-*.spec
-
-pip-log.txt
-pip-delete-this-directory.txt
-
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-*.mo
-*.pot
-
+# Django
 *.log
+*.pot
+*.pyc
+db.sqlite3
+*.sqlite3
 local_settings.py
-
-.python-version
-
-__pypackages__/
-
-celerybeat-schedule
-celerybeat.pid
-
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+.env.*
+.venv/
 
-media/
-static_root/
+# VSCode
+.vscode/
 
-docker-compose.override.yml
-
+# OS
 .DS_Store
 Thumbs.db
+
+# Static / media files
+staticfiles/
+static_root/
+media/
+*.bak
+
+# Poetry / pip
+poetry.lock
+__pypackages__/
+
+# Node / frontend (если используется)
+node_modules/
+*.map
