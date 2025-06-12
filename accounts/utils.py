@@ -47,8 +47,7 @@ def send_telegram_message(order, request):
     message += f"\n*Итого товаров*: {order.get_total_count()} шт.\n"
     message += f"*Общая стоимость*: {order.get_total_price()} руб.\n"
 
-    chat_id = ['787640915']
-
-    response = requests.get(f'https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={787640915}&parse_mode=Markdown&text={message}')
-
+    response = requests.get(f'https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={787640915}&parse_mode=Markdown&text={message}') #я
+    response = requests.get(f'https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={483918282}&parse_mode=Markdown&text={message}') #Андрей
+    response = requests.get(f'https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={5627367620}&parse_mode=Markdown&text={message}') #Менеджер
     return message

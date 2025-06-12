@@ -1,4 +1,5 @@
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from products.models import Product
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import models
 
@@ -27,14 +28,15 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractBaseUser):
+    id = models.AutoField(primary_key=True)
     email = models.EmailField('Почта', unique=True)
-    username = models.CharField('Имя пользователя', max_length=30, default='Пользователь')
+    telegram_id = models.CharField('Telegram Id', max_length=200, null=True, blank=True)
+    telegram_username = models.CharField('Telegram Username', max_length=200, null=True, blank=True)
     is_active = models.BooleanField('Активный?', default=True)
     is_staff = models.BooleanField('Персонал?', default=False)
     is_superuser = models.BooleanField('Суперюзер?', default=False)
     last_login = models.DateTimeField('Последний вход', blank=True, null=True)
-    created_at = models.DateTimeField('Регистрация', auto_now_add=True)
 
     objects = UserManager()
 
@@ -46,6 +48,13 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def has_module_perms(self, app_label):
         return self.is_staff
+
+    def email_user(self, subject, message, from_email=None, **kwargs):
+        # Отправляем электронную почту пользователю
+        # Реализуйте логику отправки электронной почты, используя
+        # предоставленные аргументы (subject, message, from_email) и
+        # дополнительные параметры, если это необходимо
+        pass
 
     def set_password(self, raw_password):
         
@@ -103,15 +112,71 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = 'Пользователи'
 
 
-class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    message = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    read = models.BooleanField(default=False)
+class Order(models.Model):
+
+    STATUS_CHOICES = (
+        ('created', 'Создан'),
+        ('processing', 'В обработке'),
+        ('goes_to_point', 'Едет в пункт выдачи'),
+        ('shipped', 'Отправлен'),
+        ('ready_for_shipping', 'Готов к выдаче'),
+        ('canceled', 'Отменен'),
+        ('completed', 'Завершен'),
+    )
+
+    DELIVERY_CHOICES = (
+        ('russian_post', 'Почта России'),
+        ('sdek', 'Сдек'),
+        ('boxberry', 'Boxberry'),
+    )
+
+    PICKUP_CHOICES = (
+        ('lightshop', 'Склад LightShop, Новоалексеевская, 22к1'),
+        ('mightbe', 'Шоурум MightBe, Сокольническая площадь, 4к1-2')
+    )
+
+    RECEIVING_CHOICES = (
+        ('delivery', 'Доставка'),
+        ('pickup', 'Самовывоз')
+    )
+
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    order_id = models.PositiveIntegerField('Номер заказа', unique=True)
+    status = models.CharField('Статус', max_length=200, choices=STATUS_CHOICES, default='created')
+    user_name = models.CharField('ФИО', max_length=200, null=False)
+    contact_phone = models.CharField('Телефон', max_length=20)
+    order_notes = models.TextField('Комментарий к заказу', null=True, blank=True)
+    receiving_method = models.CharField('Метод получения', max_length=200, null=True, blank=True, choices=RECEIVING_CHOICES)
+    delivery_method = models.CharField('Способ доставки', max_length=200, null=True, blank=True, choices=DELIVERY_CHOICES)
+    delivery_address = models.TextField('Адрес доставки', null=True, blank=True)
+    pickup_location = models.CharField('Пункт самовывоза', max_length=100, null=True, blank=True, choices=PICKUP_CHOICES)
+    tracking_code = models.CharField('Код для отслеживания', max_length=50, null=True, blank=True)
+    date_ordered = models.DateTimeField('Дата создания', auto_now_add=True)
+    # Другие поля вашей модели Order
+
+    def get_total_price(self):
+        orderitems = self.items.all()
+        total = sum([item.quantity * item.product.price for item in orderitems])
+        return total
+
+    def get_total_count(self):
+        orderitems = self.items.all()
+
+        total = sum([item.quantity for item in orderitems])
+        return total 
 
     def __str__(self):
-        return f"Уведомление для {self.user.email}"
+        return f"Заказ {self.order_id}"
 
     class Meta:
-        verbose_name = 'Уведомление'
-        verbose_name_plural = 'Уведомления'
+        verbose_name = 'Заказ'
+        verbose_name_plural = 'Заказы'
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        verbose_name = 'Товар заказа'
+        verbose_name_plural = 'Товары заказов'

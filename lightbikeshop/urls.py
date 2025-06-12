@@ -5,19 +5,10 @@ from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('nested_admin/', include('nested_admin.urls')),
     path('', include(('store.urls', 'store'), namespace='store')),
+    path('', include(('products.urls', 'products'), namespace='products')),
     path('', include(('accounts.urls', 'accounts'), namespace='accounts')),
-    path('cart/', include(('cart.urls', 'cart'), namespace='cart')),
-    path('', include(('cms.urls', 'cms'), namespace='cms')),
-    path('', include(('orders.urls', 'orders'), namespace='orders')),
+    path('', include(('cart.urls', 'cart'), namespace='cart')),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-
-if settings.DEBUG:
-    import debug_toolbar
-    urlpatterns += [
-        path('__debug__/', include(debug_toolbar.urls)),
-    ]

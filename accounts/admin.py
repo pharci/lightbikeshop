@@ -1,27 +1,21 @@
 from django.contrib import admin
+from django.urls import reverse
+# Register your models here.
 from .models import *
 
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
-    list_display = ('email', 'username', 'is_active', 'is_staff', 'is_superuser', 'last_login', 'created_at')
-    list_filter = ('is_staff', 'is_superuser', 'is_active')
-    search_fields = ('email', 'username')
-    ordering = ('email',)
-    filter_horizontal = ()
+admin.site.register(User)
+admin.site.register(OrderItem)
 
-    fieldsets = (
-        (None, {'fields': ('email', 'password', 'username', 'last_login')}),
-        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
-    )
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    raw_id_fields = ['product']
+    extra = 0
 
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('email', 'username', 'password1', 'password2', 'is_active', 'is_staff', 'is_superuser')}
-        ),
-    )
 
-@admin.register(Notification)
-class UserAdmin(admin.ModelAdmin):
-    list_display = ('user', 'message', 'created_at', 'read')
-    list_filter = ('user', 'read')
+class OrderAdmin(admin.ModelAdmin):
+    inlines = [OrderItemInline]
+    list_display = ('order_id', 'status')
+    list_filter = ('status',)
+    search_fields = ('order_id', )
+
+admin.site.register(Order, OrderAdmin)

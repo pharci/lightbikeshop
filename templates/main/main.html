@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+<head>
+	<title>Light - Магазин лёгких запчастей</title>
+
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1" />
+
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+	<link rel="stylesheet" type="text/css" href="{% static 'css/main.css' %}">
+
+    <link rel="shortcut icon" href="{% static 'images/logoweb.png' %}" type="image/png">
+
+    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css">
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	
+	<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300&display=swap" rel="stylesheet">
+	
+	<script type="text/javascript">
+		var user = '{{request.user}}'
+	</script>
+	
+	<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+
+	<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+	
+	<!-- Yandex.Metrika counter -->
+    <script type="text/javascript" >
+       (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+       m[i].l=1*new Date();
+       for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+       k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+       (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+    
+       ym(94255695, "init", {
+            clickmap:true,
+            trackLinks:true,
+            accurateTrackBounce:true,
+            webvisor:true
+       });
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/94255695" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <!-- /Yandex.Metrika counter -->
+	
+
+</head>
+
+<body>
+	<div class="layout">
+		<header class="header">
+			<div class="the-header border-bottom" style="font-family: 'Comfortaa', cursive;">
+				<div class="the-header-inner d-flex align-items-center justify-content-center">
+					<div class="the-header-logobox d-flex justify-content-center">
+						<a class="the-header-logo" href="{% url 'store:news' %}">LightShop</a>
+					</div>
+					<div class="search-box col-lg-2 col-md-4 me-3">
+						<div id="searchBlock">
+							<form method="GET" action="{% url 'products:search' %}" id="search-form" class="needs-validation" novalidate>
+								<div class="d-flex">
+						    		<input name='q' type="text" class="form-control shadow-none" placeholder="Поиск товаров..." style="border-radius: 10px 0 0 10px;">
+						    		<button type="submit" class="btn btn-outline-dark shadow-none" id="search-button" style="border-radius: 0 10px 10px 0;">
+						    			<img src="{% static 'images/search-icon.png' %}" width="20" height="20">
+						    		</button>
+						    	</div>
+					    	</form>
+					    </div>
+					</div>
+					<div class="the-header-menu justify-content-center align-items-center">
+						<div class="the-header-menu-faq-box col-2 py-1 mx-3">
+				            <a href="{% url 'store:faq' %}" class="shadow-none btn d-flex flex-column align-items-center" title="FAQ">
+				                <img src="{% static 'images/faq-black.png' %}" role="link" width="25" height="25" class="mb-1">
+				                <span style="font-size: 12px">FAQ</span>
+				            </a>
+				         </div>
+						<div class="the-header-menu-cart-box col-2 py-1 mx-3">
+				            <a href="{% url 'cart:cart' %}" class="the-header-menu-cart shadow-none btn d-flex flex-column align-items-center" title="Корзина">
+				                <img src="{% static 'images/cart-black.png' %}" role="link" width="25" height="25" class="mb-1">
+				                <span style="font-size: 12px">Корзина</span>
+				               	<div class="cart-count">
+				               		<span class="cart-count-text">{{cartItems}}</span>
+				               	</div>
+				            </a>
+				        </div>
+				        {% if user.is_authenticated %}
+				        <div class="the-header-menu-profile-box col-2 py-1 mx-3">
+				            <a href="{% url 'accounts:profile' %}" class="shadow-none btn d-flex flex-column align-items-center" title="Профиль">
+				                <img src="{% static 'images/profile-black.png' %}" role="link" width="25" height="25" class="mb-1">
+				                <span style="font-size: 12px">Профиль</span>
+				            </a>
+				        </div>
+				        {% else %}
+				        <div class="the-header-menu-login-box col-2 py-1 mx-3">
+				            <a href="{% url 'accounts:login' %}" class="shadow-none btn d-flex flex-column align-items-center" title="Войти">
+				                <img src="{% static 'images/profile-black.png' %}" role="link" width="25" height="25" class="mb-1">
+				                <span style="font-size: 12px">Войти</span>
+				            </a>
+				        </div>
+				        {% endif %}
+					</div>
+				</div>
+				<div class="the-header-catalog d-flex align-items-center justify-content-center">
+					<div class="the-header-catalog-categories d-flex justify-content-center px-5">
+						<a class="" href="{% url 'products:catalog' %}">Запчасти</a>
+					</div>
+					<div class="the-header-catalog-categories d-flex justify-content-center px-5">
+						<a class="" href="{% url 'products:product_list_by_category' category='clothes' %}">Одежда</a>
+					</div>
+					<div class="the-header-catalog-categories d-flex justify-content-center px-5">
+						<a class="" href="{% url 'products:product_list_by_category' category='workshop' %}">Мастерская</a>
+					</div> 
+				</div>
+				<div class="burger-menu">
+					
+				</div>
+			</div>
+		</header>
+		<div class="page-wrapper"> 
+        {% block content %}
+
+
+        {% endblock content %}
+    	</div>
+   </div>
+
+	
+
+
+	<footer class="footer">
+ 		<div class="my-5 footer-content">
+     		<div class="row justify-content-center">
+         			<div class="col-sm-2 text-left">
+         				<div class="row justify-content-center">
+         					<div class="col">
+         						<p class="font-weight-bold mb-2">Соцсети</p>
+         					</div>
+         					<div class="w-100"></div>
+         					<div class="col mb-1">
+         						<a class="text-secondary text-decoration-none" href="https://vk.com/light_bikeshop">Вконтакте</a>
+         					</div>
+         					<div class="w-100"></div>
+        					<div class="col">
+        						<a class="text-secondary text-decoration-none" href="https://instagram.com/light_bikeshop">Instagram</a>
+        					</div>
+     				</div>
+ 				</div>
+ 				<div class="col-sm-2 text-left">
+         				<div class="row justify-content-center">
+         					<div class="col">
+         						<p class="font-weight-bold mb-2">Контакты</p>
+         					</div>
+         					<div class="w-100"></div>
+         					<div class="col mb-1">
+ 								<p class="text-secondary mb-0 ">lightbikeshop@yandex.ru</p>
+         					</div>
+         					<div class="w-100"></div>
+        					<div class="col">
+        						<a class="text-secondary text-decoration-none" href="https://t.me/light_bikeshop">Telegram</a>
+        					</div>
+     				</div>
+ 				</div>
+ 				<div class="col-sm-2 text-left">
+         				<div class="row justify-content-center">
+         					<div class="col">
+         						<p class="font-weight-bold mb-2">Обратная связь</p>
+         					</div>
+         					<div class="w-100"></div>
+         					<div class="col mb-1">
+     							<a class="text-secondary text-decoration-none" href="{% url 'store:faq' %}#faq-chapter-5">Доставка</a>
+     						</div>
+         					<div class="w-100"></div>
+         					<div class="col">
+     							<a class="text-secondary text-decoration-none" href="{% url 'store:faq' %}#faq-chapter-1">О нас</a>
+
+     					</div>
+     				</div>
+ 				</div>
+ 				<div class="col-sm-2 text-left">
+         				<div class="row justify-content-center">
+         					<div class="col mb-2">
+         						<a class="text-secondary text-decoration-none" href="{% url 'store:faq' %}#faq-chapter-3">Проверка наличия</a>
+         					</div>
+         					<div class="w-100"></div>
+         					<div class="col">
+     								<a class="text-secondary text-decoration-none" href="{% url 'store:faq' %}#faq-chapter-2">Как сделать заказ</a>
+     							</div>
+     					</div>
+     				</div>
+ 				</div>
+     		</div>
+
+ 		<div class="footer-mobile border-top">
+		    <div class="row d-flex justify-content-around">
+		        <div class="col-2 py-1">
+		            <a href="{% url 'store:news' %}" id="homeButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Главная">
+		                <img src="{% static 'images/home-black.png' %}" role="link" width="25" height="25" class="mb-1" id="homeButtonImage">
+		                <span style="font-size: 11px" id="homeButtonText"> Главная </span>
+		            </a>
+		         </div>
+
+		         <div class="col-2 py-1">
+		            <a href="{% url 'products:catalog' %}" id="catalogButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Каталог">
+		                <img src="{% static 'images/catalog-black.png' %}" role="link" width="25" height="25" class="mb-1" id="catalogButtonImage">
+		                <span style="font-size: 11px" id="catalogButtonText"> Каталог </span>
+		            </a>
+		         </div>
+
+		         <div class="col-2 py-1 cart-mobile-box">
+		            <a href="{% url 'cart:cart' %}" id="cartButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Корзина">
+		                <img src="{% static 'images/cart-black.png' %}" role="link" width="25" height="25" class="mb-1" id="cartButtonImage">
+		                <span style="font-size: 11px" id="cartButtonText"> Корзина </span>
+		                <div class="cart-count">
+		               		<span class="cart-count-text">{{cartItems}}</span>
+		               	</div>
+		            </a>
+		         </div>
+
+		         <div class="col-2 py-1">
+		            <a href="{% url 'store:faq' %}" id="faqButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="FAQ">
+		                <img src="{% static 'images/faq-black.png' %}" role="link" width="25" height="25" class="mb-1" id="faqButtonImage">
+		                <span style="font-size: 11px" id="faqButtonText"> FAQ </span>
+		            </a>
+		         </div>
+
+
+		         {% if user.is_authenticated %}
+		         <div class="col-2 py-1">
+		            <a href="{% url 'accounts:profile' %}" id="profileButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Войти">
+		                <img src="{% static 'images/profile-black.png' %}" role="link" width="25" height="25" class="mb-1" id="profileButtonImage">
+		                <span style="font-size: 11px" id="profileButtonText"> Профиль </span>
+		            </a>
+		         </div>
+					{% else %}
+		         <div class="col-2 py-1">
+		            <a href="{% url 'accounts:login' %}" id="loginButton" class="shadow-none btn d-flex flex-column align-items-center pt-1 pb-0" title="Войти">
+		                <img src="{% static 'images/profile-black.png' %}" role="link" width="25" height="25" class="mb-1" id="loginButtonImage">
+		                <span style="font-size: 11px" id="loginButtonText"> Войти </span>
+		            </a>
+		         </div>
+		        	{% endif %}
+
+		    </div>
+		</div>
+	</footer>
+
+	<script type="text/javascript" src="{% static 'js/main.js' %}"></script>
+
+	<script type="text/javascript" src="{% static 'js/footer_mobile_buttons.js' %}"></script>
+
+</body>
+</html>

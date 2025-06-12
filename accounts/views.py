@@ -15,8 +15,7 @@ from .forms import (
     RecoveryForm,
     RecoveryInputPasswordForm,
 )
-from .models import User
-from orders.models import Order
+from .models import Order, User
 from cart.models import Cart
 from .captcha import verify_recaptcha
 from .utils import generate_verification_code, send_verification_code
