@@ -1,68 +1,72 @@
-from django.shortcuts import render, get_object_or_404
-from .models import * 
-from django.db.models import Case, When
+from django.db.models import Prefetch
+from django.shortcuts import render
 
-def product_list(request, category=None, brand=None):
-    context = {}
-    products = None
+from .models import Category, Brand
 
-    if category:
-        category = get_object_or_404(Category, slug=category)
-        products = Product.objects.filter(category=category)
-        context['category'] = category
+from .list_utils import *
+from .detail_utils import *
 
-    elif brand:
-        brand = get_object_or_404(Brand, slug=brand)
-        products = Product.objects.filter(brand=brand)
-        context['brand'] = brand
+def list(request, category_path=None, brand=None):
+    params = parse_params(request)
+    cat, br = get_cat_brand_by_path(category_path, brand)
 
-    elif request.method == 'GET' and 'q' in request.GET:
-        query = request.GET.get('q')
-        products = Product.objects.filter(name__icontains=query)
+    qs = base_qs()
+    qs = apply_scope(qs, cat, br, params)
+    by_slug = attr_slug_map(cat)
+    qs = apply_attr_filters(qs, params, by_slug)
+    qs = order_qs(qs, params.sort)
+    page_obj = paginate_qs(qs, params.page)
 
-    else:
-        # Если не указаны категория, бренд или поисковый запрос - показать все продукты
-        products = Product.objects.all()
+    fb = faceting_base_qs(cat, br, params)
+    price_rng = price_range_facet(fb)
+    brands = brand_facet(fb)
+    attrs = attr_facets(cat, fb)
 
-    # Сортировка по статусу доступности
-    if products:
-        # Сначала товары в наличии, затем под заказ, затем скоро будет, и в конце - нет в наличии
-        # Порядок сортировки: in_stock, on_order, coming_soon, out_of_stock
-        products = products.order_by(
-            Case(
-                When(availability_status='in_stock', then=0),
-				When(availability_status='coming_soon', then=1),
-                When(availability_status='on_order', then=2),
-                When(availability_status='out_of_stock', then=3),
-                default=4,
-                output_field=models.IntegerField(),
-            )
-        )
-        context['products'] = products
-    else:
-        context['notfound'] = True
-
-    return render(request, 'products/products_list.html', context)
+    ctx = {
+        "variants": page_obj.object_list,
+        "page_obj": page_obj,
+        "q": params.q,
+        "cat": cat,
+        "brand": br,
+        "notfound": page_obj.paginator.count == 0,
+        "sort": params.sort,
+        "price_range": price_rng,
+        "brand_facet": brands,
+        "attr_facets": attrs,
+        "selected": selected_dict(request, params),
+        "qs": qs_without_page(request),
+    }
+    return render(request, "products/list.html", ctx)
 
 
-def product_detail(request, category_slug, id, slug):
+def detail(request, category_path, slug, variant_id):
+    variant = get_variant_or_404(variant_id)
+    siblings = get_sibling_variants_qs(variant.product_id)
 
-	product = get_object_or_404(Product, id=id, slug=slug)
+    attrs, attr_ids = variant_attributes(variant)
+    variants_data, values_by_attr, first_by_attr_val = build_variants_index(siblings, attr_ids)
+    current_values = current_values_map(variant, attr_ids)
+    rows = build_rows(attrs, attr_ids, values_by_attr, first_by_attr_val, variants_data, current_values)
 
-	context = {'product': product}
+    return render(request, "products/detail.html", {
+        "variant": variant,
+        "base": variant.product,
+        "rows": rows,
+    })
 
-	return render(request, 'products/product_detail.html', context)
 
 def catalog(request):
-    categories = Category.objects.all().order_by('name')
-    other_slugs = ['workshop', 'clothes', 'protection']
-    other_categories = categories.filter(slug__in=other_slugs)
-    main_categories = categories.exclude(slug__in=other_slugs)
+    roots = (
+        Category.objects.filter(parent__isnull=True)
+        .order_by("name")
+        .prefetch_related(
+            Prefetch("children", queryset=Category.objects.order_by("name"))
+        )
+    )
     
     brands = Brand.objects.all()
     
     return render(request, 'products/catalog.html', {
         'brands': brands,
-        'main_categories': main_categories,
-        'other_categories': other_categories
+        'roots': roots,
         })

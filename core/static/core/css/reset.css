@@ -1,0 +1,52 @@
+/* Универсальная модель коробки */
+*, *::before, *::after {
+    box-sizing: border-box;
+  }
+  
+  /* Сбрасываем отступы */
+  body, h1, h2, h3, h4, h5, h6, p, figure, blockquote {
+    margin: 0;
+  }
+  
+  /* Убираем оформление списков */
+  ul, ol {
+    list-style: none;
+    padding: 0;
+  }
+  
+  /* Убираем подчеркивание у ссылок */
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+  
+  /* Максимальная адаптивность для изображений */
+  img {
+    max-width: 100%;
+    display: block;
+  }
+  
+  /* Наследуем шрифт для кнопок и форм */
+  button, input, select, textarea {
+    font: inherit;
+  }
+
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #888b90 transparent;
+  overflow-y: scroll;
+}
+
+::-webkit-scrollbar {
+  width: 6px; /* стандарт ~16px */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #999;
+  border-radius: 10px; 
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}

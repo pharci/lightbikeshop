@@ -11,4 +11,6 @@ urlpatterns = [
     path('verify_code/', views.verify_code, name='verify_code'),
     path('recovery_input_password/', views.recovery_input_password_view, name='recovery_input_password'),
     path('check_email_availability/', views.check_email_availability, name='check_email_availability'),
+    path('oauth/', include('social_django.urls', namespace='social')),
+    path('tg_auth/', views.tg_auth, name='tg_auth'),
 ]

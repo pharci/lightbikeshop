@@ -1,0 +1,97 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Корзина{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'cart/css/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container cart-page">
+
+  <div class="cart-grid">
+    <!-- Список товаров рендерит cart.js -->
+    <section id="cart-items" class="cart-items" aria-live="polite"></section>
+
+    <!-- ЕДИНЫЙ ОСТРОВОК ИТОГА -->
+    <aside class="order-summary">
+      <div class="order-summary__row">
+        <span>{{ cart.get_total_items }} товаров на сумму</span>
+        <span id="summary-subtotal">{{ cart.get_cart_subtotal_price|floatformat:"0" }} ₽</span>
+      </div>
+
+      {% if applied_promo_code %}
+        <div class="order-summary__row muted">
+          <span>Скидка по промокоду</span>
+          <span id="summary-discount">-{{ cart.get_discount|floatformat:"0" }} ₽</span>
+        </div>
+      {% endif %}
+
+      <!-- Промокод: редактируемый в корзине -->
+      <div class="promo">
+        <form method="post" action="{% url 'cart:apply_promo' %}" class="promo__inline">
+          {% csrf_token %}
+          <input type="text" name="promo_code" inputmode="text" autocomplete="off"
+                 placeholder="Введите промокод" class="promo__input"
+                 value="{% if applied_promo_code %}{{ applied_promo_code.code }}{% endif %}">
+          <button type="submit" class="btn btn--primary promo__apply">Применить</button>
+        </form>
+        
+        {% if messages %}
+          {% for message in messages %}
+            {% if message.tags == 'error' %}
+              <p class="error">{{ message }}</p>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+
+        {% if applied_promo_code %}
+          <div class="promo__chip">
+            Промокод: 
+            <strong>
+              {{ applied_promo_code.code }}
+              {% if applied_promo_code.discount_type == "percent" %}
+                - {{ applied_promo_code.amount|floatformat:"0" }}%
+              {% else %}
+                - {{ applied_promo_code.amount|floatformat:"0" }}₽
+              {% endif %}
+            </strong>
+            <form method="post" action="{% url 'cart:remove_promo' %}" class="promo__remove-form">
+              {% csrf_token %}
+              <button type="submit" class="promo__remove" aria-label="Удалить промокод">&times;</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+
+      <hr class="order-summary__hr">
+
+      <div class="order-summary__total">
+        <span>Итого к оплате</span>
+        <span id="summary-total">{{ cart.get_cart_total_price|floatformat:"0" }} ₽</span>
+      </div>
+
+      <a id="checkout-btn" class="btn btn--primary order-summary__btn" href="{% url 'cart:checkout' %}">
+        Перейти к оформлению
+      </a>
+      <p class="summary__fineprint">Продолжая, вы соглашаетесь с <a href="#">политикой обработки персональных данных</a>.</p>
+    </aside>
+  </div>
+
+  <!-- Пустая корзина (fallback без JS) -->
+  <template id="tpl-cart-empty">
+    <div class="cart-empty">
+      <div class="cart-empty__title">В корзине пусто</div>
+      <div class="cart-empty__text">Добавьте товары, чтобы оформить заказ.</div>
+    </div>
+  </template>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'cart/js/cart.js' %}"></script>
+{% endblock %}

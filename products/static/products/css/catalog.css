@@ -1,0 +1,114 @@
+/* Общие секции/заголовки */
+.catalog-section { margin: 12px 0; }
+
+/* Гриды */
+.grid--categories {
+  display: grid;
+  gap: 0.3rem;
+  grid-template-columns: repeat(2, 1fr);
+  align-items: stretch;  
+}
+.grid--categories > * {
+  align-self: stretch;
+}
+
+.grid--brands {
+  display: grid;
+  gap: 0.2rem;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: start;
+}
+
+@media (max-width: 340px) {
+  .grid--categories {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+
+  .grid--brands {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.3rem;
+  }
+}
+
+@media (min-width: 540px) {
+  .grid--categories {
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+
+  .grid--brands {
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+
+/* Карточка категории */
+.category-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  background: #fff;
+  border-radius: 15px;
+  overflow: hidden;
+  transition: transform .15s ease;
+}
+.category-card:hover { transform: translateY(-2px); color: black}
+.category-card__media { grid-row: 1; aspect-ratio: 4/3; overflow: hidden; }
+.category-card__media img { width:100%; height:100%; object-fit:cover; display:block; }
+.category-card__body {
+  grid-row: 3;
+  padding: .5rem .75rem;
+  min-height: 0;
+  /* подложка под заголовок: ровно 2 строки, текст прижат вниз */
+  display: flex;
+}
+.category-card__title-wrap {
+  min-height: calc(1.3em * 2);      /* высота области под 2 строки */
+  display: flex;
+  align-items: flex-end;             /* прижать содержимое к низу подложки */
+  width: 100%;
+}
+.category-card__title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  line-height: 1.3;
+  overflow: hidden;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+
+/* Карточка бренда */
+.brand-card {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  align-items: center;
+  gap: .5rem;
+  transition: transform .15s ease;
+  margin-bottom: 0.5rem;
+}
+
+.brand-card:hover { transform: translateY(-2px); color:black }
+
+.brand-card__logo img {
+  border-radius: 12px;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border: 1px solid var(--border);
+}
+.brand-card__title {
+  text-align: center;
+  font-weight: 600;
+  font-size: .95rem;
+}

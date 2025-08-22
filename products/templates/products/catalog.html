@@ -1,0 +1,38 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Каталог{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'products/css/catalog.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  {# --- Категории --- #}
+  {% for root in roots %}
+    {% include "products/partials/cats_list.html" with root=root %}
+  {% endfor %}
+
+  {# --- Бренды --- #}
+  {% if brands %}
+  <section class="catalog-section">
+    <div class="section__header"><h2 class="section__title">Бренды</h2></div>
+
+    <div class="grid--brands">
+      {% for brand in brands %}
+        <a href="{{ brand.get_absolute_url }}" class="brand-card">
+          <div class="brand-card__logo">
+            <img src="{{ brand.image.url }}" alt="{{ brand.title }}">
+          </div>
+          <div class="brand-card__title">{{ brand.title }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}

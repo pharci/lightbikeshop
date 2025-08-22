@@ -1,0 +1,261 @@
+{% extends 'core/base.html' %}
+{% load static shop_extras %}
+
+{% block title %}{% if cat %}{{ cat.name }}{% elif brand %}{{ brand.title }}{% else %}Light{% endif %}{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'products/css/card.css' %}">
+  <link rel="stylesheet" href="{% static 'products/css/list.css' %}">
+  <link rel="stylesheet" href="{% static 'products/css/catalog.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  {# --- Категории --- #}
+  {% if cat.children %}
+    {% include "products/partials/cats_list.html" with root=cat %}
+  {% endif %}
+
+  <div class="toolbar-top">
+    <button class="btn btn-outline show-filters" type="button" data-toggle="filters">Фильтры</button>
+    <div class="sort">
+      <select id="sort-m" name="sort" form="filters-form">
+        <option value="pop" {% if sort == 'pop' %}selected{% endif %}>Сначала в наличии</option>
+        <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Цена ↑</option>
+        <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Цена ↓</option>
+        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Новинки</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="catalog-wrap">
+    <!-- Сайдбар фильтров -->
+    <aside class="filters" id="filters">
+      <div class="filters__header">
+        <span>Фильтры</span>
+        <button class="filters__close" type="button" data-toggle="filters" aria-label="Закрыть">✕</button>
+      </div>
+
+      <form method="get" id="filters-form">
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+
+        <details class="group" open>
+          <summary><span>Наличие</span></summary>
+          <label class="check">
+            <input type="checkbox" name="in_stock" value="1" {% if selected.in_stock %}checked{% endif %}>
+            <span>В наличии</span>
+          </label>
+        </details>
+
+        <details class="group" open>
+          <summary><span>Цена</span></summary>
+          <div class="inline">
+            <input class="input" type="number" step="0.01" min="0" name="price_min"
+                   placeholder="{{ price_range.min|default:'0' }}" value="{{ selected.price_min }}">
+            <span class="dash">—</span>
+            <input class="input" type="number" step="0.01" min="0" name="price_max"
+                   placeholder="{{ price_range.max|default:'' }}" value="{{ selected.price_max }}">
+          </div>
+        </details>
+
+        {% if not brand and brand_facet %}
+        <details class="group" open>
+          <summary><span>Бренд</span></summary>
+          <div class="tags">
+            {% for b in brand_facet %}
+              {% with slug=b.product__brand__slug title=b.product__brand__title %}
+                <label class="tag">
+                  <input type="checkbox" class="tag__control" name="brands_multi" value="{{ slug }}"
+                         {% if slug in selected.brands %}checked{% endif %}
+                         onchange="syncMultiToHidden('brands_multi','brands','filters-form')">
+                  <span class="tag__label">{{ title }}</span>
+                </label>
+              {% endwith %}
+            {% endfor %}
+          </div>
+          <input type="hidden" name="brands" id="brands" value="{{ selected.brands|join:',' }}">
+        </details>
+        {% endif %}
+
+        {% if category and attr_facets %}
+          {% for f in attr_facets %}
+            <details class="group" open>
+              <summary><span>{{ f.attribute.name }}</span></summary>
+
+              {% if f.attribute.value_type == 'text' %}
+                {% with key='a_'|add:f.attribute.slug %}
+                  {% with sel=selected.attrs|get_item:key %}
+                    <div class="tags">
+                      {% for val in f.values %}
+                        <label class="tag">
+                          <input type="checkbox" class="tag__control"
+                                 name="{{ key }}_multi" value="{{ val }}"
+                                 {% if sel|csv_contains:val %}checked{% endif %}
+                                 onchange="syncMultiToHidden('{{ key }}_multi','{{ key }}','filters-form')">
+                          <span class="tag__label">{{ val }}</span>
+                        </label>
+                      {% empty %}
+                        <div class="muted">Нет значений</div>
+                      {% endfor %}
+                    </div>
+                    <input type="hidden" name="{{ key }}" id="{{ key }}" value="{{ sel }}">
+                  {% endwith %}
+                {% endwith %}
+
+              {% elif f.attribute.value_type == 'bool' %}
+                {% with key='a_'|add:f.attribute.slug %}
+                  {% with val=selected.attrs|get_item:key %}
+                    <label class="radio"><input type="radio" name="{{ key }}" value="" {% if not val %}checked{% endif %}><span>Любое</span></label>
+                    <label class="radio"><input type="radio" name="{{ key }}" value="1" {% if val == '1' %}checked{% endif %}><span>Да</span></label>
+                    <label class="radio"><input type="radio" name="{{ key }}" value="0" {% if val == '0' %}checked{% endif %}><span>Нет</span></label>
+                  {% endwith %}
+                {% endwith %}
+
+              {% else %}
+                {% with key_min='a_'|add:f.attribute.slug|add:'_min' key_max='a_'|add:f.attribute.slug|add:'_max' %}
+                  <div class="inline">
+                    <input class="input" type="number" step="0.001" name="{{ key_min }}"
+                           placeholder="{{ f.range.min|default:'' }}" value="{{ selected.attrs|get_item:key_min }}">
+                    <span class="dash">—</span>
+                    <input class="input" type="number" step="0.001" name="{{ key_max }}"
+                           placeholder="{{ f.range.max|default:'' }}" value="{{ selected.attrs|get_item:key_max }}">
+                  </div>
+                {% endwith %}
+              {% endif %}
+            </details>
+          {% endfor %}
+        {% endif %}
+
+        <div class="filters__actions bottom">
+          <button class="btn btn-primary w-full" type="submit">Показать</button>
+        </div>
+      </form>
+    </aside>
+
+    <!-- Контент -->
+    <section>
+      <!-- Чипсы выбранных фильтров -->
+      <div class="chips">
+        {% if selected.in_stock %}
+          <button class="chip" data-clear="in_stock">В наличии <span>✕</span></button>
+        {% endif %}
+        {% if selected.price_min %}
+          <button class="chip" data-clear="price_min">от {{ selected.price_min }} <span>✕</span></button>
+        {% endif %}
+        {% if selected.price_max %}
+          <button class="chip" data-clear="price_max">до {{ selected.price_max }} <span>✕</span></button>
+        {% endif %}
+        {% if selected.brands %}
+          {% for s in selected.brands %}
+            <button class="chip" data-clear="brands:{{ s }}">Бренд: {{ s }} <span>✕</span></button>
+          {% endfor %}
+        {% endif %}
+
+        {% if category and attr_facets %}
+          {% for f in attr_facets %}
+            {% if f.attribute.value_type == 'text' %}
+              {% with key='a_'|add:f.attribute.slug %}
+                {% with sel=selected.attrs|get_item:key %}
+                  {% for v in sel|split:',' %}
+                    {% if v %}
+                      <button class="chip" data-clear="{{ key }}:{{ v }}">{{ f.attribute.name }}: {{ v }} <span>✕</span></button>
+                    {% endif %}
+                  {% endfor %}
+                {% endwith %}
+              {% endwith %}
+            {% elif f.attribute.value_type == 'bool' %}
+              {% with key='a_'|add:f.attribute.slug %}
+                {% with val=selected.attrs|get_item:key %}
+                  {% if val == '1' %}<button class="chip" data-clear="{{ key }}">Только «Да» <span>✕</span></button>{% endif %}
+                  {% if val == '0' %}<button class="chip" data-clear="{{ key }}">Только «Нет» <span>✕</span></button>{% endif %}
+                {% endwith %}
+              {% endwith %}
+            {% else %}
+              {% with kmin='a_'|add:f.attribute.slug|add:'_min' kmax='a_'|add:f.attribute.slug|add:'_max' %}
+                {% if selected.attrs|get_item:kmin %}
+                  <button class="chip" data-clear="{{ kmin }}">{{ f.attribute.name }} ≥ {{ selected.attrs|get_item:kmin }} <span>✕</span></button>
+                {% endif %}
+                {% if selected.attrs|get_item:kmax %}
+                  <button class="chip" data-clear="{{ kmax }}">{{ f.attribute.name }} ≤ {{ selected.attrs|get_item:kmax }} <span>✕</span></button>
+                {% endif %}
+              {% endwith %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+
+        {% if request.GET %}
+          <a class="chip chip--ghost" href="{{ request.path }}">Сбросить все</a>
+        {% endif %}
+        <div class="sort sort-desktop">
+          <select id="sort-d" name="sort" form="filters-form">
+            <option value="pop" {% if sort == 'pop' %}selected{% endif %}>Сначала в наличии</option>
+            <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Цена ↑</option>
+            <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Цена ↓</option>
+            <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Новинки</option>
+          </select>
+        </div>
+        
+      </div>
+
+      <!-- Сетка -->
+      <div class="product-grid">
+        {% for v in variants %}
+          {% include "products/card.html" with v=v %}
+        {% empty %}
+          <p class="u-center muted">Пусто</p>
+        {% endfor %}
+      </div>
+
+      <!-- Пагинация -->
+        {% if page_obj.has_other_pages %}
+        <nav class="pagination">
+          {# используем только qs из контекста, где page уже вычищен #}
+          {% if page_obj.has_previous %}
+            <a class="page prev"
+              href="{{ request.path }}?page={{ page_obj.previous_page_number }}{% if qs %}&{{ qs|safe }}{% endif %}">←</a>
+          {% endif %}
+      
+          {# 1 2 … (текущая±1) … (последняя-1) последняя #}
+          {% with total=page_obj.paginator.num_pages curr=page_obj.number %}
+            {% if curr > 3 %}
+              <a class="page" href="{{ request.path }}?page=1{% if qs %}&{{ qs|safe }}{% endif %}">1</a>
+              <a class="page" href="{{ request.path }}?page=2{% if qs %}&{{ qs|safe }}{% endif %}">2</a>
+              {% if curr > 4 %}<span class="dots">…</span>{% endif %}
+            {% endif %}
+      
+            {% for num in page_obj.paginator.page_range %}
+              {% if num >= curr|add:"-1" and num <= curr|add:"1" %}
+                {% if num == curr %}
+                  <span class="page current">{{ num }}</span>
+                {% else %}
+                  <a class="page" href="{{ request.path }}?page={{ num }}{% if qs %}&{{ qs|safe }}{% endif %}">{{ num }}</a>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+      
+            {% if curr < total|add:"-2" %}
+              {% if curr < total|add:"-3" %}<span class="dots">…</span>{% endif %}
+              {% if total > 1 %}
+                <a class="page" href="{{ request.path }}?page={{ total|add:"-1" }}{% if qs %}&{{ qs|safe }}{% endif %}">{{ total|add:"-1" }}</a>
+                <a class="page" href="{{ request.path }}?page={{ total }}{% if qs %}&{{ qs|safe }}{% endif %}">{{ total }}</a>
+              {% endif %}
+            {% endif %}
+          {% endwith %}
+      
+          {% if page_obj.has_next %}
+            <a class="page next"
+              href="{{ request.path }}?page={{ page_obj.next_page_number }}{% if qs %}&{{ qs|safe }}{% endif %}">→</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'products/js/card.js' %}"></script>
+  <script src="{% static 'products/js/list.js' %}"></script>
+{% endblock %}

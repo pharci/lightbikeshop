@@ -1,21 +1,23 @@
-from django.urls import include, re_path, path
-
+from django.urls import path
 from . import views
 
+app_name = "products"
+
 urlpatterns = [
-	#Leave as empty string for base url
-    path('catalog/', views.catalog, name="catalog"),
-	re_path(r'^products/search/$', views.product_list, name='search'),
+    path("catalog/", views.catalog, name="catalog"),
+    path("catalog/search/", views.list, name="search"),
 
-    re_path(r'^products/(?P<category>[-\w]+)/$',
-        views.product_list,
-        name='product_list_by_category'),
+    # важно: detail идёт раньше category
+    path(
+        "catalog/<path:category_path>/<slug:slug>/<int:variant_id>/",
+        views.detail,
+        name="detail",
+    ),
+    path(
+        "catalog/<path:category_path>/",
+        views.list,
+        name="category",
+    ),
 
-    re_path(r'^brands/(?P<brand>[-\w]+)/$',
-        views.product_list,
-        name='product_list_by_brand'),
-
-    re_path(r'^products/(?P<category_slug>[-\w]+)/(?P<id>\d+)/(?P<slug>[-\w]+)/$',
-        views.product_detail,
-        name='product_detail'),
+    path("brands/<slug:brand>/", views.list, name="brand"),
 ]

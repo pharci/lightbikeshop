@@ -1,0 +1,105 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'accounts/css/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container auth">
+
+  <div class="section__header u-center">
+    <h1 class="section__title">Регистрация</h1>
+  </div>
+
+  <div class="auth__grid">
+    <section class="card auth-card">
+      <form method="POST"
+            action="{% url 'accounts:register' %}"
+            id="register-form"
+            class="form"
+            novalidate>
+        {% csrf_token %}
+
+        {# EMAIL #}
+        <div class="field">
+          <label for="id_email" class="label">Почта</label>
+          <input type="email"
+                 id="id_email"
+                 name="email"
+                 class="input"
+                 placeholder="you@example.com"
+                 required
+                 autocomplete="email" />
+          <p id="email-error" class="error" hidden>Этот адрес уже занят.</p>
+          <p id="email-invalid-error" class="error" hidden>Введите корректный адрес электронной почты.</p>
+
+          {# серверные ошибки #}
+          {% if messages %}
+            {% for message in messages %}
+              {% if message.tags == 'error' %}
+                <p class="error">{{ message }}</p>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        {# PASSWORD #}
+        <div class="field">
+          <label for="id_password1" class="label">Пароль</label>
+          <input type="password"
+                 id="id_password1"
+                 name="password1"
+                 class="input"
+                 placeholder="Минимум 8 символов"
+                 required
+                 autocomplete="new-password" />
+          <p id="password-weak-error" class="error" hidden>
+            Пароль должен быть 8–64 символа, содержать букву и цифру, без пробелов.
+          </p>
+        </div>
+
+        {# CONFIRM #}
+        <div class="field">
+          <label for="id_password2" class="label">Подтверждение пароля</label>
+          <input type="password"
+                 id="id_password2"
+                 name="password2"
+                 class="input"
+                 placeholder="Повторите пароль"
+                 required
+                 autocomplete="new-password" />
+          <p id="password-mismatch-error" class="error" hidden>Пароли не совпадают.</p>
+        </div>
+
+        {# reCAPTCHA v3 #}
+        <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
+
+        <div class="actions">
+          <button type="submit" class="btn btn--dark" id="register-button">Зарегистрироваться</button>
+          <a class="link" href="{% url 'accounts:login' %}">У меня уже есть аккаунт</a>
+        </div>
+
+        <p class="legal">
+          This site is protected by reCAPTCHA and the Google
+          <a class="link" href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+          <a class="link" href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
+        </p>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'accounts/js/register.js' %}"></script>
+  <script src="{% static 'accounts/js/recaptcha.js' %}"></script>
+  <script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}"></script>
+  <script>
+    window.recaptchaSiteKey = "{{ RECAPTCHA_SITE_KEY }}";
+  </script>
+{% endblock %}

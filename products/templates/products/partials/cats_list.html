@@ -1,0 +1,33 @@
+{% load static %}
+{% if root and root.children.all %}
+<section class="catalog-section">
+  <div class="section__header">
+    <a href="{{ root.get_absolute_url }}" class="section__title">
+      {{ root.name }}
+      <svg xmlns="http://www.w3.org/2000/svg" class="icon-link" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+    </a>
+  </div>
+
+  <div class="grid--categories">
+    {% for child in root.children.all %}
+      <a href="{{ child.get_absolute_url }}" class="category-card hover-shadow border">
+        <div class="category-card__media">
+          {% if child.image %}
+            <img src="{{ child.image.url }}" alt="{{ child.name }}">
+          {% else %}
+            <img src="{% static 'images/none.jpg' %}" alt="{{ child.name }}">
+          {% endif %}
+        </div>
+        <div class="category-card__body">
+          <div class="category-card__title-wrap">
+            <div class="category-card__title">{{ child.name }}</div>
+          </div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}

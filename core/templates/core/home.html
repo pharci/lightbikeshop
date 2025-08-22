@@ -1,0 +1,180 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Главная{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'products/css/card.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/home.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+  {% if wheel %}
+  {# ---------- Промо-слайдер (баннеры) ---------- #}
+  <section class="section">
+    <div class="swiper infoswiper">
+      <div class="swiper-wrapper">
+        {% for image in wheel %}
+          <div class="swiper-slide infoswiper__slide">
+            <a href="{{ image.get_absolute_url }}">
+              <img src="{{ image.image.url }}" alt="{{ image.title }}">
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="swiper-pagination infoswiper__pagination"></div>
+      <div class="swiper-button-prev infoswiper__prev"></div>
+      <div class="swiper-button-next infoswiper__next"></div>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ---------- Бренды (слайдер) ---------- #}
+  {% if brands %}
+  <section class="section">
+    <div class="section__header"><h2 class="section__title">Бренды</h2></div>
+
+    <div class="swiper brandswiper">
+      <div class="swiper-wrapper">
+        {% for brand in brands %}
+          <div class="swiper-slide brandswiper__slide">
+            <a href="{{ brand.get_absolute_url }}" class="brand-card">
+              <div class="brand-card__logo">
+                <img src="{{ brand.image.url }}" alt="{{ brand.title }}">
+              </div>
+              <div class="brand-card__title">{{ brand.title }}</div>
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="swiper-button-prev brandswiper__prev"></div>
+      <div class="swiper-button-next brandswiper__next"></div>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ---------- Рекомендуем (слайдер товаров с нашим компонентом) ---------- #}
+  {% if variants %}
+    <section class="section">
+      <div class="section__header"><h2 class="section__title">Рекомендуем</h2></div>
+
+      <div class="swiper recswiper">
+        <div class="swiper-wrapper">
+          {% for v in variants %}
+            <div class="swiper-slide recswiper__slide">
+              {% include "products/product_card.html" with product=v variant="slider" %}
+            </div>
+          {% endfor %}
+        </div>
+        <div class="swiper-pagination recswiper__pagination"></div>
+        <div class="swiper-button-prev recswiper__prev"></div>
+        <div class="swiper-button-next recswiper__next"></div>
+      </div>
+    </section>
+  {% endif %}
+
+  {# ---------- Где получить заказ ---------- #}
+  <section class="section">
+    <div class="section__header"><h2 class="section__title">Где получить заказ?</h2></div>
+
+    <div class="pickup">
+      <div class="pickup__map">
+        <iframe
+          src="https://yandex.ru/map-widget/v1/?um=constructor%3A943e8b981dde83761a086bac55e0a24439fd75b8fb6dc6fb280c2829a5d13b72&amp;source=constructor&amp;apikey=ae068af9-edb0-413f-bfc5-2e6ce196122d"
+          width="100%" height="350" frameborder="0" allowfullscreen="true"
+          class="pickup__iframe"></iframe>
+      </div>
+
+      <div class="pickup__list">
+        {% for p in pickups %}
+          <div class="pickup-card">
+            <p class="pickup-card__title">
+              {{ p.title }}
+            </p>
+
+            {% if p.metro %}
+              <p class="pickup-card__meta">
+                <img src="{% static 'core/icons/metro.svg' %}" width="20" height="20" alt="">
+                <span class="pickup-card__metro">{{ p.metro }}</span>
+              </p>
+            {% endif %}
+
+            <p class="pickup-card__addr">
+              Адрес: {{ p.address }}{% if p.city %}, {{ p.city }}{% endif %}
+            </p>
+
+            {% if p.schedule %}
+              <p class="pickup-card__time">График: {{ p.schedule }}</p>
+            {% endif %}
+
+            {% if p.lat and p.lon %}
+              <a class="btn btn--secondary"
+                href="https://yandex.ru/maps/?pt={{ p.lon }},{{ p.lat }}&z=16&l=map"
+                target="_blank" rel="noopener">Открыть на карте</a>
+            {% else %}
+              <a class="btn btn--secondary"
+                href="https://yandex.ru/maps/?text={{ p.city|urlencode }}%20{{ p.address|urlencode }}"
+                target="_blank" rel="noopener">Открыть на карте</a>
+            {% endif %}
+          </div>
+        {% empty %}
+          <div class="muted">Пункты самовывоза временно недоступны.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ---------- Соцсети ---------- #}
+<section class="section">
+  <div class="section__header"><h2 class="section__title">Наши соцсети</h2></div>
+
+  <nav class="social" aria-label="Соцсети">
+    <a class="social__item" href="https://vk.com/light_bikeshop" aria-label="VK">
+      <span class="social__icon">
+        <img src="{% static 'core/icons/social/vk.svg' %}" alt="VK">
+      </span>
+      <span class="social__label">VK</span>
+    </a>
+    <a class="social__item" href="https://www.youtube.com/@LightBikeShop" aria-label="YouTube">
+      <span class="social__icon">
+        <img src="{% static 'core/icons/social/youtube.svg' %}" alt="YouTube">
+      </span>
+      <span class="social__label">YouTube</span>
+    </a>
+    <a class="social__item" href="https://instagram.com/light_bikeshop" aria-label="Instagram">
+      <span class="social__icon">
+        <img src="{% static 'core/icons/social/instagram.svg' %}" alt="Instagram">
+      </span>
+      <span class="social__label">Instagram</span>
+    </a>
+    <a class="social__item" href="https://t.me/light_bikeshop" aria-label="Telegram">
+      <span class="social__icon">
+        <img src="{% static 'core/icons/social/telegram.svg' %}" alt="Telegram">
+      </span>
+      <span class="social__label">Telegram</span>
+    </a>
+  </nav>
+
+  <div class="social-cta">
+    <a class="social-cta__btn" href="https://t.me/light_bikeshop" aria-label="Написать в Telegram">
+      <span class="social-cta__icon">
+        <img src="{% static 'core/icons/social/telegram.svg' %}" alt="Telegram">
+      </span>
+      <span>Задать вопрос в Telegram</span>
+    </a>
+  </div>
+</section>
+
+
+</div> {# /container #}
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'products/js/card.js' %}"></script>
+  <script src="{% static 'core/js/home.js' %}"></script>
+{% endblock %}
