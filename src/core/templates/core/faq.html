@@ -1,0 +1,26 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Помощь{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'core/css/faq.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="faq-grid">
+    {% for item in faqs %}
+      <section id="faq-{{ item.id }}" class="faq-section">
+        <div class="faq-chip" style="background: {{ item.color }}">
+          <h3 class="faq-chip__title">{{ item.title }}</h3>
+        </div>
+        <div class="faq-card">
+          {{ item.content|safe }}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

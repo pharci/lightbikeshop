@@ -1,0 +1,78 @@
+volumes:
+  pg_data:
+  static:
+  media:
+  redis_data:
+
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: ops/env/.env.prod
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h 127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    env_file: ops/env/.env.prod
+    command: >
+      sh -lc 'exec redis-server
+      --appendonly yes
+      --requirepass "$$REDIS_PASSWORD"'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" PING | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    env_file: ops/env/.env.prod
+    environment:
+      APP_ROLE: web
+    depends_on: [db, redis]
+    ports: ["127.0.0.1:8000:8000"]
+    volumes:
+      - static:/app/staticfiles
+      - media:/app/media
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    env_file: ops/env/.env.prod
+    environment:
+      APP_ROLE: worker
+    depends_on: [db, redis]
+    volumes:
+      - media:/app/media
+
+  beat:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    env_file: ops/env/.env.prod
+    environment:
+      APP_ROLE: beat
+    depends_on: [db, redis]
+    volumes:
+      - media:/app/media
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on: [web]
+    ports: ["127.0.0.1:8080:80"]
+    volumes:
+      - static:/var/www/static:ro
+      - media:/var/www/media:ro
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro

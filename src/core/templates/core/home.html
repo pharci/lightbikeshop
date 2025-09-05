@@ -1,0 +1,138 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Главная{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'products/css/card.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/home.css' %}">
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+  {% if wheel %}
+    {# ---------- Промо-слайдер (баннеры) ---------- #}
+    <section class="section">
+      <div class="swiper infoswiper">
+        <div class="swiper-wrapper">
+          {% for image in wheel %}
+            <div class="swiper-slide infoswiper__slide">
+              <a href="{{ image.get_absolute_url }}">
+                <img src="{{ image.image.url }}" alt="{{ image.title }}">
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="swiper-pagination infoswiper__pagination"></div>
+      </div>
+    </section>
+  {% endif %}
+
+  {# ---------- Бренды (слайдер) ---------- #}
+    {% if brands %}
+    <section class="section">
+      <div class="section__header"><h2 class="section__title">Бренды</h2></div>
+
+      <div class="swiper brandswiper">
+        <div class="swiper-wrapper">
+          {% for brand in brands %}
+            <div class="swiper-slide brandswiper__slide">
+              <a href="{{ brand.get_absolute_url }}" class="brand-card">
+                <div class="brand-card__logo">
+                  <img src="{{ brand.image.url }}" alt="{{ brand.title }}">
+                </div>
+                <div class="brand-card__title">{{ brand.title }}</div>
+              </a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% include "products/partials/variants_slider.html" with variants=variants_rec title="Рекомендуем" swiper_class="variantsSwiperRec" %}
+  {% include "products/partials/variants_slider.html" with variants=variants_new title="Новые товары" swiper_class="variantsSwiperNew" %}
+
+  {# ---------- Где получить заказ ---------- #}
+  <section class="section">
+    <div class="section__header"><h2 class="section__title">Где получить заказ?</h2></div>
+
+    <div class="pickup">
+      <div class="pickup__map">
+        <iframe
+          src="https://yandex.ru/map-widget/v1/?um=constructor%3A943e8b981dde83761a086bac55e0a24439fd75b8fb6dc6fb280c2829a5d13b72&amp;source=constructor&amp;apikey=ae068af9-edb0-413f-bfc5-2e6ce196122d"
+          height="350"
+          width="100%"
+          frameborder="0" allowfullscreen="true"
+          class="pickup__iframe"></iframe>
+      </div>
+
+      {% if pickups %}
+        <div class="pickup__list">
+          {% for p in pickups %}
+            <div class="pickup-card">
+              <p class="pickup-card__title">
+                {{ p.title }}
+              </p>
+
+              {% if p.metro %}
+                <p class="pickup-card__meta">
+                  <img src="{% static 'core/icons/metro.svg' %}" width="20" height="20" alt="">
+                  <span class="pickup-card__metro">{{ p.metro }}</span>
+                </p>
+              {% endif %}
+
+              <p class="pickup-card__addr">
+                Адрес: {{ p.address }}{% if p.city %}, {{ p.city }}{% endif %}
+              </p>
+
+              {% if p.schedule %}
+                <p class="pickup-card__time">График: {{ p.schedule }}</p>
+              {% endif %}
+
+              {% if p.lat and p.lon %}
+                <a class="btn btn--secondary"
+                  href="https://yandex.ru/maps/?pt={{ p.lon }},{{ p.lat }}&z=16&l=map"
+                  target="_blank" rel="noopener">Открыть на карте</a>
+              {% else %}
+                <a class="btn btn--secondary"
+                  href="https://yandex.ru/maps/?text={{ p.city|urlencode }}%20{{ p.address|urlencode }}"
+                  target="_blank" rel="noopener">Открыть на карте</a>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ---------- Соцсети ---------- #}
+  {% if social_links %}
+    <section class="section">
+      <div class="section__header"><h2 class="section__title">Наши соцсети</h2></div>
+
+      <nav class="social" aria-label="Соцсети">
+        {% for link in social_links %}
+          <a class="social__item" href="{{ link.url }}" aria-label="{{ link.title }}">
+            <span class="social__icon">
+              <img src="{{ link.icon.url }}" alt="{{ link.title }}">
+            </span>
+            <span class="social__label">{{ link.title }}</span>
+          </a>
+        {% endfor %}
+      </nav>
+    </section>
+  {% endif %}
+
+
+</div> {# /container #}
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'products/js/card.js' %}"></script>
+  <script src="{% static 'core/js/home.js' %}"></script>
+{% endblock %}

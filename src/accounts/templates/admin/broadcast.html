@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+<form method="post">{% csrf_token %}
+  {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+  <input type="hidden" name="action" value="send_tg_broadcast">
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+
+  <fieldset class="module aligned">
+    <div class="form-row">
+      {{ form.text.errors }}
+      <label>{{ form.text.label }}:</label>
+      {{ form.text }}
+      {% if form.text.help_text %}<p class="help">{{ form.text.help_text }}</p>{% endif %}
+    </div>
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" class="default" name="apply" value="Send">
+  </div>
+</form>
+{% endblock %}

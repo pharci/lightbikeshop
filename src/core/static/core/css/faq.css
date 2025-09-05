@@ -1,0 +1,90 @@
+:root{
+  --card-bg:#fff;
+  --radius:12px;
+  --border:1px solid rgba(0,0,0,.06);
+  --shadow-sm:0 2px 8px rgba(0,0,0,.05);
+  --text:#111;
+  --muted:#444;
+  --muted-2:#666;
+}
+
+/* колонка вниз + центрирование секций */
+.faq-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+  justify-items:center;       /* центрируем контент */
+}
+
+/* секция ограничена по ширине */
+.faq-section{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+}
+
+/* чип */
+.faq-chip{
+  max-width: calc(100% - var(--radius)*2);
+  align-self:flex-start;
+  display:inline-flex;
+  padding:8px 14px;
+  border-radius:var(--radius) var(--radius) 0 0;
+  box-shadow:0 -4px 14px rgba(0,0,0,.05);
+  margin-left: var(--radius);
+}
+.faq-chip__title {
+  margin: 0;
+  font: 700 18px/1.2 'Comfortaa', system-ui, sans-serif;
+  color: var(--text);
+
+  max-width: 100%;         /* не вылезает за блок */
+  overflow-wrap: anywhere; /* переносит длинные токены */
+  word-break: break-word;
+  hyphens: auto;           /* перенос по слогам где можно */
+}
+
+/* карточка */
+.faq-card{
+  background:var(--card-bg);
+  border:var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-sm);
+  padding:12px;
+  line-height:1.6;
+  color:var(--muted);
+
+  /* критично: нормальное поведение текста */
+  white-space: normal;               /* ОТКЛЮЧАЕМ pre-line */
+  overflow-wrap: anywhere;           /* ломаем очень длинные токены */
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* контент внутри карточки не должен растягивать */
+.faq-card *{ max-width:100%; box-sizing:border-box; }
+.faq-card img,
+.faq-card video,
+.faq-card iframe{ display:block; max-width:100%; height:auto; }
+.faq-card table{ width:100%; border-collapse:collapse; table-layout: fixed; }
+.faq-card pre,
+.faq-card code{ white-space: pre-wrap; word-break: break-word; }
+
+/* типографика */
+.faq-text{ font-size:17px; color:var(--muted); margin:0 0 12px; }
+.faq-subtitle{ font-weight:700; color:var(--text); margin:0 0 8px; }
+.faq-list{ margin:8px 0 0 20px; padding:0; font-size:17px; color:var(--muted-2); }
+.faq-list li+li{ margin-top:6px; }
+
+/* алерт */
+.faq-alert{
+  margin-top:14px;
+  border-radius:10px;
+  background:#f0f0ec;
+  padding:12px;
+  color:#1d1d1d;
+}
+
+/* заголовок страницы */
+.section__header{ margin-bottom:14px; }
+.section__title{ font:700 24px/1.2 'Comfortaa',system-ui,sans-serif; }

@@ -1,0 +1,223 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}{{ variant.display_name }}{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'products/css/card.css' %}">
+  <link rel="stylesheet" href="{% static 'products/css/detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div id="variant" class="variant-page" data-variant-id="{{ variant.id }}">
+    <div class="variant-page__grid">
+
+      {# ==== Медиа ==== #}
+      <div class="variant-page__media">
+        <div class="variant-gallery">
+          <div class="variant-gallery__grid">
+
+            {# Основной слайдер #}
+            <div class="swiper variant-gallery__main">
+              <div class="swiper-wrapper">
+                {% if variant.images.all %}
+                  {% for img in variant.images.all %}
+                    <div class="swiper-slide">
+                      <a class="lb-link"
+                         href="{{ img.image.url }}"
+                         data-lightbox="variant-gallery"
+                         data-title="{{ img.alt|default:variant.product.base_name }}">
+                        <img class="variant-gallery__image"
+                             src="{{ img.image.url }}"
+                             alt="{{ img.alt|default:variant.product.base_name }}"
+                             loading="lazy">
+                      </a>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="swiper-slide">
+                    <a class="lb-link"
+                       href="{% static 'images/placeholder.png' %}"
+                       data-lightbox="variant-gallery"
+                       data-title="{{ variant.product.base_name }}">
+                      <img class="variant-gallery__image"
+                           src="{% static 'images/placeholder.png' %}"
+                           alt="{{ variant.product.base_name }}">
+                    </a>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            {# Рельса превью (нативный скролл) #}
+            {% if variant.images.all %}
+              <div class="variant-gallery__rail-cell">
+                <div class="rail">
+                  {% for img in variant.images.all %}
+                    <button class="rail__item" type="button" data-index="{{ forloop.counter0 }}">
+                      <img class="rail__thumb"
+                           src="{{ img.image.url }}"
+                           alt="{{ img.alt|default:variant.product.base_name }}"
+                           loading="lazy">
+                    </button>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {# ==== Информация ==== #}
+      <div class="variant-page__info">
+
+        {# Заголовок: Бренд + базовое имя + значения атрибутов варианта #}
+        <div class="variant-page__title-wrap">
+          <h1 class="variant-page__title">
+            {{ variant.display_name }}
+          </h1>
+        </div>
+
+        {% if variant.inventory %}
+          <div class="availability availability--in">
+            <i class="availability__dot"></i>
+            <span class="availability__text">В наличии</span>
+            <span class="availability__qty">{{ variant.inventory }} <span class="availability__unit">шт.</span></span>
+          </div>
+        {% else %}
+          <div class="availability availability--out">
+            <i class="availability__dot"></i>
+            <span class="availability__text">Нет в наличии</span>
+          </div>
+        {% endif %}
+
+        {# Переключатель вариантов (чипы) #}
+        {% if rows %}
+          <div class="variant-picker">
+            {% for row in rows %}
+              <div class="variant-picker__row">
+                <div class="variant-picker__label">{{ row.label }}:</div>
+                <div class="variant-picker__list" role="list">
+                  {% for it in row.items %}
+                    <a role="listitem"
+                      href="{{ it.url }}"
+                      class="variant-chip{% if it.active %} is-active{% endif %}{% if it.disabled %} is-disabled{% endif %}"
+                      aria-current="{{ it.active|yesno:'true,false' }}">
+                      {{ it.text }}
+                    </a>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {# Цена + управление покупкой (ID = id варианта) #}
+        <div class="variant-page__buy">
+          <div class="price-box">
+            {% if variant.old_price %}
+              <div class="price-old">{{ variant.old_price|floatformat:"0" }} ₽</div>
+            {% endif %}
+            <div class="price">{{ variant.price|floatformat:"0" }} ₽</div>
+          </div>
+
+          <div class="buy__controls"
+              id="buyControls"
+              data-variant-id="{{ variant.id }}"
+              data-cart-url="{% url 'cart:cart' %}">
+          </div>
+        </div>
+
+        {% if variant.wb_article or variant.ozon_article %}
+          <div class="variant-markets">
+            <div class="market-header">
+              <span class="market-accent"></span>
+              <div class="market-title">
+                <span>Где купить</span>
+                <span class="muted">онлайн</span>
+              </div>
+            </div>
+
+            <div class="market-links">
+              {% if variant.wb_article %}
+                <a class="market-btn wb"
+                  href="https://www.wildberries.ru/catalog/{{ variant.wb_article }}/detail.aspx"
+                  target="_blank" rel="noopener" title="Wildberries">
+                  <img src="{% static 'core/icons/marketplace/wb.svg' %}" alt="WB">
+                </a>
+              {% endif %}
+              {% if variant.ozon_article %}
+                <a class="market-btn ozon"
+                  href="https://www.ozon.ru/product/{{ variant.ozon_article }}/"
+                  target="_blank" rel="noopener" title="Ozon">
+                  <img src="{% static 'core/icons/marketplace/ozon.svg' %}" alt="Ozon">
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+
+      </div>
+
+      {# === ХАРАКТЕРИСТИКИ (атрибуты варианта) === #}
+        {% with attrs=variant.attribute_values.all %}
+          {% if attrs %}
+            <section class="section card-like variant-page__specs">
+              <header class="section__head">
+                <h2 class="section__title">Характеристики</h2>
+              </header>
+
+              <div class="specs">
+                {% for av in attrs|dictsort:"attribute.name" %}
+                  <div class="specs__row">
+                    <div class="specs__key">
+                      {{ av.attribute.name }}{% if av.attribute.unit %}, {{ av.attribute.unit }} {% endif %}
+                    </div>
+                    <div class="specs__val">
+                      {# универсальный вывод по типу #}
+                      {% if av.attribute.value_type == 'number' %}
+                        {{ av.value_number|stringformat:"g" }}
+                      {% elif av.attribute.value_type == 'bool' %}
+                        {% if av.value_bool %}Да{% else %}Нет{% endif %}
+                      {% else %}
+                        {{ av.value_text }}
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
+        {% endwith %}
+
+        {# === ОПИСАНИЕ (из базового товара) === #}
+        {% if variant.product.description %}
+          <section class="section card-like variant-page__desc">
+            <header class="section__head">
+              <h2 class="section__title">Описание</h2>
+              <button class="link link--muted section__toggle" type="button"
+                      data-collapsible="#descBody"
+                      aria-expanded="false">Показать полностью</button>
+            </header>
+
+            <div id="descBody" class="prose prose--clamp">
+              {{ variant.product.description|safe }}
+            </div>
+          </section>
+        {% endif %}
+
+    </div>
+  </div>
+
+  {% include "products/partials/variants_slider.html" with variants=related_variants title="С этим покупают" swiper_class="variantsSwiperRec" %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'products/js/detail.js' %}"></script>
+  <script src="{% static 'products/js/card.js' %}"></script>
+{% endblock %}

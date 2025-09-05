@@ -1,0 +1,105 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Вход{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'accounts/css/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container auth">
+
+  <div class="section__header u-center">
+    <h1 class="section__title">Вход</h1>
+  </div>
+
+  <div class="auth__grid">
+    <section class="card auth-card">
+      <form method="POST"
+            action="{% url 'accounts:login' %}"
+            id="login-form"
+            class="form"
+            novalidate>
+        {% csrf_token %}
+
+        {# EMAIL #}
+        <div class="field">
+          <label for="id_email" class="label">Почта</label>
+          <input type="email"
+                 id="id_email"
+                 name="email"
+                 class="input"
+                 placeholder="you@example.com"
+                 required
+                 autocomplete="email" />
+          <p id="email-error" class="error" hidden>Аккаунта с такой почтой не существует.</p>
+          <p id="email-invalid-error" class="error" hidden>Введите корректный адрес электронной почты.</p>
+        </div>
+
+        {# PASSWORD #}
+        <div class="field">
+          <label for="id_password" class="label">Пароль</label>
+          <input type="password"
+                 id="id_password"
+                 name="password"
+                 class="input"
+                 placeholder="Ваш пароль"
+                 required
+                 autocomplete="current-password" />
+          {% if messages %}
+            {% for message in messages %}
+              {% if message.tags == 'error' %}
+                <p class="error">{{ message }}</p>
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        </div>
+
+        {# reCAPTCHA v3 (скрытое поле) #}
+        <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
+
+        <div class="actions">
+          <button type="submit" class="btn btn--dark" id="login-button">Войти</button>
+          <a class="link" href="{% url 'accounts:recovery' %}">Забыли пароль?</a>
+        </div>
+
+        <div class="social-buttons">
+          {# Telegram Login Widget #}
+          <div style="margin-top:10px;">
+            <script async src="https://telegram.org/js/telegram-widget.js?22"
+              data-telegram-login="lightbikebot"   {# @botname без @ #}
+              data-size="large"
+              data-userpic="false"
+              data-request-access="write"
+              data-auth-url="https://pharci.ru/tg/auth/">
+            </script>
+          </div>
+        </div>
+
+        <p class="legal">
+          This site is protected by reCAPTCHA and the Google
+          <a class="link" href="https://policies.google.com/privacy" rel="noopener" target="_blank">Privacy Policy</a> and
+          <a class="link" href="https://policies.google.com/terms" rel="noopener" target="_blank">Terms of Service</a> apply.
+        </p>
+      </form>
+
+      <p class="hint">
+        Нет аккаунта?
+        <a class="link" href="{% url 'accounts:register' %}">Зарегистрироваться</a>
+      </p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'accounts/js/login.js' %}"></script>
+  <script src="{% static 'accounts/js/recaptcha.js' %}"></script>
+  <script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}"></script>
+  <script>
+    window.recaptchaSiteKey = "{{ RECAPTCHA_SITE_KEY }}";
+  </script>
+{% endblock %}

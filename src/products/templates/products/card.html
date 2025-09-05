@@ -1,0 +1,71 @@
+{% load static %}
+
+{# Карточка одного Variant #}
+<div class="product-card hover-shadow"
+     data-url="{{ v.get_absolute_url }}">
+  <div class="product-card__inner">
+
+    <div class="product-card__image-wrapper">
+
+        <div class="product-card__badges">
+          {% if v.new %}
+            <span class="product-badge product-badge--new" title="NEW">NEW</span>
+          {% endif %}
+          {% if v.discount_percent %}
+            <span class="product-badge product-badge--sale">-{{ v.discount_percent }}%</span>
+          {% endif %}
+        </div>
+
+
+      <div class="swiper product-card__swiper">
+        <div class="swiper-wrapper">
+          {% if v.images.all %}
+            {% for img in v.images.all %}
+              <div class="swiper-slide">
+                <img class="product-card__thumbnail"
+                     src="{{ img.image.url }}"
+                     alt="{{ img.alt|default:v.display_name }}"
+                     loading="lazy">
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="swiper-slide">
+              <img class="product-card__thumbnail"
+                   src="{{ v.main_image_url }}"
+                   alt="{{ v.display_name }}">
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="hover-strip{% if not v.images.all or v.images.count <= 1 %} is-empty{% endif %}" data-strip></div>
+
+    <div class="product-card__content">
+        <div class="product-card__availability">
+          {% if v.inventory %}
+            <div class="status status--in">
+              <i class="status__dot"></i>
+              <span class="status__text">В наличии</span>
+              <span class="status__qty">{{ v.inventory }} <span class="availability__unit">шт.</span></span>
+            </div>
+          {% else %}
+            <div class="status status--out">
+              <i class="status__dot"></i>
+              <span class="status__text">Нет в наличии</span>
+            </div>
+          {% endif %}
+        </div>
+
+      <p class="product-card__title">{{ v.display_name }}</p>
+
+      <div class="product-card__price-row">
+        <span class="product-card__price">{{ v.price|floatformat:"0" }} ₽</span>
+        {% if v.old_price and v.old_price > v.price %}
+          <span class="product-card__old-price">{{ v.old_price|floatformat:"0" }} ₽</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,137 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Оформление заказа{% endblock %}
+
+{% block styles %}{{ block.super }}
+<link rel="stylesheet" href="{% static 'cart/css/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-grid">
+    <form method="post" action="{% url 'cart:checkout' %}" id="checkout-form" class="checkout-form" novalidate>
+      {% csrf_token %}
+
+      <section class="island">
+        <h3 class="island__title">1. Тип оплаты</h3>
+        <div class="delivery-cards" role="radiogroup">
+          <label class="delivery-card delivery-card--active">
+            <input type="radio" id="pay_online" value="online" checked disabled>
+            <span>
+              <div class="delivery-card__title">Онлайн</div>
+              <div class="delivery-card__desc">Банковской картой</div>
+            </span>
+          </label>
+
+          <label class="delivery-card delivery-card--disabled">
+            <input type="radio" id="pay_cash" value="cash" disabled>
+            <span>
+              <div class="delivery-card__title">При получении</div>
+              <div class="delivery-card__desc">Недоступно</div>
+            </span>
+          </label>
+
+          <input type="hidden" name="payment_type" value="online">
+        </div>
+      </section>
+
+      <section class="island">
+        <h3 class="island__title">2. Адрес и способ доставки</h3>
+
+        <div class="inline" style="align-items:center;gap:8px">
+          <span>Получить заказ в</span>
+          <button type="button" class="clicklike" id="open-city-modal"><span id="city-caption">Москва</span> ▾</button>
+        </div>
+        <input type="hidden" id="city" name="city" value="Москва">
+
+        <div class="delivery-cards" role="radiogroup" id="method-group">
+          <label class="delivery-card" data-target="panel-pvz">
+            <input type="radio" name="delivery_group" value="pvz" id="dg_pvz">
+            <span>
+              <div class="delivery-card__title">Самовывоз из пункта выдачи</div>
+              <div class="delivery-card__desc">Наши ПВЗ + СДЭК</div>
+            </span>
+          </label>
+
+          <label class="delivery-card delivery-card--disabled" data-target="panel-courier">
+            <input type="radio" name="delivery_group" value="courier" id="dg_courier">
+            <span>
+              <div class="delivery-card__title">Курьером до двери</div>
+              <div class="delivery-card__desc">Укажите адрес</div>
+            </span>
+          </label>
+        </div>
+
+        <div id="panel-pvz" class="delivery-panel" hidden>
+          <div id="pvz-map-wrap" class="collapsible">
+            <div id="pvz-map" class="pvz-map"></div>
+          </div>
+
+          <input type="hidden" name="pvz_code" id="pvz_code">
+          <input type="hidden" name="pvz_address" id="pvz_address">
+
+          <div class="pvz-picked">
+            <span class="muted">Выбрано:</span>
+            <span id="pvz-picked">не выбрано</span>
+            <button type="button" id="change-pvz" class="btn-link" hidden>Изменить пункт</button>
+          </div>
+        </div>
+
+        <div id="panel-courier" class="delivery-panel" hidden>
+          <div class="field">
+            <label class="field__label" for="address_line">Адрес</label>
+            <input class="field__control {% if form.address_line.errors %}is-invalid{% endif %}" id="address_line" name="address_line" placeholder="Улица, дом, квартира" value="{{ form.address_line.value|default_if_none:'' }}">
+            {% for e in form.address_line.errors %}<div class="field__error">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <input type="hidden" name="delivery_method" id="delivery_method">
+        {% for e in form.delivery_group.errors %}<div class="field__error">{{ e }}</div>{% endfor %}
+      </section>
+
+      <section class="island">
+        <h3 class="island__title">3. Получатель</h3>
+        <div class="inline">
+          <div class="field"><label class="field__label" for="last_name">Фамилия *</label><input class="field__control {% if form.last_name.errors %}is-invalid{% endif %}" id="last_name" name="last_name" value="{{ form.last_name.value|default_if_none:'' }}" required>{% for e in form.last_name.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
+          <div class="field"><label class="field__label" for="first_name">Имя *</label><input class="field__control {% if form.first_name.errors %}is-invalid{% endif %}" id="first_name" name="first_name" value="{{ form.first_name.value|default_if_none:'' }}" required>{% for e in form.first_name.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
+          <div class="field"><label class="field__label" for="patronymic">Отчество</label><input class="field__control {% if form.patronymic.errors %}is-invalid{% endif %}" id="patronymic" name="patronymic" value="{{ form.patronymic.value|default_if_none:'' }}">{% for e in form.patronymic.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
+        </div>
+        <div class="inline">
+          <div class="field"><label class="field__label" for="contact_phone">Телефон *</label><input class="field__control {% if form.contact_phone.errors %}is-invalid{% endif %}" id="contact_phone" name="contact_phone" type="tel" value="{{ form.contact_phone.value|default_if_none:'' }}" required>{% for e in form.contact_phone.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
+          <div class="field"><label class="field__label" for="email">Email</label><input class="field__control {% if form.email.errors %}is-invalid{% endif %}" id="email" name="email" type="email" value="{{ form.email.value|default_if_none:'' }}">{% for e in form.email.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
+        </div>
+        <div class="field"><label class="field__label" for="order_notes">Комментарий</label><input class="field__control {% if form.order_notes.errors %}is-invalid{% endif %}" id="order_notes" name="order_notes" value="{{ form.order_notes.value|default_if_none:'' }}">{% for e in form.order_notes.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
+      </section>
+    </form>
+
+    <aside class="order-summary">
+      <div class="order-summary__row"><span>{{ cart.get_total_items }} товаров на сумму</span><span id="summary-subtotal">{{ cart.get_cart_subtotal_price|floatformat:2 }} ₽</span></div>
+      {% if cart.get_promo_obj %}<div class="order-summary__row muted"><span>Скидка по промокоду</span><span id="summary-discount">-{{ cart.get_discount|floatformat:2 }} ₽</span></div>{% endif %}
+      <div class="order-summary__row"><span>Доставка</span><span id="summary-shipping">{% if shipping_cost is not None %}{{ shipping_cost|floatformat:2 }} ₽{% else %}—{% endif %}</span></div>
+      {% if cart.get_promo_obj %}<div class="promo"><div class="promo__chip">Промокод: <strong>{{ cart.get_promo_obj.code }}{% if cart.get_promo_obj.discount_type == "percent" %} - {{ cart.get_promo_obj.amount|floatformat:2 }}%{% else %} - {{ cart.get_promo_obj.amount|floatformat:2 }}₽{% endif %}</strong></div><div class="promo__note">Промокод изменяется только в корзине.</div></div>{% endif %}
+      <hr class="order-summary__hr">
+      <div class="order-summary__total"><span>Итого к оплате</span><span id="summary-total">{{ cart.get_cart_total_price|floatformat:2 }} ₽</span></div>
+      <button type="submit" class="btn btn--primary order-summary__btn" id="pay-btn" form="checkout-form">Оплатить онлайн</button>
+      <p class="summary__fineprint">Продолжая, вы соглашаетесь с <a href="#">политикой обработки персональных данных</a>.</p>
+      {% if form.non_field_errors %}<div class="alert alert--error">{% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div>{% endif %}
+    </aside>
+  </div>
+</div>
+
+<!-- Модалка выбора города -->
+<div class="modal" id="city-modal" aria-hidden="true">
+  <div class="modal__card">
+    <div class="modal__head">Выбор местоположения</div>
+    <div class="modal__body">
+      <input id="city-search" class="city-search" placeholder="Поиск">
+      <div id="city-list"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="https://api-maps.yandex.ru/2.1/?apikey=ae068af9-edb0-413f-bfc5-2e6ce196122d&lang=ru_RU"></script>
+<script src="{% static 'cart/js/checkout.js' %}"></script>
+{% endblock %}

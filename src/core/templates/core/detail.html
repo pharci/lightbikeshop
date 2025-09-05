@@ -1,0 +1,10 @@
+{# templates/core/detail.html #}
+{% extends "core/base.html" %}
+{% block title %}{{ page.meta_title|default:page.title }}{% endblock %}
+{% block meta_description %}{{ page.meta_description }}{% endblock %}
+
+{% block content %}
+<article class="container prose">
+  {{ page.body|safe }}
+</article>
+{% endblock %}

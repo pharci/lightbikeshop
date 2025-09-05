@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>{% block title %}Light - Магазин лёгких запчастей{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- reset.css -->
+  <link rel="stylesheet" href="{% static 'core/css/reset.css' %}">
+
+  {# Гугл-шрифт #}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;700&display=swap" rel="stylesheet">
+
+  {# Иконка #}
+  <link rel="shortcut icon" href="{% static 'core/icons/logoweb.png' %}" type="image/png">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  {# Swiper CSS #}
+  <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css">
+
+  {# jquery #}
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+
+  {# lightbox2#}
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+  <script>
+    lightbox.option({
+      fadeDuration: 120,    // было 250…400
+      imageFadeDuration: 120,
+      resizeDuration: 120,
+    });
+  </script>
+
+  {# Базовые стили сайта #}
+  <link rel="stylesheet" href="{% static 'core/css/main.css' %}">
+
+  {# Переиспользуемые компоненты (пример: тайтл секции) #}
+  {% block styles %}
+  {% endblock %}
+
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@cdek-it/widget@3" charset="utf-8"></script>
+
+  {# Яндекс.Метрика #}
+  <script type="text/javascript">
+    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+      m[i].l=1*new Date();for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+      k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+    (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+    ym(94255695, "init", { clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true });
+  </script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/94255695" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+</head>
+
+<body>
+  <div class="layout">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header__bar">
+        <div class="header__inner">
+
+          <div class="header__logo">
+            <a class="logo" href="{% url 'core:home' %}">LightShop</a>
+          </div>
+
+          <div class="header__search">
+            <form method="GET" action="{% url 'products:search' %}" id="search-form" class="search">
+              <input name="q" type="text" class="search__input" placeholder="Поиск товаров..." autocomplete="off" />
+              <button type="submit" class="search__btn" id="search-button" aria-label="Искать">
+                <i data-lucide="search"></i>
+              </button>
+            </form>
+          </div>
+
+          <nav class="header__menu">
+            <a href="{% url 'core:faq' %}" class="menuitem" title="FAQ">
+              <i data-lucide="help-circle"></i>
+              <span>FAQ</span>
+            </a>
+
+            <a href="{% url 'cart:cart' %}" class="menuitem" title="Корзина">
+              <span class="menuitem__icon">
+                <i data-lucide="shopping-cart"></i>
+                <span class="cart-count"><span class="cart-count-text">{{ cartItems }}</span></span>
+              </span>
+              <span>Корзина</span>
+            </a>
+
+            {% if user.is_authenticated %}
+            <a href="{% url 'accounts:profile' %}" class="menuitem" title="Профиль">
+              <i data-lucide="user"></i>
+              <span>Профиль</span>
+            </a>
+            {% else %}
+            <a href="{% url 'accounts:login' %}" class="menuitem" title="Войти">
+              <i data-lucide="user"></i>
+              <span>Войти</span>
+            </a>
+            {% endif %}
+          </nav>
+        </div>
+      </div>
+
+      <div class="header__nav">
+        <a class="navlink" href="{% url 'products:catalog' %}">Каталог</a>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="page-wrapper">
+      {% include "core/partials/breadcrumbs.html" %}
+      {% block content %}{% endblock content %}
+    </main>
+
+    <!-- Footer desktop -->
+    <footer class="footer">
+      <div class="footer__grid">
+        <div class="footer__col">
+          <p class="footer__title">Соцсети</p>
+          {% for p in footer_cols.1 %}
+            <a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+          {% empty %}<p class="footer__text">—</p>{% endfor %}
+        </div>
+
+        <div class="footer__col">
+          <p class="footer__title">Контакты</p>
+          {% for p in footer_cols.2 %}
+            {% if p.external_url %}<a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+            {% else %}<a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>{% endif %}
+          {% empty %}<p class="footer__text">—</p>{% endfor %}
+        </div>
+
+        <div class="footer__col">
+          <p class="footer__title">Информация</p>
+          {% for p in footer_cols.3 %}
+            <a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+          {% endfor %}
+        </div>
+
+        <div class="footer__col">
+          <p class="footer__title">Помощь</p>
+          {% for p in footer_cols.4 %}
+            <a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+          {% endfor %}
+        </div>
+
+        <div class="footer__bottom">
+          <p class="footer__copy">© 2025 <a href="/" class="footer__brand">Lightbikeshop.ru</a> — магазин запчастей для BMX</p>
+        </div>
+      </div>
+
+      <!-- Footer mobile bar -->
+      <div class="footerbar" role="navigation" aria-label="Нижнее меню">
+        <a href="{% url 'core:home' %}" class="footerbar__btn">
+          <i data-lucide="home"></i><span>Главная</span>
+        </a>
+        <a href="{% url 'products:catalog' %}" class="footerbar__btn">
+          <i data-lucide="grid"></i><span>Каталог</span>
+        </a>
+        <a href="{% url 'cart:cart' %}" class="footerbar__btn">
+          <span class="footerbar__icon">
+            <i data-lucide="shopping-cart"></i>
+            <span class="cart-count"><span class="cart-count-text">{{ cartItems }}</span></span>
+          </span>
+          <span>Корзина</span>
+        </a>
+        <a href="{% url 'core:faq' %}" class="footerbar__btn">
+          <i data-lucide="help-circle"></i><span>FAQ</span>
+        </a>
+        {% if user.is_authenticated %}
+        <a href="{% url 'accounts:profile' %}" class="footerbar__btn">
+          <i data-lucide="user"></i><span>Профиль</span>
+        </a>
+        {% else %}
+        <a href="{% url 'accounts:login' %}" class="footerbar__btn">
+          <i data-lucide="user"></i><span>Войти</span>
+        </a>
+        {% endif %}
+      </div>
+    </footer>
+
+  </div> {# /layout #}
+
+  {# Swiper JS #}
+  <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script>
+
+  {# Общие скрипты #}
+  <script src="{% static 'core/js/main.js' %}"></script>
+
+  <script>lucide.createIcons();</script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

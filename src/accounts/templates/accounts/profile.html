@@ -1,0 +1,247 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'accounts/css/style.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container profile">
+
+  <!-- Модалка -->
+  <div id="confirmationOverlay" class="overlay">
+    <div class="overlay__content">
+      <h2 class="overlay__title">Отменить заказ?</h2>
+      <p class="overlay__text">Вернуть заказ уже не получится.</p>
+      <div class="overlay__actions">
+        <button id="confirmBtn" class="btn btn--danger">Отменить заказ</button>
+        <button id="cancelBtn" class="btn">Назад</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="profile__grid">
+    <!-- Левое меню -->
+    <aside class="card sidebar">
+      <nav aria-label="Навигация профиля">
+        <ul class="sidebar__list">
+          <li><a class="sidebar__link js-tab" data-section="profile">
+            <i data-lucide="user" class="sidebar__icon"></i> Профиль
+          </a></li>
+          <li><a class="sidebar__link js-tab" data-section="apps">
+            <i data-lucide="link" class="sidebar__icon"></i> Подключённые приложения
+          </a></li>
+          <li><a class="sidebar__link js-tab" data-section="orders">
+            <i data-lucide="package" class="sidebar__icon"></i> Заказы
+          </a></li>
+          <li><a class="sidebar__link js-tab" data-section="history">
+            <i data-lucide="clock" class="sidebar__icon"></i> История заказов
+          </a></li>
+        </ul>
+        <a class="sidebar__logout" href="{% url 'accounts:logout' %}">
+          <i data-lucide="log-out" class="sidebar__icon"></i> Выйти
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Контент -->
+    <main>
+
+      <!-- Профиль -->
+      <section id="section-profile" class="card js-section" hidden>
+        <div class="profile__box">
+          <div class="profile__row">
+            <span class="profile__label">Почта</span>
+            <span class="profile__value">{% if user.email %}{{ user.email }}{% else %}Нет{% endif %}</span>
+          </div>
+          <div class="profile__row">
+            <span class="profile__label">Telegram</span>
+            <span class="profile__value">
+              {% if user.telegram_id %}
+                <a href="https://t.me/{{ user.telegram_username }}" target="_blank">@{{ user.telegram_username }}</a>
+              {% else %}Нет{% endif %}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Подключённые приложения -->
+      <section id="section-apps" class="js-section" hidden>
+        {% if not user.telegram_id %}
+          <!-- Привязать Telegram -->
+          <div class="card appcard">
+            <div class="appicon"><i data-lucide="send"></i></div>
+            <h3 class="section__title section__title--sm">Telegram</h3>
+            <div style="margin-top:10px;">
+              <script async src="https://telegram.org/js/telegram-widget.js?22"
+                data-telegram-login="lightbikebot"   {# @botname без @ #}
+                data-size="large"
+                data-userpic="false"
+                data-request-access="write"
+                data-auth-url="https://pharci.ru/tg/link/">
+              </script>
+            </div>
+            {% for message in messages %}
+                {% if "tg" in message.tags %}
+                  <div class="tg-message {{ message.tags }}">{{ message }}</div>
+                {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="card appcard">
+          <div class="appicon"><i data-lucide="mail"></i></div>
+          <h3 class="section__title section__title--sm">Почта</h3>
+          <form action="{% url 'accounts:bind_email' %}" method="post" class="form-narrow">
+            {% csrf_token %}
+            <input class="input" type="email" name="email" required placeholder="your@email" value="{{ user.email }}">
+            <button type="submit" class="btn btn--dark">Привязать/обновить почту</button>
+          </form>
+          <small class="helper-text">Почта нужна для уведомлений и входа.</small>
+          {% for message in messages %}
+              {% if "email" in message.tags %}
+                <div class="tg-message {{ message.tags }}">{{ message }}</div>
+              {% endif %}
+          {% endfor %}
+        </div>
+
+        <!-- Сброс пароля -->
+        <div class="card appcard">
+          <div class="appicon"><i data-lucide="key-round"></i></div>
+          <h3 class="section__title section__title--sm">Сброс пароля</h3>
+          <a href="{% url 'accounts:recovery' %}" class="btn">Изменить пароль</a>
+        </div>
+      </section>
+
+      <!-- Заказы -->
+      <section id="section-orders" class="js-section" hidden>
+        {% for order in orders|dictsortreversed:"date_ordered" %}
+          {% if order.status != 'delivered' and order.status != 'canceled' %}
+            <article class="order card" id="{{ order.order_id }}">
+              <header class="order__head">
+                <h3 class="order__title">
+                  <a href="{{ order.get_absolute_url }}">Заказ № {{ order.order_id }}</a>
+                </h3>
+                <span class="badge
+                  {% if order.status == 'created' %}badge--info
+                  {% elif order.status == 'paid' %}badge--warn
+                  {% elif order.status == 'assembled' %}badge--ok
+                  {% elif order.status == 'shipped' %}badge--danger
+                  {% else %}badge--muted{% endif %}">{{ order.get_status_display }}</span>
+              </header>
+
+              <div class="order__meta">
+                <div class="order__row"><span class="order__label">Дата оформления</span><span class="order__value">{{ order.date_ordered|date:"d.n.Y, H:i" }}</span></div>
+                {% if order.pvz_code %}
+                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">ПВЗ</span></div>
+                  {% if order.pvz_address %}
+                    <div class="order__row"><span class="order__label">Адрес</span><span class="order__value">{{ order.pvz_address }}</span></div>
+                  {% endif %}
+                {% else %}
+                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">Самовывоз</span></div>
+                {% endif %}
+              </div>
+
+              <div class="order__items">
+                <div class="order__subhead">Товары</div>
+                <ul class="order-list">
+                  {% for item in order.items.all %}
+                    <li class="order-list__item">
+                      <a class="order-list__name" href="{{ item.variant.get_absolute_url }}">{{ item.variant.display_name }}</a>
+                      <span class="order-list__qty">{{ item.quantity }} шт.</span>
+                      <span class="order-list__price">{{ item.price|floatformat:2 }}₽</span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+
+              <footer class="order__foot">
+                <div class="order__totals">
+                  <div class="order__row"><span class="order__label">Количество товаров</span><span class="order__value">{{ order.get_total_count }}</span></div>
+                  <div class="order__row"><span class="order__label">Без скидок</span><span class="order__value">{{ order.subtotal|floatformat:2 }}₽</span></div>
+                  {% if order.discount_total and order.discount_total|floatformat:2 != '0' %}
+                    <div class="order__row"><span class="order__label">Скидка</span><span class="order__value">-{{ order.discount_total|floatformat:2 }}₽</span></div>
+                  {% endif %}
+                  {% if order.shipping_total and order.shipping_total|floatformat:2 != '0' %}
+                    <div class="order__row"><span class="order__label">Доставка</span><span class="order__value">{{ order.shipping_total|floatformat:2 }}₽</span></div>
+                  {% endif %}
+                  <div class="order__row"><span class="order__label">Итого к оплате</span><span class="order__value">{{ order.total|floatformat:2 }}₽</span></div>
+                </div>
+
+                <div class="order__actions">
+                  <a href="{{ order.get_absolute_url }}" class="btn">Подробнее</a>
+                  <a href="https://t.me/light_bikeshop" class="btn">Помощь</a>
+                  {% if order.status == 'created' %}
+                    <a href="{{ order.payment_url }}" class="btn btn--primary">Оплатить</a>
+                    <button class="btn btn--danger cancel_order" data-order-id="{{ order.order_id }}">Отменить</button>
+                  {% endif %}
+                </div>
+              </footer>
+            </article>
+          {% endif %}
+        {% endfor %}
+      </section>
+
+      <!-- История -->
+      <section id="section-history" class="js-section" hidden>
+        {% for order in orders|dictsortreversed:"date_ordered" %}
+          {% if order.status == 'delivered' or order.status == 'canceled' %}
+            <article class="order card" id="{{ order.order_id }}">
+              <header class="order__head">
+                <h3 class="order__title"><a href="{{ order.get_absolute_url }}">Заказ № {{ order.order_id }}</a></h3>
+                <span class="badge {% if order.status == 'delivered' %}badge--ok{% else %}badge--danger{% endif %}">{{ order.get_status_display }}</span>
+              </header>
+
+              <div class="order__meta">
+                <div class="order__row"><span class="order__label">Дата оформления</span><span class="order__value">{{ order.date_ordered|date:"d.n.Y, H:i" }}</span></div>
+                {% if order.pvz_code %}
+                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">ПВЗ</span></div>
+                  {% if order.pvz_address %}
+                    <div class="order__row"><span class="order__label">Адрес</span><span class="order__value">{{ order.pvz_address }}</span></div>
+                  {% endif %}
+                {% else %}
+                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">Самовывоз</span></div>
+                {% endif %}
+              </div>
+
+              <div class="order__items">
+                <div class="order__subhead">Товары</div>
+                <ul class="order-list">
+                  {% for item in order.items.all %}
+                    <li class="order-list__item">
+                      <a class="order-list__name" href="{{ item.variant.get_absolute_url }}">{{ item.variant.display_name }}</a>
+                      <span class="order-list__qty">{{ item.quantity }} шт.</span>
+                      <span class="order-list__price">{{ item.price|floatformat:2 }}₽</span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+
+              <footer class="order__foot">
+                <div class="order__totals">
+                  <div class="order__row"><span class="order__label">Количество товаров</span><span class="order__value">{{ order.get_total_count }}</span></div>
+                  <div class="order__row"><span class="order__label">Итого к оплате</span><span class="order__value">{{ order.total|floatformat:2 }}₽</span></div>
+                </div>
+
+                <div class="order__actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                  <a href="{{ order.get_absolute_url }}" class="btn">Подробнее</a>
+                  <a href="https://t.me/light_bikeshop" class="btn">Помощь</a>
+                </div>
+              </footer>
+            </article>
+          {% endif %}
+        {% endfor %}
+      </section>
+
+    </main>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'accounts/js/profile.js' %}"></script>
+{% endblock %}

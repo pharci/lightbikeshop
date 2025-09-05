@@ -1,0 +1,16 @@
+{% load static %}
+
+{% if variants %}
+    <section class="section">
+        <div class="section__header"><h2 class="section__title">{{ title }}</h2></div>
+        <div class="swiper {{ swiper_class }}">
+        <div class="swiper-wrapper">
+            {% for v in variants %}
+            <div class="swiper-slide {{ swiper_class }}__slide">
+                {% include "products/card.html" with product=v variant="slider" %}
+            </div>
+            {% endfor %}
+        </div>
+        </div>
+    </section>
+{% endif %}

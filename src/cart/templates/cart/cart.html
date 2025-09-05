@@ -1,0 +1,34 @@
+{% extends "core/base.html" %}{% load static %}
+{% block title %}Корзина{% endblock %}
+{% block styles %}{{ block.super }}<link rel="stylesheet" href="{% static 'cart/css/style.css' %}">{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-grid">
+    <section id="cart-items" class="cart-items" aria-live="polite"></section>
+
+    <aside class="order-summary">
+      <div class="order-summary__row"><span id="cart-total-count">{{ cart.get_total_items }}</span><span id="cart-subtotal-price">{{ cart.get_cart_subtotal_price|floatformat:2 }} ₽</span></div>
+      <div class="promo">
+        <form method="post" action="{% url 'cart:apply_promo' %}" class="promo__inline">
+          {% csrf_token %}
+          <input name="promo_code" placeholder="Введите промокод" class="promo__input" value="{% if cart.get_promo_obj %}{{ cart.get_promo_obj.code }}{% endif %}">
+          <button class="btn btn--primary">Применить</button>
+        </form>
+        {% if cart.get_promo_obj %}
+          <div class="promo__chip">
+            Промокод: <strong>{{ cart.get_promo_obj.code }}{% if cart.get_promo_obj.discount_type == "percent" %} - {{ cart.get_promo_obj.amount|floatformat:2 }}%{% else %} - {{ cart.get_promo_obj.amount|floatformat:2 }}₽{% endif %}</strong>
+            <form method="post" action="{% url 'cart:remove_promo' %}" class="promo__remove-form">{% csrf_token %}<button class="promo__remove" aria-label="Удалить">&times;</button></form>
+          </div>
+        {% endif %}
+      </div>
+      <hr class="order-summary__hr">
+      <div class="order-summary__total"><span>Итого к оплате</span><span id="cart-total-price">{{ cart.get_cart_total_price|floatformat:2 }} ₽</span></div>
+      <a id="checkout-btn" class="btn btn--primary order-summary__btn" href="{% url 'cart:checkout' %}">Перейти к оформлению</a>
+      <p class="summary__fineprint">Продолжая, вы соглашаетесь с <a href="#">политикой обработки персональных данных</a>.</p>
+      {% for message in messages %}{% if message.tags == 'error' %}<p class="error">{{ message }}</p>{% endif %}{% endfor %}
+    </aside>
+  </div>
+  <template id="tpl-cart-empty"><div class="cart-empty"><div class="cart-empty__title">В корзине пусто</div><div class="cart-empty__text">Добавьте товары, чтобы оформить заказ.</div></div></template>
+</div>
+{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'cart/js/cart.js' %}"></script>{% endblock %}

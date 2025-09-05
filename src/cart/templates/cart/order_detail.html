@@ -1,0 +1,91 @@
+{% extends "core/base.html" %}{% load static %}
+{% block title %}Заказ №{{ order.order_id }}{% endblock %}
+{% block styles %}{{ block.super }}<link rel="stylesheet" href="{% static 'cart/css/style.css' %}">{% endblock %}
+{% block content %}
+<div class="container" id="OrderPage" data-order-id="{{ order.order_id }}">
+  <div class="page-grid">
+    <div class="detail-grid">
+      <div class="confirm__card">
+        {% with st=order.status %}
+          <div class="confirm__icon confirm__icon--{{ st|default:'created' }}">
+            {% if st == "created" %}⌛{% elif st == "paid" %}✔{% elif st == "assembled" %}🧩{% elif st == "shipped" %}🚚{% elif st == "delivered" %}📦{% else %}ℹ{% endif %}
+          </div>
+        {% endwith %}
+        <h1 class="section__title">Заказ {{ order.order_id }}</h1>
+        <div class="confirm__order">от {{ order.date_ordered|date:"d.m.Y H:i" }} • статус: <span class="status-badge status-badge--{{ order.status }}">{{ order.get_status_display|default:order.status }}</span></div>
+        <div class="confirm__actions">
+          <a href="https://t.me/light_bikeshop" class="btn">Помощь</a>
+        </div>
+      </div>
+
+      <section class="island">
+        <ol class="steps">
+          <li class="steps__item {% if order.status == 'created' %}is-active{% elif order.status in 'paid assembled shipped delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Новый</span></li>
+          <li class="steps__item {% if order.status == 'paid' %}is-active{% elif order.status in 'assembled shipped delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Оплачен</span></li>
+          <li class="steps__item {% if order.status == 'assembled' %}is-active{% elif order.status in 'shipped delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Собран</span></li>
+          <li class="steps__item {% if order.status == 'shipped' %}is-active{% elif order.status == 'delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Отправлен</span></li>
+          <li class="steps__item {% if order.status == 'delivered' %}is-active{% endif %}"><span class="steps__dot"></span><span class="steps__label">Доставлен</span></li>
+        </ol>
+      </section>
+
+      <section class="island">
+        <h3 class="island__title">Доставка</h3>
+        {% if order.pvz_code %}
+          <div class="order-summary__row"><span class="muted">Тип:</span><span>ПВЗ</span></div>
+          <div class="order-summary__row"><span class="muted">Код ПВЗ:</span><span>{{ order.pvz_code }}</span></div>
+          {% if order.pvz_address %}<div class="order-summary__row"><span class="muted">Адрес:</span><span>{{ order.pvz_address }}</span></div>{% endif %}
+        {% else %}
+          <div class="order-summary__row"><span class="muted">Тип:</span><span>Самовывоз</span></div>
+        {% endif %}
+      </section>
+
+      <section class="island">
+        <h3 class="island__title">Покупатель</h3>
+        <div class="order-summary__row"><span class="muted">ФИО:</span><span>{{ order.user_name }}</span></div>
+        <div class="order-summary__row"><span class="muted">Телефон:</span><span>{{ order.contact_phone }}</span></div>
+        {% if order.email %}<div class="order-summary__row"><span class="muted">Почта:</span><span>{{ order.email }}</span></div>{% endif %}
+        {% if order.order_notes %}<div class="order-summary__row"><span class="muted">Комментарий:</span><span>{{ order.order_notes }}</span></div>{% endif %}
+      </section>
+
+      <section class="island">
+        <h3 class="island__title">Состав заказа</h3>
+        {% if order.items.all %}
+          <div class="cart-items">
+            {% for it in order.items.all %}
+              <article class="cart-item">
+                <a class="cart-item__image" href="{{ it.variant.get_absolute_url }}">
+                  {% with img=it.variant.images.first %}{% if img and img.image %}<img src="{{ img.image.url }}" alt="">{% else %}<img src="{% static 'img/placeholder.png' %}" alt="">{% endif %}{% endwith %}
+                </a>
+                <div>
+                  <a class="cart-item__title-link" href="{{ it.variant.get_absolute_url }}"><h3 class="cart-item__title">{{ it.variant.display_name }}</h3></a>
+                  <div class="cart-item__meta"><span class="meta-chip">Кол-во: {{ it.quantity }}</span></div>
+                </div>
+                <div class="cart-item__controls"><div class="cart-item__price">{{ it.price|floatformat:2 }} ₽</div></div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="cart-empty"><div class="cart-empty__title">В заказе нет позиций</div><div class="cart-empty__text">Добавьте товары из каталога.</div></div>
+        {% endif %}
+      </section>
+    </div>
+
+    <aside class="order-summary">
+      <div class="order-summary__row"><div>{{ order.get_total_count }} товаров</div><div>{{ order.subtotal|floatformat:2 }} ₽</div></div>
+      <div class="order-summary__row"><div>Скидка</div><div>-{{ order.discount_total|floatformat:2 }} ₽</div></div>
+      <div class="order-summary__row"><div>Доставка</div><div>{{ order.shipping_total|floatformat:2 }} ₽</div></div>
+      <hr class="order-summary__hr">
+      <div class="order-summary__total"><div>Итого к оплате</div><div>{{ order.total|floatformat:2 }} ₽</div></div>
+      {% if order.status == "created" %}
+        <a href="{{ order.payment_url }}" class="btn btn--primary order-summary__btn">
+          Оплатить онлайн
+        </a>
+        <p class="summary__fineprint">Оплата пройдёт на защищённой странице T-Bank.</p>
+      {% elif order.status == "paid" %}
+        <p class="summary__fineprint">Оплата подтверждена.</p>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'cart/js/order_poll.js' %}"></script>{% endblock %}
