@@ -78,22 +78,49 @@ cityList.addEventListener('click', (e) => {
 function setCity(city) {
   cityInput.value = city;
   cityCaption.textContent = 'г. ' + city;
+  try {
+    localStorage.setItem('city', city);
+  } catch (e) {
+  }
+
+  // сброс выбранного ПВЗ и пересоздание карты
+  resetPvzSelection();
+  if (!panelPvz.hidden) ensureMap();
 }
 
 // ----- Автоподстановка города (геолокация) -----
-(function autoDetectCity() {
-  if (cityInput.value) return;
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(pos => {
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-    fetch(`/api/whereami/?lat=${lat}&lon=${lon}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.city) setCity(data.city);
-        })
-        .catch(() => {});
-  }, () => {}, {timeout: 5000, maximumAge: 300000});
+(function initCity() {
+  // 1) уже проставлено в hidden?
+  const serverVal = (cityInput.value || '').trim();
+  if (serverVal) {
+    setCity(serverVal);
+    return;
+  }
+
+  // 2) сохранённое в localStorage
+  const saved = (localStorage.getItem('city') || '').trim();
+  if (saved) {
+    setCity(saved);
+    return;
+  }
+
+  // 3) дефолт из разметки
+  const fallback =
+      (openCityModalBtn.dataset.defaultCity || '').trim() || 'Москва';
+
+  // 4) пробуем гео, при отказе → fallback
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      fetch(`/api/whereami/?lat=${lat}&lon=${lon}`)
+          .then(r => r.json())
+          .then(data => setCity((data && data.city) ? data.city : fallback))
+          .catch(() => setCity(fallback));
+    }, () => setCity(fallback), {timeout: 5000, maximumAge: 300000});
+  } else {
+    setCity(fallback);
+  }
 })();
 
 // ----- Переключение карточек доставки -----
@@ -223,7 +250,7 @@ function createPlacemark(p, preset) {
 }
 
 function pickPoint(p) {
-  pvzCode.value = `${p.provider}:${p.id}`;
+  pvzCode.value = `${p.provider}: ${p.id}`;
   pvzAddress.value = p.address || '';
   picked.textContent = p.address || p.name || 'выбрано';
   collapseMap();

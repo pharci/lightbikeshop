@@ -98,7 +98,7 @@
           <form action="{% url 'accounts:bind_email' %}" method="post" class="form-narrow">
             {% csrf_token %}
             <input class="input" type="email" name="email" required placeholder="your@email" value="{{ user.email }}">
-            <button type="submit" class="btn btn--dark">Привязать/обновить почту</button>
+            <button type="submit" class="btn">Привязать/обновить почту</button>
           </form>
           <small class="helper-text">Почта нужна для уведомлений и входа.</small>
           {% for message in messages %}

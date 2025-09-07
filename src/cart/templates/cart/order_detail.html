@@ -71,11 +71,32 @@
     </div>
 
     <aside class="order-summary">
-      <div class="order-summary__row"><div>{{ order.get_total_count }} товаров</div><div>{{ order.subtotal|floatformat:2 }} ₽</div></div>
-      <div class="order-summary__row"><div>Скидка</div><div>-{{ order.discount_total|floatformat:2 }} ₽</div></div>
-      <div class="order-summary__row"><div>Доставка</div><div>{{ order.shipping_total|floatformat:2 }} ₽</div></div>
+      <div class="order-summary__row">
+        <div>{{ order.get_total_count }} товаров</div>
+        <div class="filler-underline"></div>
+        <div>{{ order.subtotal|floatformat:2 }} ₽</div>
+      </div>
+
+      <div class="order-summary__row">
+        <div>Скидка</div>
+        <div class="filler-underline"></div>
+        <div>-{{ order.discount_total|floatformat:2 }} ₽</div>
+      </div>
+
+      <div class="order-summary__row">
+        <div>Доставка</div>
+        <div class="filler-underline"></div>
+        <div>{{ order.shipping_total|floatformat:2 }} ₽</div>
+      </div>
+
       <hr class="order-summary__hr">
-      <div class="order-summary__total"><div>Итого к оплате</div><div>{{ order.total|floatformat:2 }} ₽</div></div>
+
+      <div class="order-summary__total">
+        <div>Итого к оплате</div>
+        <div class="filler-underline"></div>
+        <div>{{ order.total|floatformat:2 }} ₽</div>
+      </div>
+
       {% if order.status == "created" %}
         <a href="{{ order.payment_url }}" class="btn btn--primary order-summary__btn">
           Оплатить онлайн

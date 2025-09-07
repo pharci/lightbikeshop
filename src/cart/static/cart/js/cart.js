@@ -111,25 +111,26 @@ function renderItem(it) {
       </div>
     </article>`;
 }
+
 function toggleCheckout(blocked, empty) {
   const $btn = $('#checkout-btn');
-  if (!$btn.data('href')) $btn.data('href', $btn.attr('href') || '');
+
+  if (!$btn.data('href')) {
+    $btn.data('href', $btn.attr('href') || '');
+  }
+
   if (blocked || empty) {
     $btn.removeAttr('href')
         .attr('aria-disabled', 'true')
-        .addClass('disabled')
+        .addClass('btn--disabled')
         .text('Недопустимый заказ');
   } else {
     $btn.attr('href', $btn.data('href'))
         .attr('aria-disabled', 'false')
-        .removeClass('disabled')
+        .removeClass('btn--disabled')
         .text('Перейти к оформлению');
   }
 }
-$(document).on('click', '#checkout-btn.disabled', e => {
-  e.preventDefault();
-  e.stopPropagation();
-});
 
 function recomputeBlocking() {
   let blocked = false;

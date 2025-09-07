@@ -3,10 +3,11 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from django.core.paginator import Paginator
-from django.db.models import (
-    Prefetch, Q, Case, When, Value, IntegerField, Min, Max, Count, QuerySet
-)
-from django.shortcuts import get_object_or_404, render
+from django.db.models import Q, Case, When, IntegerField, Exists, OuterRef, Value, Prefetch, Min, Max, QuerySet
+from django.db.models.functions import Cast
+from django.db.models import CharField
+
+from django.shortcuts import get_object_or_404
 from django.http import Http404
 
 from products.models import (
@@ -20,6 +21,52 @@ SORT_MAP = {
     'price_desc': ['-has_stock', '-price', '-id'],
     'newest':     ['-has_stock', '-created', '-id'],
 }
+
+
+def apply_text_search(qs, q: str):
+    tokens = [t for t in (q or "").split() if t]
+    if not tokens:
+        return qs
+
+    def attr_exists(tok: str):
+        sub = (AttributeValue.objects
+               .filter(variant_id=OuterRef('pk'))
+               .annotate(vn_str=Cast('value_number', output_field=CharField()))
+               .filter(Q(value_text__icontains=tok) | Q(vn_str__icontains=tok)))
+        return Exists(sub)
+
+    for tok in tokens:
+        qs = qs.filter(
+            Q(product__base_name__icontains=tok) |
+            Q(product__brand__title__icontains=tok) |
+            Q(product__category__second_name__icontains=tok) |
+            Q(product__category__name__icontains=tok) |
+            attr_exists(tok) |
+            Q(slug__icontains=tok) |
+            Q(wb_article__icontains=tok) |
+            Q(ozon_article__icontains=tok)
+        )
+
+    rank = (
+        Case(
+            When(product__base_name__istartswith=tokens[0], then=Value(4)),
+            default=Value(0), output_field=IntegerField()
+        )
+        + Case(
+            When(product__brand__title__istartswith=tokens[0], then=Value(3)),
+            default=Value(0), output_field=IntegerField()
+        )
+        + Case(
+            When(product__base_name__icontains=" ".join(tokens), then=Value(2)),
+            default=Value(0), output_field=IntegerField()
+        )
+        + Case(
+            When(product__brand__title__icontains=" ".join(tokens), then=Value(1)),
+            default=Value(0), output_field=IntegerField()
+        )
+    )
+
+    return qs.annotate(search_rank=rank).order_by('-search_rank')
 
 def _parse_decimal(s: Optional[str]):
     try:
@@ -98,11 +145,7 @@ def apply_scope(qs: QuerySet, cat: Optional[Category], br: Optional[Brand], para
     if br:
         qs = qs.filter(product__brand=br)
     if params.q:
-        qs = qs.filter(
-            Q(product__base_name__icontains=params.q) |
-            Q(product__brand__title__icontains=params.q) |
-            Q(attribute_values__value_text__icontains=params.q)
-        ).distinct()
+        qs = apply_text_search(qs, params.q)
     if params.in_stock:
         qs = qs.filter(has_stock=1)
     if params.price_min is not None:

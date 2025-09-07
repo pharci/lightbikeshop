@@ -16,7 +16,7 @@ function htmlInCart(count, stock) {
   const disPlus =
       (typeof stock === 'number' && count >= stock) ? 'disabled' : '';
   return `
-      <a class="btn buy__goto" href="${cartUrl}">В корзине</a>
+      <a class="btn" href="${cartUrl}">В корзине</a>
       <div class="qty" aria-live="polite">
         <button class="qty__btn js-dec" type="button" ${
       disMinus} aria-label="Уменьшить">−</button>

@@ -93,7 +93,8 @@ MIDDLEWARE = [
 
     # твои middlewares
     "accounts.middlewares.LoginValidationMiddleware",
-    "accounts.middlewares.RegisterValidationMiddleware",
+    "accounts.middlewares.RegisterValidationMiddleware",   
+    "cart.middleware.CheckoutCartGuardMiddleware", 
 ]
 
 ROOT_URLCONF = "lightbikeshop.urls"
@@ -321,6 +322,3 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60.0,  # раз в минуту
     },
 }
-
-
-REDIS_PASSWORD = env_str("REDIS_PASSWORD", "")

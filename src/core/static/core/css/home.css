@@ -119,12 +119,9 @@
   color: #4b5563;
   margin-bottom: 10px;
 }
-.pickup-card .btn {
-  font-size: 0.85rem;
-  padding: 6px 12px;
-  border:1px solid #e5e7eb;
-  border-radius: 15px;
-  margin-left: auto;
+
+.pickup-card__time {
+  margin-bottom: 10px;
 }
 
 @media (max-width: 720px){

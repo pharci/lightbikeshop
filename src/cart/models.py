@@ -432,6 +432,11 @@ class OrderItem(models.Model):
 
 
 class PickupPoint(models.Model):
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Код"
+    )
     slug = models.SlugField(unique=True, verbose_name="Слаг")
     title = models.CharField(max_length=120, verbose_name="Название")
     city = models.CharField(max_length=100, db_index=True, verbose_name="Город")
@@ -450,7 +455,7 @@ class PickupPoint(models.Model):
         verbose_name_plural = "Пункты самовывоза"
 
     def __str__(self):
-        return f"{self.title} — {self.city}"
+        return f"{self.code} — {self.city}"
 
 
 # ───────────────────────────── PROMO ───────────────────────────── #

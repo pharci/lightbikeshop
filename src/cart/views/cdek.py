@@ -159,8 +159,8 @@ def api_shop_pvz(request):
     qs = PickupPoint.objects.filter(is_active=True)
     if city:
         qs = qs.filter(city__iexact=city)
-    data = [{"id": f"shop-{p.id}", "name": p.title, "address": p.address,
-             "lat": float(p.lat), "lon": float(p.lon), "provider": "shop"} for p in qs]
+    data = [{"id": f"{p.code}", "name": p.title, "address": p.address,
+             "lat": float(p.lat), "lon": float(p.lon), "provider": "Самовывоз"} for p in qs]
     return JsonResponse(data, safe=False)
 
 @require_GET

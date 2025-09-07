@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+
+{% block title %}Страница не найдена{% endblock %}
+
+{% block content %}
+<div class="container" style="padding:32px 16px;">
+  <section class="hover-shadow" style="background:var(--white); border:1px solid var(--border); border-radius:var(--radius); padding:32px; text-align:center;">
+    <h1 class="section__title" style="justify-content:center; margin-bottom:8px;">404 — Страница не найдена</h1>
+    <p style="margin:0; color:#6c757d;">Ссылка могла устареть или в адресе опечатка.</p>
+
+    <div class="block-404" style="margin-top:24px; display:flex; gap:12px; justify-content:center;">
+      <a class="btn btn--primary" href="/">На главную</a>
+      <a class="btn btn--secondary" href="/catalog/">Каталог</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

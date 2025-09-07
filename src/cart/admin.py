@@ -196,7 +196,7 @@ class OrderAdmin(ColumnToggleModelAdmin):
 
 @admin.register(PickupPoint)
 class PickupPointAdmin(ColumnToggleModelAdmin):
-    list_display = ("title", "city", "address", "schedule", "is_active", "sort")
+    list_display = ("code", "title", "city", "address", "schedule", "is_active", "sort")
     default_selected_columns = list(list_display)
     list_filter = ("city", "is_active")
     search_fields = ("title", "address", "city", "slug")

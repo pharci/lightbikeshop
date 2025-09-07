@@ -94,11 +94,11 @@
               {% endif %}
 
               {% if p.lat and p.lon %}
-                <a class="btn btn--secondary"
+                <a class="btn"
                   href="https://yandex.ru/maps/?pt={{ p.lon }},{{ p.lat }}&z=16&l=map"
                   target="_blank" rel="noopener">Открыть на карте</a>
               {% else %}
-                <a class="btn btn--secondary"
+                <a class="btn"
                   href="https://yandex.ru/maps/?text={{ p.city|urlencode }}%20{{ p.address|urlencode }}"
                   target="_blank" rel="noopener">Открыть на карте</a>
               {% endif %}

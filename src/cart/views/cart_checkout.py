@@ -47,16 +47,18 @@ def checkout(request):
     form = CheckoutForm(request.POST)
 
     if not cart or (cart.get_total_items() or 0) == 0:
-        messages.error(request, "Корзина пуста.")
+        messages.error(request, "Корзина пуста.", extra_tags="global")
         return render(request, "cart/checkout.html", {"form": form, "cart": cart})
 
+    if cart.get_cart_total_price() <= 1:
+        messages.error(request, "Сумма заказа должна быть больше 1 рубля.", extra_tags="global")
+        return render(request, "cart/checkout.html", {"form": form, "cart": cart})
+
+    # валидация формы: НИЧЕГО не пишем в messages для field-ошибок
     if not form.is_valid():
-        for field, errs in form.errors.items():
-            label = form.fields.get(field).label if field in form.fields else ""
-            for e in errs:
-                messages.error(request, f"{label or field}: {e}")
+        # если хочешь, подними именно non_field_errors в messages-глобальные:
         for e in form.non_field_errors():
-            messages.error(request, e)
+            messages.error(request, e, extra_tags="global")
         return render(request, "cart/checkout.html", {"form": form, "cart": cart})
 
     subtotal = D(cart.get_cart_subtotal_price() or 0)
@@ -147,13 +149,10 @@ def cart_data(request: HttpRequest) -> JsonResponse:
 @require_GET
 def variant_edit(request: HttpRequest) -> JsonResponse:
     vid = request.GET.get("variant_id")
-    action = request.GET.get("action")  # может быть None
+    action = request.GET.get("action")
 
     if not vid:
-        return JsonResponse(
-            {"success": False, "error": "bad_request", "variant_id": vid, "action": action},
-            status=400,
-        )
+        return JsonResponse({"success": False, "error": "bad_request", "variant_id": vid, "action": action}, status=400)
 
     cart = get_cart(request)
 
@@ -161,7 +160,6 @@ def variant_edit(request: HttpRequest) -> JsonResponse:
         qs = Variant.objects.select_for_update() if for_update else Variant.objects
         return get_object_or_404(qs, id=vid)
 
-    # init-режим (без action) → просто вернуть текущее состояние
     if not action:
         v = get_variant(False)
         return JsonResponse({
@@ -174,10 +172,7 @@ def variant_edit(request: HttpRequest) -> JsonResponse:
         })
 
     if action not in {"add", "remove", "remove_all"}:
-        return JsonResponse(
-            {"success": False, "error": "bad_request", "variant_id": vid, "action": action},
-            status=400,
-        )
+        return JsonResponse({"success": False, "error": "bad_request", "variant_id": vid, "action": action}, status=400)
 
     if action == "add":
         with transaction.atomic():
@@ -201,12 +196,14 @@ def variant_edit(request: HttpRequest) -> JsonResponse:
         cart.remove_variant(v)
 
     else:  # remove_all
-        v = get_variant(True)
-        if hasattr(cart, "remove_all_variant"):
-            cart.remove_all_variant(v)
-        else:
-            while (cart.get_variant_count(v) or 0) > 0:
-                cart.remove_variant(v)
+        with transaction.atomic():
+            v = get_variant(True)
+            if hasattr(cart, "remove_all_variant"):
+                cart.remove_all_variant(v)
+            else:
+                cnt = int(cart.get_variant_count(v) or 0)
+                for _ in range(cnt):
+                    cart.remove_variant(v)
 
     new_count = int(cart.get_variant_count(v) or 0)
     return JsonResponse({
@@ -217,7 +214,6 @@ def variant_edit(request: HttpRequest) -> JsonResponse:
         "cart_total_price": cart.get_cart_total_price() or 0,
         "cart_total_count": cart.get_total_items() or 0,
     })
-
 
 @require_GET
 def whereami(request: HttpRequest) -> JsonResponse:

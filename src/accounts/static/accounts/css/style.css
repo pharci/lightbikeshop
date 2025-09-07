@@ -77,22 +77,6 @@
   .code-input{ text-align:center; }
 }
 
-/* ---------------- Кнопки ---------------- */
-.btn{
-  display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  padding:10px 14px; border-radius:var(--radius);
-  text-decoration:none; cursor:pointer; user-select:none;
-  border:1px solid var(--brand); color:var(--brand); background:transparent;
-  transition:background .15s, color .15s, border-color .15s, transform .05s, opacity .15s;
-}
-.btn:hover{ background:var(--brand); color:#fff; }
-.btn:active{ transform:translateY(1px); }
-.btn:disabled{ opacity:.6; cursor:not-allowed; }
-.btn--block{ width:100%; }
-.btn--dark{ /* цвет задаётся через --brand */ }
-.btn--danger{ border-color:var(--danger); color:var(--danger); }
-.btn--danger:hover{ background:var(--danger); color:#fff; }
-
 /* ---------------- Профиль: инфо-рядки ---------------- */
 .profile__box{ display:grid; gap:12px; }
 .profile__row{ display:flex; justify-content:space-between; gap:8px; }
@@ -189,4 +173,7 @@
 /* ---------------- Иконки в хедере/футере (если используешь Lucide) ---------------- */
 .header__menu i[data-lucide],
 .footerbar__btn i[data-lucide]{ width:24px; height:24px; stroke-width:2; }
-.order__actions{ margin-top:auto;display:flex;gap:8px;flex-wrap:wrap; }
+.order__actions{ margin-top:auto;display:flex;gap:8px; }
+@media (max-width:500px){
+  .order__actions{ flex-wrap:wrap; }
+}

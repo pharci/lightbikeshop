@@ -40,9 +40,11 @@
 
         <div class="inline" style="align-items:center;gap:8px">
           <span>Получить заказ в</span>
-          <button type="button" class="clicklike" id="open-city-modal"><span id="city-caption">Москва</span> ▾</button>
+          <button type="button" class="clicklike" id="open-city-modal" data-default-city="Москва">
+            <span id="city-caption"></span> ▾
+          </button>
         </div>
-        <input type="hidden" id="city" name="city" value="Москва">
+        <input type="hidden" id="city" name="city" value="">
 
         <div class="delivery-cards" role="radiogroup" id="method-group">
           <label class="delivery-card" data-target="panel-pvz">
@@ -105,15 +107,65 @@
     </form>
 
     <aside class="order-summary">
-      <div class="order-summary__row"><span>{{ cart.get_total_items }} товаров на сумму</span><span id="summary-subtotal">{{ cart.get_cart_subtotal_price|floatformat:2 }} ₽</span></div>
-      {% if cart.get_promo_obj %}<div class="order-summary__row muted"><span>Скидка по промокоду</span><span id="summary-discount">-{{ cart.get_discount|floatformat:2 }} ₽</span></div>{% endif %}
-      <div class="order-summary__row"><span>Доставка</span><span id="summary-shipping">{% if shipping_cost is not None %}{{ shipping_cost|floatformat:2 }} ₽{% else %}—{% endif %}</span></div>
-      {% if cart.get_promo_obj %}<div class="promo"><div class="promo__chip">Промокод: <strong>{{ cart.get_promo_obj.code }}{% if cart.get_promo_obj.discount_type == "percent" %} - {{ cart.get_promo_obj.amount|floatformat:2 }}%{% else %} - {{ cart.get_promo_obj.amount|floatformat:2 }}₽{% endif %}</strong></div><div class="promo__note">Промокод изменяется только в корзине.</div></div>{% endif %}
+      <div class="order-summary__row">
+        <span>{{ cart.get_total_items }} товаров на сумму</span>
+        <div class="filler-underline"></div>
+        <span id="summary-subtotal">{{ cart.get_cart_subtotal_price|floatformat:2 }} ₽</span>
+      </div>
+
+      {% if cart.get_promo_obj %}
+      <div class="order-summary__row muted">
+        <span>Скидка по промокоду</span>
+        <div class="filler-underline"></div>
+        <span id="summary-discount">-{{ cart.get_discount|floatformat:2 }} ₽</span>
+      </div>
+      {% endif %}
+
+      <div class="order-summary__row">
+        <span>Доставка</span>
+        <div class="filler-underline"></div>
+        <span id="summary-shipping">
+          {% if shipping_cost is not None %}
+            {{ shipping_cost|floatformat:2 }} ₽
+          {% else %}—{% endif %}
+        </span>
+      </div>
+
+      {% if cart.get_promo_obj %}
+      <div class="promo">
+        <div class="promo__chip">
+          Промокод: <strong>{{ cart.get_promo_obj.code }}
+          {% if cart.get_promo_obj.discount_type == "percent" %}
+            - {{ cart.get_promo_obj.amount|floatformat:2 }}%
+          {% else %}
+            - {{ cart.get_promo_obj.amount|floatformat:2 }}₽
+          {% endif %}
+          </strong>
+        </div>
+        <div class="promo__note">Промокод изменяется только в корзине.</div>
+      </div>
+      {% endif %}
+
       <hr class="order-summary__hr">
-      <div class="order-summary__total"><span>Итого к оплате</span><span id="summary-total">{{ cart.get_cart_total_price|floatformat:2 }} ₽</span></div>
-      <button type="submit" class="btn btn--primary order-summary__btn" id="pay-btn" form="checkout-form">Оплатить онлайн</button>
-      <p class="summary__fineprint">Продолжая, вы соглашаетесь с <a href="#">политикой обработки персональных данных</a>.</p>
-      {% if form.non_field_errors %}<div class="alert alert--error">{% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div>{% endif %}
+
+      <div class="order-summary__total">
+        <span>Итого к оплате</span>
+        <div class="filler-underline"></div>
+        <span id="summary-total">{{ cart.get_cart_total_price|floatformat:2 }} ₽</span>
+      </div>
+
+      <button type="submit" class="btn" id="pay-btn" form="checkout-form">Оплатить онлайн</button>
+      <p class="summary__fineprint">
+        Продолжая, вы соглашаетесь с <a href="#">политикой обработки персональных данных</a>.
+      </p>
+
+      {% if messages %}
+        {% for m in messages %}
+          {% if m.level_tag == 'error' and 'global' in m.tags %}
+            <div class="field__error">{{ m }}</div>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
     </aside>
   </div>
 </div>

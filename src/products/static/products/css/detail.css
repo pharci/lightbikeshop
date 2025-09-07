@@ -267,40 +267,6 @@
   margin-top: auto;
 }
 
-.btn--disabled,
-.btn--disabled:hover,
-.btn--disabled:active {
-  opacity: .55;
-  cursor: not-allowed;
-  background: #f3f4f6;
-  color: #9aa0a6;
-  border-color: #e5e7eb;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Buttons (base) */
-.btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 14px; /* убрали вертикальные паддинги, задаём фиксированную высоту */
-  height: var(--btn-height);
-  border-radius: var(--radius);
-  text-decoration: none;
-  cursor: pointer;
-  border: 1px solid #111;
-  background: transparent;
-  color: #111;
-  transition: background .15s ease, color .15s ease, border-color .15s ease, opacity .15s ease, transform .05s ease;
-  user-select: none;
-}
-.btn:hover { background:#111; color:#fff; }
-.btn:active { transform: translateY(1px); }
-.btn:disabled { opacity:.5; cursor:not-allowed; }
-
 /* Quantity control */
 .qty {
   display: inline-grid;

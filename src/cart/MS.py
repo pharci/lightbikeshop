@@ -90,12 +90,8 @@ def build_ms_order_payload(order) -> dict:
         })
 
     desc = []
-    if order.pvz_code:
-        desc.append(f"ПВЗ: {order.pvz_code}")
-    else:
-        desc.append("Самовывоз")
-    if order.order_notes:
-        desc.append(order.order_notes)
+    desc.append(f"{order.pvz_code}")
+    desc.append(order.order_notes)
     description = "\n\n".join(desc)
 
     addr_raw = (order.pvz_address or "").strip()
