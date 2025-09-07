@@ -6,6 +6,7 @@ from adminsortable2.admin import SortableInlineAdminMixin, SortableAdminBase
 from django.contrib import admin, messages
 from django.db import transaction
 from django.conf import settings
+from django.db.models import Prefetch
 
 from .models import *
 
@@ -168,52 +169,109 @@ class AttributeAdmin(ColumnToggleModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(ColumnToggleModelAdmin):
-    """
-    SPU: превью берем из первого изображения первого варианта.
-    """
     list_display = ("image_preview", "id", "base_name", "category", "brand", "weight", "created", "updated")
     default_selected_columns = list(list_display)
-    list_display_links = ("image_preview", "id", )
-    list_filter = ("category", "brand", "created", "updated")
+    list_display_links = ("image_preview", "id")
+    list_filter = (
+        ("category", admin.RelatedOnlyFieldListFilter),
+        ("brand", admin.RelatedOnlyFieldListFilter),
+        "created", "updated",
+    )
     search_fields = ("base_name", "brand__title")
     inlines = [VariantInline]
-    list_editable = ("base_name", "category", "brand", "weight",)  # ← можно менять прямо в таблице
-    actions = [action_refresh_photos]
+    list_editable = ("base_name", "category", "brand", "weight")
+    list_select_related = ("category", "brand")  # JOIN вместо N+1
 
-    def image_preview(self, obj):
-        first_variant = obj.variants.first()
-        img = first_variant.images.first().image if (first_variant and first_variant.images.first()) else None
-        url = img.url if img else None
-        return thumb(url)
-    image_preview.short_description = "Фото"
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            "category", "brand"
+        ).prefetch_related(
+            Prefetch(
+                "variants",
+                queryset=Variant.objects.only("id", "product_id").order_by("created"),
+                to_attr="prefetched_variants",
+            ),
+            Prefetch(
+                "variants__images",
+                queryset=Image.objects.only("id", "variant_id", "image", "sort").order_by("sort"),
+                to_attr="prefetched_images",  # будет на каждом Variant
+            ),
+        )
+
+    @admin.display(description="Фото")
+    def image_preview(self, obj: Product):
+        vlist = getattr(obj, "prefetched_variants", []) or []
+        # первый вариант
+        v = vlist[0] if vlist else None
+        url = ""
+        if v:
+            imgs = getattr(v, "prefetched_images", []) or []
+            if imgs:
+                f = imgs[0]
+                url = f.image.url if getattr(f, "image", None) else ""
+        if not url:
+            url = obj.imageURL or ""
+        if not url:
+            return "—"
+        return format_html('<img src="{}" style="height:48px;width:auto;border-radius:4px;">', url)
 
 # ---------- Variant ----------
 
 @admin.register(Variant)
 class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
     list_display = (
-        "image_preview", "id", "display_name_col", "slug", "price", "old_price",
-        "inventory", "new", "rec", "is_active", "updated"
+        "image_preview", "id", "display_name_col", "slug",
+        "ozon_article", "ozon_sku", "price", "old_price",
+        "inventory", "new", "rec", "is_active", "updated",
     )
     default_selected_columns = list(list_display)
-    list_display_links = ("image_preview", "id", "display_name_col",)  # редактируемые поля не должны быть ссылками
-    list_filter = ("new", "rec", "is_active", "updated", "product__category", "product__brand")
-    search_fields = ("slug", "id",)
+    list_display_links = ("image_preview", "id", "display_name_col")
+    list_filter = (
+        "new", "rec", "is_active", "updated",
+        ("product__category", admin.RelatedOnlyFieldListFilter),
+        ("product__brand", admin.RelatedOnlyFieldListFilter),
+    )
+    search_fields = ("slug", "id", "ozon_article", "ozon_sku", "product__base_name")
     autocomplete_fields = ("product",)
     inlines = [ImageInline, AttributeValueInline]
     ordering = ("-updated",)
+    list_editable = ("old_price", "price", "inventory")
+    list_per_page = 50
+    date_hierarchy = "updated"
+    preserve_filters = True
+    empty_value_display = "—"
 
-    # РЕДАКТИРОВАНИЕ В СПИСКЕ
-    list_editable = ("old_price", "price", "inventory", )  # ← можно менять прямо в таблице
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Нужны product, brand, category для display_name(); images для превью
+        return qs.select_related(
+            "product", "product__brand", "product__category"
+        ).prefetch_related(
+            Prefetch(
+                "images",
+                queryset=Image.objects.only("id", "variant_id", "image", "sort").order_by("sort"),
+                to_attr="prefetched_images",
+            )
+        )
 
-    def display_name_col(self, obj):
-        return str(obj)
-    display_name_col.short_description = "Вариант"
+    @admin.display(description="Вариант", ordering="slug")
+    def display_name_col(self, obj: Variant):
+        return str(obj)  # использует Variant.__str__ → display_name()
 
-    def image_preview(self, obj):
-        url = obj.images.first().image.url if obj.images.first() and obj.images.first().image else obj.product.imageURL
-        return thumb(url)
-    image_preview.short_description = "Фото"
+    @admin.display(description="Фото")
+    def image_preview(self, obj: Variant):
+        # сначала берём из prefetched_images, иначе main_image_url()
+        url = None
+        imgs = getattr(obj, "prefetched_images", None)
+        if imgs:
+            im0 = imgs[0]
+            url = im0.image.url if getattr(im0, "image", None) else None
+        if not url:
+            url = obj.main_image_url()
+        if not url:
+            return "—"
+        return format_html('<img src="{}" style="height:48px;width:auto;border-radius:4px;">', url)
 
 # ---------- AttributeValue ----------
 
