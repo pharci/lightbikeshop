@@ -9,10 +9,7 @@ from django.conf import settings
 
 from .models import *
 
-from products.MS.load_products import (
-    _get, save_variant_images, save_variant_attributes, _pick_prices,
-    _ensure_category_chain, HEADERS
-)
+from products.MS.load_products import _get, save_variant_images, HEADERS
 
 
 # ---------- helpers ----------
@@ -60,75 +57,6 @@ def action_refresh_photos(modeladmin, request, queryset):
         messages.success(request, f"Фото обновлены у {updated} вариант(ов).")
     if errors:
         messages.error(request, f"Ошибок: {errors}.")
-
-@admin.action(description="Обновить полностью (товар, варианты, фото, атрибуты)")
-def action_resync_full(modeladmin, request, queryset):
-    ok, errs = 0, 0
-    for product in queryset:
-        try:
-            with transaction.atomic():
-                # --- PRODUCT ---
-                p_url = f"{settings.MOYSKLAD_BASE}/entity/product/{product.id}"
-                p = _get(p_url, params={"expand": "productFolder"})
-                # категория по pathName
-                cat = _ensure_category_chain(p.get("pathName") or "")
-                desc = p.get("description") or ""
-                w = p.get("weight"); v = p.get("volume")
-                product.base_name = (p.get("name") or "").strip()
-                product.description = desc
-                product.category = cat
-                product.weight = int(round(w)) if isinstance(w, (int, float)) and w > 0 else None
-                product.volume = v if v not in (None, 0, 0.0) else None
-                product.save()
-
-                # --- VARIANTS LIST FOR PRODUCT ---
-                v_url = f"{settings.MOYSKLAD_BASE}/entity/variant"
-                # фильтр по product = meta.href товара
-                params = {
-                    "limit": 100,
-                    "expand": "characteristics,images,product",
-                    "filter": f"productid={product.id}",
-                    "order": "updated"
-                }
-                ms_variants = []
-                page = _get(v_url, params=params)
-                while True:
-                    ms_variants.extend(page.get("rows", []))
-                    next_href = (page.get("meta") or {}).get("nextHref")
-                    if not next_href:
-                        break
-                    page = _get(next_href)
-
-                # удалить локальные варианты, которых больше нет в МС
-                ms_ids = {v["id"] for v in ms_variants if v.get("id")}
-                Variant.objects.filter(product=product).exclude(id__in=ms_ids).delete()
-
-                # апсерт вариантов + фото + атрибуты
-                for v in ms_variants:
-                    vid = (v.get("id") or "").strip()
-                    if not vid:
-                        continue
-                    price, old_price = _pick_prices(v.get("salePrices") or (v.get("product") or {}).get("salePrices"))
-                    defaults = {"product": product}
-                    if price is not None: defaults["price"] = price
-                    if old_price is not None and hasattr(Variant, "old_price"): defaults["old_price"] = old_price
-                    variant, _ = Variant.objects.update_or_create(id=vid, defaults=defaults)
-
-                    # фото: пересобираем
-                    Image.objects.filter(variant=variant).delete()
-                    save_variant_images(variant, v.get("images") or {}, HEADERS)
-
-                    # характеристики (вариантные атрибуты)
-                    save_variant_attributes(product, variant, v.get("characteristics"), is_variant=True)
-
-                ok += 1
-        except Exception:
-            errs += 1
-
-    if ok:
-        messages.success(request, f"Полностью обновлено товаров: {ok}.")
-    if errs:
-        messages.error(request, f"Ошибок при обновлении: {errs}.")
 
 # ---------- Inlines ----------
 
@@ -250,7 +178,7 @@ class ProductAdmin(ColumnToggleModelAdmin):
     search_fields = ("base_name", "brand__title")
     inlines = [VariantInline]
     list_editable = ("base_name", "category", "brand", "weight",)  # ← можно менять прямо в таблице
-    actions = [action_refresh_photos, action_resync_full]
+    actions = [action_refresh_photos]
 
     def image_preview(self, obj):
         first_variant = obj.variants.first()
