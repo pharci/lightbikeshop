@@ -130,7 +130,7 @@
           </div>
         </div>
 
-        {% if variant.wb_article or variant.ozon_article %}
+        {% if variant.ozon_sku %}
           <div class="variant-markets">
             <div class="market-header">
               <span class="market-accent"></span>
@@ -141,16 +141,9 @@
             </div>
 
             <div class="market-links">
-              {% if variant.wb_article %}
-                <a class="market-btn wb"
-                  href="https://www.wildberries.ru/catalog/{{ variant.wb_article }}/detail.aspx"
-                  target="_blank" rel="noopener" title="Wildberries">
-                  <img src="{% static 'core/icons/marketplace/wb.svg' %}" alt="WB">
-                </a>
-              {% endif %}
-              {% if variant.ozon_article %}
+              {% if variant.ozon_sku %}
                 <a class="market-btn ozon"
-                  href="https://www.ozon.ru/product/{{ variant.ozon_article }}/"
+                  href="https://www.ozon.ru/product/{{ variant.ozon_sku }}/"
                   target="_blank" rel="noopener" title="Ozon">
                   <img src="{% static 'core/icons/marketplace/ozon.svg' %}" alt="Ozon">
                 </a>

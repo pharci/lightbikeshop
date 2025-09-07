@@ -17,6 +17,8 @@ from products.MS.load_products import (
     _ensure_category_chain, HEADERS, PAGE_LIMIT
 )
 
+from products.OZON.sync_products import get_sku_by_offer_id
+
 
 class Command(BaseCommand):
     help = "Полная синхронизация с МойСклад: продукты, модификации, остатки. PK = внешние ID (UUID строки)."
@@ -97,16 +99,22 @@ class Command(BaseCommand):
                     continue
 
                 # продукт должен существовать по PK=external_id
-                try:
-                    product = Product.objects.only("id").get(id=p_id)
-                except Product.DoesNotExist:
-                    continue
+                try: product = Product.objects.only("id").get(id=p_id)
+                except Product.DoesNotExist: continue
 
+                defaults = {"product": product}
+
+                # артикул из варианта
+                offer_id = (v.get("code") or v.get("externalCode") or "").strip()
+                if offer_id:
+                    defaults["ozon_article"] = offer_id
+                    try:
+                        sku = get_sku_by_offer_id(offer_id)
+                    except Exception: sku = None
+                    if sku: defaults["ozon_sku"] = sku
+        
                 price, old_price = _pick_prices(v.get("salePrices") or p_data.get("salePrices"))
 
-                defaults = {
-                    "product": product,
-                }
                 if price is not None:
                     defaults["price"] = price
                 if old_price is not None and hasattr(Variant, "old_price"):

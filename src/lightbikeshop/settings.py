@@ -229,6 +229,12 @@ MOYSKLAD_ORGANIZATION_ID = env_str("MOYSKLAD_ORGANIZATION_ID", "")
 MOYSKLAD_STORE_ID = env_str("MOYSKLAD_STORE_ID", "")
 MOYSKLAD_SALESCHANNEL_ID = env_str("MOYSKLAD_SALESCHANNEL_ID", "")
 
+# ── OZON ──────────────────────────────────────────────────────────────
+
+OZON_API_URL = env_str("OZON_API_URL", "")
+OZON_CLIENT_ID = env_int("OZON_CLIENT_ID", "")
+OZON_API_KEY = env_str("OZON_API_KEY", "")
+
 # ──────────────────────────────────────────────────────────────────────────────
 # PAYMENTS
 # ──────────────────────────────────────────────────────────────────────────────

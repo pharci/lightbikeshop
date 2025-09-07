@@ -153,12 +153,12 @@ class Product(models.Model):
 class Variant(models.Model):
     id  = models.UUIDField(primary_key=True, default=uuid.uuid4)
     product   = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
+    ozon_article = models.CharField('OZON Артикул', max_length=64, null=True, blank=True)
+    ozon_sku = models.CharField('OZON SKU', max_length=64, null=True, blank=True)
+    
     price     = models.DecimalField('Цена', max_digits=12, decimal_places=2)
     old_price = models.DecimalField('Старая цена', max_digits=12, decimal_places=2, null=True, blank=True)
     slug = models.SlugField('Ссылка', max_length=200, unique=True, editable=False, db_index=True)
-
-    wb_article   = models.CharField('Артикул вб', max_length=64, null=True, blank=True)
-    ozon_article = models.CharField('Артикул озон', max_length=64, null=True, blank=True)
 
     inventory = models.PositiveIntegerField('В наличии:', default=0)
     new = models.BooleanField('Бейджик NEW', default=True)

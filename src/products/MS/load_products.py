@@ -5,6 +5,7 @@ from django.utils.text import slugify
 from django.core.files.base import ContentFile
 from decimal import Decimal
 from django.conf import settings
+from django.db import transaction
 
 from products.models import (
     Category, Brand, Product, Variant, Attribute, CategoryAttribute, AttributeValue, Image
@@ -182,22 +183,28 @@ def save_variant_attributes(product, variant, ms_attributes: list, is_variant: b
 
 
 def save_variant_images(variant, images_obj: dict, headers: dict):
-    """
-    Сохраняем фото для варианта (Image).
-    """
     rows = (images_obj or {}).get("rows") or []
-    if not rows:
-        return
 
-    for sort_index, img in enumerate(rows):
-        download_href = img.get("meta", {}).get("downloadHref")
-        if not download_href:
-            continue
-        r = requests.get(download_href, headers=headers, timeout=30)
-        if r.status_code == 200:
-            filename = f"{variant.id}_{sort_index}.jpg"
-            Image.objects.create(
-                variant=variant,
-                image=ContentFile(r.content, name=filename),
-                sort=sort_index
-            )
+    with transaction.atomic():
+        # 1) удалить старые картинки + файлы
+        for img_obj in Image.objects.filter(variant=variant):
+            if img_obj.image:
+                img_obj.image.delete(save=False)  # удаляет файл со storage
+            img_obj.delete()
+
+        if not rows:
+            return
+
+        # 2) сохранить новые
+        for sort_index, img in enumerate(rows):
+            download_href = img.get("meta", {}).get("downloadHref")
+            if not download_href:
+                continue
+            r = requests.get(download_href, headers=headers, timeout=30)
+            if r.ok and r.content:
+                filename = f"{variant.id}_{sort_index}.jpg"
+                Image.objects.create(
+                    variant=variant,
+                    image=ContentFile(r.content, name=filename),
+                    sort=sort_index,
+                )
