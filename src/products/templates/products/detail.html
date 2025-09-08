@@ -130,7 +130,7 @@
           </div>
         </div>
 
-        {% if variant.ozon_sku %}
+        {% if variant.ozon_article or variant.wb_article %}
           <div class="variant-markets">
             <div class="market-header">
               <span class="market-accent"></span>
@@ -141,9 +141,16 @@
             </div>
 
             <div class="market-links">
-              {% if variant.ozon_sku %}
+              {% if variant.wb_article %}
+                <a class="market-btn wb"
+                  href="https://www.wildberries.ru/catalog/{{ variant.wb_article }}/detail.aspx"
+                  target="_blank" rel="noopener" title="Wildberries">
+                  <img src="{% static 'core/icons/marketplace/wb.svg' %}" alt="WB">
+                </a>
+              {% endif %}
+              {% if variant.ozon_article %}
                 <a class="market-btn ozon"
-                  href="https://www.ozon.ru/product/{{ variant.ozon_sku }}/"
+                  href="https://www.ozon.ru/product/{{ variant.ozon_article }}/"
                   target="_blank" rel="noopener" title="Ozon">
                   <img src="{% static 'core/icons/marketplace/ozon.svg' %}" alt="Ozon">
                 </a>
@@ -155,7 +162,7 @@
       </div>
 
       {# === ХАРАКТЕРИСТИКИ (атрибуты варианта) === #}
-        {% with attrs=variant.attribute_values.all %}
+        {% with attrs=variant.merged_attribute_values %}
           {% if attrs %}
             <section class="section card-like variant-page__specs">
               <header class="section__head">

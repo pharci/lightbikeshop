@@ -1,16 +1,17 @@
 # views.py
-import requests
+import requests, json, hashlib
+from urllib.parse import parse_qs
+
 from django.conf import settings
-import json, hashlib
 from django.http import HttpResponse
-from ..models import Order
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from urllib.parse import parse_qs
-from ..MS import set_ms_order_state_by_uuid
-from ..money import as_kop, D, allocate_lines
 
-from ..money import as_kop, D, allocate_lines
+from cart.models import Order
+from cart.MS import set_ms_order_state_by_uuid
+from cart.order_utils import as_kop, D, allocate_lines
+from cart.order_utils import as_kop, D, allocate_lines
+from accounts.telegram import send_tg_order_status
 
 def build_receipt(order):
     subtotal = D(order.subtotal or 0)              # сумма товаров до скидки
@@ -88,8 +89,6 @@ def tinkoff_token(params: dict, secret_key: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 def create_PaymentURL(order, request):
-    print(order.get_absolute_url())
-    print(request.build_absolute_uri(order.get_absolute_url()))
     url = "https://securepay.tinkoff.ru/v2/Init"
     payload = {
         "TerminalKey": settings.T_BANK_TERMINAL_KEY,
@@ -144,6 +143,7 @@ def payment_callback(request):
         order.status = "paid"
         try:
             set_ms_order_state_by_uuid(order.ms_order_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
+            send_tg_order_status(order, request)
         except:
             pass
         

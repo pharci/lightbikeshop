@@ -176,3 +176,40 @@
 @media (max-width:500px){
   .order__actions{ flex-wrap:wrap; }
 }
+
+
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.actions .btn {
+  height: 44px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.actions .link {       
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .actions {
+    flex-direction: column;
+    align-items: flex-start; 
+  }
+
+  .actions .btn {
+    width: 100%;
+  }
+
+  .actions .link {
+    width: auto;
+    justify-content: flex-start;
+  }
+}

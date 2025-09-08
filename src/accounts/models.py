@@ -36,11 +36,17 @@ class User(AbstractBaseUser):
     is_staff = models.BooleanField('Персонал?', default=False)
     is_superuser = models.BooleanField('Суперюзер?', default=False)
     last_login = models.DateTimeField('Последний вход', blank=True, null=True)
+    password = models.CharField("Пароль", max_length=128, blank=True, null=True)
 
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
+
+    def save(self, *args, **kwargs):
+        if self.password and not self.password.startswith("pbkdf2_"):
+            self.password = make_password(self.password)
+        super().save(*args, **kwargs)
 
     def has_perm(self, perm, obj=None):
         return self.is_staff
@@ -53,6 +59,9 @@ class User(AbstractBaseUser):
         self.save()
 
     def check_password(self, raw_password):
+        if not self.password:  # None или пустая строка → пароля нет
+            return False
+
         def setter(raw_password):
             self.set_password(raw_password)
             self.save(update_fields=["password"])
@@ -69,25 +78,6 @@ class User(AbstractBaseUser):
     @property
     def is_authenticated(self):
         return True
-
-    def get_orders(self):
-        return Order.objects.filter(user=self)
-
-    def create_order(self, shipping_address, billing_address):
-        cart = self.get_cart()
-        order = Order.objects.create(user=self, shipping_address=shipping_address, billing_address=billing_address)
-        cart.clear()
-        return order
-
-    def get_user_by_email(email):
-        try:
-            user = User.objects.get(email=email)
-            return user
-        except User.DoesNotExist:
-            return None
-
-    def set_unusable_password(self):
-        self.password = make_password(None)
 
     class Meta:
         verbose_name = 'Пользователь'

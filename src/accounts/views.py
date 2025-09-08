@@ -98,6 +98,8 @@ def login_view(request):
 
         email = form.cleaned_data['email']
         password = form.cleaned_data['password']
+        if not email or not password:
+            return redirect('accounts:login')
 
         user = authenticate(request, email=email, password=password)
         if user is None:
@@ -253,8 +255,8 @@ def recovery_input_password_view(request):
                 request.session.pop(k, None)
             messages.error(request, 'Слишком много попыток.')
             return redirect('accounts:recovery_input_password')
-
-        user = User.get_user_by_email(email=email)
+        
+        user = User.objects.get(email=email)
         if not user:
             for k in ('recovery_email', 'recovery_attempts'):
                 request.session.pop(k, None)

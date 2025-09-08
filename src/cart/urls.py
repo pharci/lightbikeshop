@@ -1,12 +1,10 @@
 # cart/urls.py
 from django.urls import path
-from .views import (  # пакет views/__init__.py должен экспортировать эти вью
-    cart, checkout, delete_order,
-    cart_data, variant_edit, whereami,
-    apply_promo, remove_promo, order_status, order_detail
-)
-from .views import cdek as cdek_views
-from .views import tpay as tpay_views
+
+from .views.cdek import *
+from .views.tpay import *
+from .views.cart import *
+from .views.order import *
 
 urlpatterns = [
     # страницы
@@ -19,7 +17,7 @@ urlpatterns = [
 
     # API: заказы
     path("api/orders/delete/", delete_order, name="order_delete"),
-    path("api/payments/callback/", tpay_views.payment_callback, name="payment_callback"),
+    path("api/payments/callback/", payment_callback, name="payment_callback"),
 
     # API: корзина
     path("api/cart/", cart_data, name="cart_data"),
@@ -31,8 +29,10 @@ urlpatterns = [
 
     path("api/whereami/", whereami, name="whereami"),
 
-    path("api/pvz/shop/", cdek_views.api_shop_pvz, name="api_shop_pvz"),
-    path("api/pvz/cities/", cdek_views.get_cities, name="get_cities"),
-    path("api/pvz/cdek/", cdek_views.api_cdek_pvz, name="api_cdek_pvz"),
-    path("api/cdek/price/", cdek_views.api_cdek_price, name="api_cdek_price"),
+    path("api/pvz/shop/", api_shop_pvz, name="api_shop_pvz"),
+    path("api/pvz/cities/", get_cities, name="get_cities"),
+    path("api/pvz/cdek/", api_cdek_pvz, name="api_cdek_pvz"),
+    path("api/cdek/price/", api_cdek_price, name="api_cdek_price"),
+
+    path("ms/webhooks/order", ms_order_webhook),
 ]

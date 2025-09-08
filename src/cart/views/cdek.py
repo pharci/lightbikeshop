@@ -2,10 +2,10 @@ import time
 import requests
 from django.conf import settings
 from django.core.cache import cache
-from django.http import JsonResponse, HttpRequest
+from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
-from ..models import PickupPoint
-from ..helpers import get_cart
+from cart.models import PickupPoint
+from cart.views.cart import get_cart
 from decimal import Decimal as D
 
 CDEK_AUTH_URL = "https://api.cdek.ru/v2/oauth/token"

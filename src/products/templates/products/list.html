@@ -78,7 +78,7 @@
         </details>
         {% endif %}
 
-        {% if category and attr_facets %}
+        {% if attr_facets %}
           {% for f in attr_facets %}
             <details class="group" open>
               <summary><span>{{ f.attribute.name }}</span></summary>
@@ -152,7 +152,7 @@
           {% endfor %}
         {% endif %}
 
-        {% if category and attr_facets %}
+        {% if attr_facets %}
           {% for f in attr_facets %}
             {% if f.attribute.value_type == 'text' %}
               {% with key='a_'|add:f.attribute.slug %}

@@ -52,7 +52,6 @@ def detail(request, category_path, slug):
 
     return render(request, "products/detail.html", {
         "variant": variant,
-        "base": variant.product,
         "rows": rows,
         "related_variants": related_variants,
     })
@@ -61,9 +60,9 @@ def detail(request, category_path, slug):
 def catalog(request):
     roots = (
         Category.objects.filter(parent__isnull=True)
-        .order_by("name")
+        .order_by("title_plural")
         .prefetch_related(
-            Prefetch("children", queryset=Category.objects.order_by("name"))
+            Prefetch("children", queryset=Category.objects.order_by("title_plural"))
         )
     )
     

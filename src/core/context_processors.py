@@ -93,7 +93,7 @@ def breadcrumbs(request):
         parts = [p for p in cat_path.strip("/").split("/") if p]
         for i, seg in enumerate(parts):
             cat = Category.objects.get(slug=seg)
-            items.append((cat.name, cat.get_absolute_url()))
+            items.append((cat, cat.get_absolute_url()))
         return {"breadcrumbs": items}
 
     return {"breadcrumbs": items}

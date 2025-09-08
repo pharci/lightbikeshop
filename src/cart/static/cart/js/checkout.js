@@ -325,7 +325,7 @@ function formatMoney(n) {
 
 function loadPoints(city) {
   // Наши ПВЗ
-  fetch(`/api/pvz/shop/?city=${encodeURIComponent(city)}`)
+  fetch(`/api/pvz/shop/`)
       .then(r => r.json())
       .then(points => {
         clusterShop.removeAll();

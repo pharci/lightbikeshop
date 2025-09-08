@@ -2,7 +2,7 @@ import uuid, datetime as dt
 from decimal import Decimal
 import requests
 from django.conf import settings
-from .money import as_kop
+from .order_utils import as_kop
 from requests.exceptions import HTTPError
 
 BASE = settings.MOYSKLAD_BASE

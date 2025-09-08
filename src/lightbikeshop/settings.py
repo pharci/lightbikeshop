@@ -235,6 +235,11 @@ OZON_API_URL = env_str("OZON_API_URL", "")
 OZON_CLIENT_ID = env_int("OZON_CLIENT_ID", "")
 OZON_API_KEY = env_str("OZON_API_KEY", "")
 
+# ── WB ──────────────────────────────────────────────────────────────
+
+WB_API_URL = env_str("WB_API_URL", "")
+WB_API_KEY = env_str("WB_API_KEY", "")
+
 # ──────────────────────────────────────────────────────────────────────────────
 # PAYMENTS
 # ──────────────────────────────────────────────────────────────────────────────

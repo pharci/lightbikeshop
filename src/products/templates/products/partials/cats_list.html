@@ -3,7 +3,7 @@
 <section class="catalog-section">
   <div class="section__header">
     <a href="{{ root.get_absolute_url }}" class="section__title">
-      {{ root.name }}<i data-lucide="link" class="sidebar__icon"></i>
+      {{ root }}<i data-lucide="link" class="sidebar__icon"></i>
     </a>
   </div>
 
@@ -12,14 +12,14 @@
       <a href="{{ child.get_absolute_url }}" class="category-card hover-shadow border">
         <div class="category-card__media">
           {% if child.image %}
-            <img src="{{ child.image.url }}" alt="{{ child.name }}">
+            <img src="{{ child.image.url }}" alt="{{ child }}">
           {% else %}
-            <img src="{% static 'images/none.jpg' %}" alt="{{ child.name }}">
+            <img src="{% static 'images/none.jpg' %}" alt="{{ child }}">
           {% endif %}
         </div>
         <div class="category-card__body">
           <div class="category-card__title-wrap">
-            <div class="category-card__title">{{ child.name }}</div>
+            <div class="category-card__title">{{ child }}</div>
           </div>
         </div>
       </a>

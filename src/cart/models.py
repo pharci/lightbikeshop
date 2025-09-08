@@ -348,11 +348,17 @@ def gen_access_key():
 class Order(models.Model):
     STATUS_CHOICES = (
         ('created', 'Новый'),
-        ('paid', 'Оплачен'),
+        ('confirmed', 'Подтвержден'),
         ('assembled', 'Собран'),
+        ('pickup', 'Самовывоз'),
         ('shipped', 'Отправлен'),
         ('delivered', 'Доставлен'),
+        ('returned', 'Возврат'),
         ('canceled', 'Отменен'),
+        ('auth', 'Платеж авторизован'),
+        ('paid', 'Оплачен'),
+        ('declined', 'Отклонен'),
+        ('partial_return', 'Частичный возврат'),
     )
     PAYMENT_CHOICES = (('online', 'Онлайн'),)  # только онлайн
 
@@ -395,6 +401,7 @@ class Order(models.Model):
     )
 
     date_ordered = models.DateTimeField('Дата создания', auto_now_add=True)
+    updated = models.DateTimeField('Дата обновления', auto_now=True)
 
     class Meta:
         verbose_name = 'Заказ'

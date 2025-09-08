@@ -39,8 +39,8 @@ def apply_text_search(qs, q: str):
         qs = qs.filter(
             Q(product__base_name__icontains=tok) |
             Q(product__brand__title__icontains=tok) |
-            Q(product__category__second_name__icontains=tok) |
-            Q(product__category__name__icontains=tok) |
+            Q(product__category__title_plural__icontains=tok) |
+            Q(product__category__title_singular__icontains=tok) |
             attr_exists(tok) |
             Q(slug__icontains=tok) |
             Q(wb_article__icontains=tok) |
@@ -248,6 +248,7 @@ def attr_facets(cat: Optional[Category], base_for_facets: QuerySet) -> List[dict
                 .values_list("value_text", flat=True)
                 .distinct().order_by("value_text")[:200]
             )
+            
             item["values"] = list(vals)
         elif a.value_type == Attribute.BOOL:
             item["values"] = [{"label": "Да", "value": "1"}, {"label": "Нет", "value": "0"}]

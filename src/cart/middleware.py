@@ -1,7 +1,7 @@
 # cart/middleware.py
 from django.shortcuts import redirect
 from django.urls import reverse
-from .helpers import get_cart
+from cart.views.cart import get_cart
 
 class CheckoutCartGuardMiddleware:
     def __init__(self, get_response):

@@ -3,31 +3,39 @@ from django.urls import reverse
 from django.utils.text import slugify
 import uuid
 from django.utils.functional import cached_property
-from decimal import Decimal
-from django.core.validators import MinValueValidator
 from unidecode import unidecode
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.db.models import Q, CheckConstraint, UniqueConstraint
+from functools import cached_property
 
 class Category(models.Model):
-    name = models.CharField('Название', max_length=200, db_index=True)
-    second_name = models.CharField('Для склейки', max_length=200, null=True, blank=True)
-    slug = models.SlugField('Ссылка', max_length=200, db_index=True, unique=True)
+    title = models.CharField('Название (основное)', max_length=50, db_index=True, unique=True)
+    title_plural = models.CharField('Название (мн.ч.)', max_length=50, null=True, blank=True)
+    title_singular = models.CharField('Название (ед.ч.)', max_length=50, null=True, blank=True)
+    slug = models.SlugField('URL-ключ', max_length=50, db_index=True, unique=True)
     parent = models.ForeignKey(
-        "self", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+        verbose_name="Родительская категория"
     )
-    image = models.ImageField(upload_to='categories/')
+    image = models.ImageField(upload_to="categories/", verbose_name="Изображение", null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            self.slug = slugify(self.title)
         super().save(*args, **kwargs)
 
-    def __str__(self): return self.name
+    def __str__(self):
+        return self.title_plural or self.title
 
     class Meta:
-        ordering = ('name',)
-        verbose_name = 'Категория'
-        verbose_name_plural = 'Категории'
+        ordering = ("title",)
+        verbose_name = "Категория"
+        verbose_name_plural = "Категории"
     
     def get_absolute_url(self):
         parts = []
@@ -91,15 +99,12 @@ class Attribute(models.Model):
 
 class CategoryAttribute(models.Model):
     """
-    Привязка атрибутов к категории + флаги:
-    - is_required: обязателен для SKU
     - is_filterable: попадает в фасетные фильтры
     - is_variant: по нему строятся вариации (цвет, размер…)
     """
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='category_attributes')
     attribute = models.ForeignKey(Attribute, on_delete=models.PROTECT, related_name='category_usages')
 
-    is_required   = models.BooleanField(default=False)
     is_filterable = models.BooleanField(default=True)
     is_variant    = models.BooleanField(default=False)
     sort_order    = models.PositiveIntegerField(default=0)
@@ -112,7 +117,6 @@ class CategoryAttribute(models.Model):
 
     def __str__(self):
         flags = []
-        if self.is_required: flags.append('req')
         if self.is_filterable: flags.append('filter')
         if self.is_variant: flags.append('variant')
         return f'{self.category} :: {self.attribute} [{" ".join(flags)}]'
@@ -153,8 +157,9 @@ class Product(models.Model):
 class Variant(models.Model):
     id  = models.UUIDField(primary_key=True, default=uuid.uuid4)
     product   = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
-    ozon_article = models.CharField('OZON Артикул', max_length=64, null=True, blank=True)
-    ozon_sku = models.CharField('OZON SKU', max_length=64, null=True, blank=True)
+    seller_article = models.CharField('Артикул продавца', max_length=64, null=True, blank=True)
+    ozon_article = models.CharField('Артикул OZON', max_length=64, null=True, blank=True)
+    wb_article = models.CharField('Артикул WB', max_length=64, null=True, blank=True)
     
     price     = models.DecimalField('Цена', max_digits=12, decimal_places=2)
     old_price = models.DecimalField('Старая цена', max_digits=12, decimal_places=2, null=True, blank=True)
@@ -222,7 +227,7 @@ class Variant(models.Model):
 
     def display_name(self):
         p = self.product
-        category = (getattr(p.category, 'second_name', None) or getattr(p.category, 'name', '')).strip() if p.category_id else ''
+        category = (getattr(p.category, 'title_singular', None)) if p.category else ''
         brand    = getattr(p.brand, 'title', '').strip() if p.brand_id else ''
         base     = (p.base_name or '').strip()
         tail     = self.variant_label().strip()
@@ -251,6 +256,14 @@ class Variant(models.Model):
                 "slug": self.slug,
             },
         )
+    
+    @cached_property
+    def merged_attribute_values(self):
+        # нужен prefetch: attribute_values__attribute и product__attribute_values__attribute
+        prod = {av.attribute_id: av for av in self.product.attribute_values.all()}
+        var  = {av.attribute_id: av for av in self.attribute_values.all()}
+        prod.update(var)  # вариант перекрывает товар
+        return sorted(prod.values(), key=lambda av: (av.attribute.name or "", av.attribute_id))
 
 
 class Image(models.Model):
@@ -275,7 +288,8 @@ class AttributeValue(models.Model):
     """
     Значение атрибута для конкретной вариации (SKU).
     """
-    variant   = models.ForeignKey(Variant, on_delete=models.CASCADE, related_name='attribute_values')
+    product   = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='attribute_values', null=True, blank=True)
+    variant   = models.ForeignKey(Variant, on_delete=models.CASCADE, related_name='attribute_values', null=True, blank=True)
     attribute = models.ForeignKey(Attribute, on_delete=models.PROTECT)
 
     value_text   = models.CharField(max_length=255, blank=True)
@@ -285,17 +299,37 @@ class AttributeValue(models.Model):
     class Meta:
         verbose_name = 'Значение атрибута'
         verbose_name_plural = 'Значения атрибутов'
-        unique_together = ('variant', 'attribute')
+        constraints = [
+            CheckConstraint(
+                check=(
+                    (Q(product__isnull=False) & Q(variant__isnull=True)) |
+                    (Q(product__isnull=True) & Q(variant__isnull=False))
+                ),
+                name="attr_value_exactly_one_owner",
+            ),
+            UniqueConstraint(
+                fields=["variant", "attribute"],
+                condition=Q(variant__isnull=False),
+                name="uniq_variant_attribute_when_variant",
+            ),
+            UniqueConstraint(
+                fields=["product", "attribute"],
+                condition=Q(product__isnull=False),
+                name="uniq_product_attribute_when_product",
+            ),
+        ]
 
     def clean(self):
-        # Разрешаем ТОЛЬКО одно поле значения по типу атрибута
+        if bool(self.product) == bool(self.variant):
+            raise ValidationError("Укажите либо product, либо variant.")
         vt = [self.value_text, self.value_number, self.value_bool]
-        if sum(v is not None and v != '' for v in vt) != 1:
-            raise ValidationError('Должно быть заполнено ровно одно значение атрибута.')
+        if sum(v is not None and v != "" for v in vt) != 1:
+            raise ValidationError("Должно быть заполнено ровно одно значение.")
         super().clean()
 
     def __str__(self):
-        return f'{self.variant} :: {self.attribute.name} = {self.display_value}'
+        owner = self.variant or self.product
+        return f"{owner} :: {self.attribute.name} = {self.display_value}"
 
     @property
     def display_value(self):

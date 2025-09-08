@@ -10,7 +10,7 @@ from django.db.models import Prefetch
 
 from .models import *
 
-from products.MS.load_products import _get, save_variant_images, HEADERS
+from products.integrations.ms import get, save_variant_images, HEADERS
 
 
 # ---------- helpers ----------
@@ -35,29 +35,6 @@ def pill(text, bg="#f3f4f6", br="#e5e7eb", fg="#374151"):
         'padding:2px 8px;border-radius:999px;font-size:11px;">{}</span>',
         bg, br, fg, text
     )
-
-
-@admin.action(description="Обновить фото из МойСклад")
-def action_refresh_photos(modeladmin, request, queryset):
-    updated = 0
-    errors = 0
-    for product in queryset:
-        for variant in product.variants.all():
-            try:
-                with transaction.atomic():
-                    # 1) удалить старые фото
-                    Image.objects.filter(variant=variant).delete()
-                    # 2) стянуть новые фото варианта
-                    url = f"{settings.MOYSKLAD_BASE}/entity/variant/{variant.id}"
-                    data = _get(url, params={"expand": "images"})
-                    save_variant_images(variant, data.get("images") or {}, HEADERS)
-                    updated += 1
-            except Exception as e:
-                errors += 1
-    if updated:
-        messages.success(request, f"Фото обновлены у {updated} вариант(ов).")
-    if errors:
-        messages.error(request, f"Ошибок: {errors}.")
 
 # ---------- Inlines ----------
 
@@ -97,46 +74,38 @@ class VariantInline(admin.TabularInline):
 
 @admin.register(Category)
 class CategoryAdmin(SortableAdminBase, ColumnToggleModelAdmin):
-    list_display = ("image_preview", "name", "second_name", "slug", "attributes_col", "parent", "image")
-    default_selected_columns = ["image_preview", "name", "attributes_col"]
+    list_display = ("image_preview", "title", "title_plural", "title_singular", "slug", "attributes_col", "parent", "image")
+    default_selected_columns = list(list_display)
     list_display_links = ("image_preview",)
-    search_fields = ("name", "slug")
-    prepopulated_fields = {"slug": ("name",)}
-    inlines = [CategoryAttributeInline]  # атрибуты инлайном
-    
-    list_editable = ("image", "name", "second_name", "slug", "parent")
+    search_fields = ("title", "title_plural", "title_plural", "title_singular", "slug")
+    prepopulated_fields = {"slug": ("title",)}
+    inlines = [CategoryAttributeInline]
+    list_editable = ("title", "title_plural", "title_singular", "slug", "parent", "image")
 
+    @admin.display(description="Фото")
     def image_preview(self, obj):
         url = obj.image.url if obj.image else None
         return thumb(url)
-    image_preview.short_description = "Фото"
 
+    @admin.display(description="Атрибуты")
     def attributes_col(self, obj: Category):
-        """
-        Список всех атрибутов категории c мини-бейджами флагов (req/filter/variant).
-        """
         items = []
-        # берём связанные CategoryAttribute в нужном порядке
-        for ca in obj.category_attributes.select_related("attribute").order_by("sort_order", "id"):
+        q = obj.category_attributes.select_related("attribute").order_by("sort_order", "id")
+        for ca in q:
             flags = []
-            if ca.is_required:   flags.append(pill("req", "#eef2ff", "#c7d2fe", "#4338ca"))
             if ca.is_filterable: flags.append(pill("filter", "#ecfeff", "#a5f3fc", "#0e7490"))
             if ca.is_variant:    flags.append(pill("variant", "#f0fdf4", "#bbf7d0", "#16a34a"))
-            flags_html = format_html(" ".join(str(f) for f in flags)) if flags else ""
+            flags_html = format_html(" ".join(map(str, flags))) if flags else ""
             items.append(format_html(
                 '<span style="display:inline-flex;align-items:center;gap:6px;'
                 'border:1px solid #e5e7eb;border-radius:999px;padding:2px 10px;'
-                'margin:2px;background:#f9fafb;">'
-                '<strong style="font-weight:600;">{name}</strong>{flags}'
-                '</span>',
-                name=ca.attribute.name,
-                flags=flags_html
+                'margin:2px;background:#f9fafb;"><strong>{}</strong>{}</span>',
+                ca.attribute.name, flags_html
             ))
         if not items:
             return "—"
-        # компактный wrap
-        return format_html('<div style="display:flex;flex-wrap:wrap;gap:6px;max-width:980px;">{}</div>', format_html("".join(items)))
-    attributes_col.short_description = "Атрибуты"
+        return format_html('<div style="display:flex;flex-wrap:wrap;gap:6px;max-width:980px;">{}</div>',
+                           format_html("".join(items)))
 
 # ---------- Brand ----------
 
@@ -178,9 +147,10 @@ class ProductAdmin(ColumnToggleModelAdmin):
         "created", "updated",
     )
     search_fields = ("base_name", "brand__title")
-    inlines = [VariantInline]
+    inlines = [VariantInline, AttributeValueInline]
     list_editable = ("base_name", "category", "brand", "weight")
-    list_select_related = ("category", "brand")  # JOIN вместо N+1
+    list_select_related = ("category", "brand")
+    actions = ("action_refresh_photos", "import_all_products", )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -215,14 +185,32 @@ class ProductAdmin(ColumnToggleModelAdmin):
         if not url:
             return "—"
         return format_html('<img src="{}" style="height:48px;width:auto;border-radius:4px;">', url)
-
+    
+    @admin.action(description="Обновить фотографии")
+    def action_refresh_photos(self, request, queryset):
+        updated = 0
+        errors = 0
+        for product in queryset:
+            for variant in product.variants.all():
+                try:
+                    with transaction.atomic():
+                        url = f"{settings.MOYSKLAD_BASE}/entity/variant/{variant.id}"
+                        data = get(url, params={"expand": "images"})
+                        save_variant_images(variant, data.get("images") or {}, HEADERS)
+                        updated += 1
+                except Exception as e:
+                    errors += 1
+        if updated:
+            messages.success(request, f"Фото обновлены у {updated} вариант(ов).")
+        if errors:
+            messages.error(request, f"Ошибок: {errors}.")
 # ---------- Variant ----------
 
 @admin.register(Variant)
 class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
     list_display = (
         "image_preview", "id", "display_name_col", "slug",
-        "ozon_article", "ozon_sku", "price", "old_price",
+        "seller_article", "ozon_article", "wb_article", "price", "old_price",
         "inventory", "new", "rec", "is_active", "updated",
     )
     default_selected_columns = list(list_display)
@@ -232,7 +220,7 @@ class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
         ("product__category", admin.RelatedOnlyFieldListFilter),
         ("product__brand", admin.RelatedOnlyFieldListFilter),
     )
-    search_fields = ("slug", "id", "ozon_article", "ozon_sku", "product__base_name")
+    search_fields = ("slug", "id", "seller_article", "product__base_name")
     autocomplete_fields = ("product",)
     inlines = [ImageInline, AttributeValueInline]
     ordering = ("-updated",)
@@ -272,30 +260,30 @@ class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
         if not url:
             return "—"
         return format_html('<img src="{}" style="height:48px;width:auto;border-radius:4px;">', url)
-
 # ---------- AttributeValue ----------
 
 @admin.register(AttributeValue)
 class AttributeValueAdmin(ColumnToggleModelAdmin):
-    list_display = ("variant", "attribute", "display_value")
+    list_display = ("product", "variant", "attribute", "display_value")
     default_selected_columns = ["variant", "attribute", "display_value"]
     search_fields = ("variant__product__base_name", "attribute__name", "value_text")
     list_filter = ("attribute__value_type",)
     autocomplete_fields = ("variant", "attribute")
+    list_display_links = ("product", "variant")
 
 # ---------- CategoryAttribute ----------
 @admin.register(CategoryAttribute)
 class CategoryAttributeAdmin(admin.ModelAdmin):
     list_display = (
         "category", "attribute",
-        "is_required", "is_filterable", "is_variant",
+        "is_filterable", "is_variant",
         "sort_order",
     )
-    list_editable = ("is_required", "is_filterable", "is_variant", "sort_order")
-    list_filter = ("category", "is_required", "is_filterable", "is_variant")
-    search_fields = ("category__name", "attribute__name", "attribute__slug")
+    list_editable = ("is_filterable", "is_variant", "sort_order")
+    list_filter = ("category", "is_filterable", "is_variant")
+    search_fields = ("category__title", "attribute__name", "attribute__slug")
     autocomplete_fields = ("category", "attribute")
-    ordering = ("category__name", "sort_order", "id")
+    ordering = ("category__title", "sort_order", "id")
 
 
 @admin.register(Image)

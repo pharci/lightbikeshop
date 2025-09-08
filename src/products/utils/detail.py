@@ -12,11 +12,30 @@ def get_variant_or_404(slug) -> Variant:
     return get_object_or_404(
         Variant.objects
         .select_related("product", "product__brand", "product__category")
+        .only(
+            "id", "slug", "price", "old_price", "inventory", "new", "rec", "is_active", "updated",
+            "product__id", "product__base_name", "product__brand__title", "product__category",
+        )
         .prefetch_related(
-            Prefetch("attribute_values",
-                     queryset=AttributeValue.objects.select_related("attribute")),
-            Prefetch("images",
-                     queryset=Image.objects.order_by("sort", "id")),
+            Prefetch(
+                "attribute_values",
+                queryset=AttributeValue.objects.select_related("attribute")
+                    .only("id", "variant_id", "attribute_id", "value_text", "value_number", "value_bool",
+                          "attribute__name", "attribute__unit", "attribute__value_type"),
+                to_attr="prefetched_variant_attrs",
+            ),
+            Prefetch(
+                "product__attribute_values",
+                queryset=AttributeValue.objects.select_related("attribute")
+                    .only("id", "product_id", "attribute_id", "value_text", "value_number", "value_bool",
+                          "attribute__name", "attribute__unit", "attribute__value_type"),
+                to_attr="prefetched_product_attrs",
+            ),
+            Prefetch(
+                "images",
+                queryset=Image.objects.only("id", "variant_id", "image", "sort").order_by("sort", "id"),
+                to_attr="prefetched_images",
+            ),
         ),
         slug=slug,
     )
