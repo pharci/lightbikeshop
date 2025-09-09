@@ -38,7 +38,16 @@
         {% else %}
           <div class="order-summary__row"><span class="muted">Тип:</span><span>Самовывоз</span></div>
         {% endif %}
-        {% if order.invoice %}<div class="order-summary__row"><span class="muted">Трек номер:</span><span>{{ order.invoice }}</span></div>{% endif %}
+        {% if order.invoice %}
+          <div class="order-summary__row">
+            <span class="muted">Трек-номер:</span>
+            <div>
+              <span class="track-box" id="trackNum">{{ order.invoice }}</span>
+              <button class="track-copy" onclick="copyTrack()">Скопировать</button>
+            </div>
+          </div>
+          <div id="toast" class="toast">Трек-номер скопирован</div>
+        {% endif %}
       </section>
 
       <section class="island">
@@ -46,16 +55,6 @@
         <div class="order-summary__row"><span class="muted">ФИО:</span><span>{{ order.user_name }}</span></div>
         <div class="order-summary__row"><span class="muted">Телефон:</span><span>{{ order.contact_phone }}</span></div>
         {% if order.email %}<div class="order-summary__row"><span class="muted">Почта:</span><span>{{ order.email }}</span></div>{% endif %}
-        {% if order.invoice %}
-        <div class="order-summary__row">
-          <span class="muted">Трек-номер:</span>
-          <div>
-            <span class="track-box" id="trackNum">{{ order.invoice }}</span>
-            <button class="track-copy" onclick="copyTrack()">Скопировать</button>
-          </div>
-        </div>
-        <div id="toast" class="toast">Трек-номер скопирован</div>
-        {% endif %}
       </section>
 
       
