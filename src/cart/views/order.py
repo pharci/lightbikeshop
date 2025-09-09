@@ -1,12 +1,10 @@
-import requests
-import json
+import requests, json
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpRequest, JsonResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
-
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.telegram import send_tg_order, send_tg_order_status
@@ -19,6 +17,7 @@ from cart.models import Order, OrderItem
 from .tpay import create_PaymentURL
 from .cart import get_cart
 from .cdek import calc_cdek_pvz_price
+
 
 @require_GET
 def whereami(request: HttpRequest) -> JsonResponse:
@@ -108,15 +107,16 @@ def checkout(request):
     discount = max(D("0.00"), subtotal - total_from_cart)
 
     delivery_method = form.cleaned_data.get("delivery_method") or ""
-    pvz_code_raw = form.cleaned_data.get("pvz_code") or ""
+    pvz_provider = form.cleaned_data.get("pvz_provider") or ""
+    pvz_code = form.cleaned_data.get("pvz_code") or ""
     pvz_address  = form.cleaned_data.get("pvz_address") or ""
     city         = form.cleaned_data.get("city") or ""
 
     shipping_total = D("0.00")
-    if delivery_method == "pickup_pvz" and pvz_code_raw.startswith("cdek:"):
-        _, _, code = pvz_code_raw.partition(":")
-        price, _meta = calc_cdek_pvz_price(cart, code, None)
+    if delivery_method == "pickup_pvz" and pvz_provider == "cdek":
+        price, _meta = calc_cdek_pvz_price(cart, pvz_code, None)
         shipping_total = price
+        print(price, shipping_total, _meta)
 
     lines = list(iter_cart_variants(cart))
     if not lines:
@@ -134,7 +134,8 @@ def checkout(request):
         total=subtotal - discount + shipping_total,
         payment_type="online",
         status="created",
-        pvz_code=pvz_code_raw,
+        pvz_provider=pvz_provider,
+        pvz_code=pvz_code,
         pvz_address=pvz_address,
         city=city,
         promo_code=cart.get_promo_obj(),
@@ -154,13 +155,13 @@ def checkout(request):
         if ms_data and ms_data.get("id"):
             order.ms_order_id = ms_data["id"]
             order.save(update_fields=["ms_order_id"])
-    except Exception:
-        pass
+    except Exception as e:
+        print(e)
 
     try:
         send_tg_order(order, request)
-    except Exception:
-        pass
+    except Exception as e:
+        print(e)
 
     cart.clear()
     if hasattr(cart, "PROMO_KEY") and hasattr(cart, "session"):
@@ -188,34 +189,70 @@ MS_STATUS_MAP = {
 def ms_order_webhook(request):
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
-    except Exception:
+    except json.JSONDecodeError:
         return JsonResponse({"ok": True, "note": "bad json"}, status=200)
 
     events = payload.get("events") or []
-    href = (((events[0] or {}).get("meta") or {}).get("href")) if events else None
-    if not href:
-        return JsonResponse({"ok": True, "note": "no href"}, status=200)
+    if not isinstance(events, list) or not events:
+        return JsonResponse({"ok": True, "note": "no events"}, status=200)
 
-    try:
-        data = _get(href)
-    except Exception as e:
-        return JsonResponse({"ok": True, "note": f"pull failed: {e}"}, status=200)
+    results = []
 
-    state = data.get("state") or {}
-    state_id = ((state.get("meta") or {}).get("href") or "").split("/")[-1]
-    if not state_id:
-        return JsonResponse({"ok": True, "note": "no state"}, status=200)
-    new_status = MS_STATUS_MAP.get(state_id)
+    for ev in events:
+        href = (((ev or {}).get("meta") or {}).get("href"))
+        if not href:
+            results.append({"href": None, "note": "no href"})
+            continue
 
-    try:
-        with transaction.atomic():
-            order = Order.objects.select_for_update().get(ms_order_id=data.get("id"))
-            if order.status != new_status:
-                order.status = new_status
-                order.save(update_fields=["status"])
-                send_tg_order_status(order, request)
+        try:
+            data = _get(href)  # должен возвращать dict
+        except Exception as e:
+            results.append({"href": href, "note": f"pull failed: {e}"})
+            continue
 
-    except Order.DoesNotExist:
-        return JsonResponse({"ok": True, "note": "order not found"}, status=200)
+        # фильтрация на всякий: работаем только с заказами покупателя
+        if (data.get("meta") or {}).get("type") != "customerorder":
+            results.append({"href": href, "note": "skip type"})
+            continue
 
-    return JsonResponse({"ok": True, "status": state_id}, status=200)
+        # статус
+        state = data.get("state") or {}
+        state_href = (state.get("meta") or {}).get("href") or ""
+        state_id = state_href.rsplit("/", 1)[-1] if state_href else None
+        new_status = MS_STATUS_MAP.get(state_id) if state_id else None
+
+        # атрибуты → накладная
+        invoice = None
+        for a in data.get("attributes") or []:
+            if a.get("id") == "4e9549ae-66ac-11ef-0a80-05be0019d751" or a.get("name") == "Накладная СДЭК":
+                invoice = a.get("value")
+                break
+
+        ms_id = data.get("id")
+        if not ms_id:
+            results.append({"href": href, "note": "no ms id"})
+            continue
+
+        try:
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(ms_order_id=ms_id)
+
+                changed_fields = []
+                if new_status is not None and order.status != new_status:
+                    order.status = new_status
+                    changed_fields.append("status")
+                    send_tg_order_status(order, request)
+
+                # допускаем None → "" если у модели пустая строка по умолчанию
+                if invoice != getattr(order, "invoice", None):
+                    order.invoice = invoice
+                    changed_fields.append("invoice")
+
+                if changed_fields:
+                    order.save(update_fields=changed_fields)
+
+            results.append({"href": href, "state_id": state_id, "saved": bool(changed_fields)})
+        except Order.DoesNotExist:
+            results.append({"href": href, "note": "order not found"})
+
+    return JsonResponse({"ok": True, "results": results}, status=200)

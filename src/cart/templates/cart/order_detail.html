@@ -30,13 +30,15 @@
 
       <section class="island">
         <h3 class="island__title">Доставка</h3>
+        <div class="order-summary__row"><span class="muted">Город:</span><span>{{ order.city }}</span></div>
         {% if order.pvz_code %}
-          <div class="order-summary__row"><span class="muted">Тип:</span><span>ПВЗ</span></div>
+          <div class="order-summary__row"><span class="muted">Тип:</span><span>ПВЗ ({{ order.pvz_provider }})</span></div>
           <div class="order-summary__row"><span class="muted">Код ПВЗ:</span><span>{{ order.pvz_code }}</span></div>
           {% if order.pvz_address %}<div class="order-summary__row"><span class="muted">Адрес:</span><span>{{ order.pvz_address }}</span></div>{% endif %}
         {% else %}
           <div class="order-summary__row"><span class="muted">Тип:</span><span>Самовывоз</span></div>
         {% endif %}
+        {% if order.invoice %}<div class="order-summary__row"><span class="muted">Трек номер:</span><span>{{ order.invoice }}</span></div>{% endif %}
       </section>
 
       <section class="island">
@@ -44,8 +46,25 @@
         <div class="order-summary__row"><span class="muted">ФИО:</span><span>{{ order.user_name }}</span></div>
         <div class="order-summary__row"><span class="muted">Телефон:</span><span>{{ order.contact_phone }}</span></div>
         {% if order.email %}<div class="order-summary__row"><span class="muted">Почта:</span><span>{{ order.email }}</span></div>{% endif %}
-        {% if order.order_notes %}<div class="order-summary__row"><span class="muted">Комментарий:</span><span>{{ order.order_notes }}</span></div>{% endif %}
+        {% if order.invoice %}
+        <div class="order-summary__row">
+          <span class="muted">Трек-номер:</span>
+          <div>
+            <span class="track-box" id="trackNum">{{ order.invoice }}</span>
+            <button class="track-copy" onclick="copyTrack()">Скопировать</button>
+          </div>
+        </div>
+        <div id="toast" class="toast">Трек-номер скопирован</div>
+        {% endif %}
       </section>
+
+      
+      {% if order.promo_code %}
+      <section class="island">
+        <h3 class="island__title">Промокод</h3>
+        <div class="order-summary__row"><span class="muted">Код:</span><span>{{ order.promo_code.code }}</span></div>
+      </section>
+      {% endif %}
 
       <section class="island">
         <h3 class="island__title">Состав заказа</h3>

@@ -13,6 +13,7 @@ const panelPvz = document.getElementById('panel-pvz');
 const panelCourier = document.getElementById('panel-courier');
 const deliveryMethod = document.getElementById('delivery_method');
 const addressLine = document.getElementById('address_line');
+const pvzProvider = document.getElementById('pvz_provider');
 const pvzCode = document.getElementById('pvz_code');
 const pvzAddress = document.getElementById('pvz_address');
 const picked = document.getElementById('pvz-picked');
@@ -250,7 +251,8 @@ function createPlacemark(p, preset) {
 }
 
 function pickPoint(p) {
-  pvzCode.value = `${p.provider}: ${p.id}`;
+  pvzProvider.value = `${p.provider}`;
+  pvzCode.value = `${p.id}`;
   pvzAddress.value = p.address || '';
   picked.textContent = p.address || p.name || 'выбрано';
   collapseMap();

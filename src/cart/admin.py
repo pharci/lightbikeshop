@@ -79,7 +79,7 @@ class OrderAdmin(ColumnToggleModelAdmin):
             "fields": ("subtotal", "discount_total", "shipping_total", "total", "payment_type", "payment_url")
         }),
         ("Получение/доставка", {
-            "fields": ("pvz_code", "pvz_address")
+            "fields": ("city", "pvz_provider", "pvz_code", "pvz_address", "invoice")
         }),
         ("Промокод", {
             "fields": ("promo_code",)

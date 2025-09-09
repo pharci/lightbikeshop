@@ -1,5 +1,4 @@
-import time
-import requests
+import re, hashlib, requests
 from django.conf import settings
 from django.core.cache import cache
 from django.http import JsonResponse
@@ -13,8 +12,19 @@ CDEK_CITY_URL = "https://api.cdek.ru/v2/location/cities"
 CDEK_PVZ_URL  = "https://api.cdek.ru/v2/deliverypoints"
 CDEK_CALC_URL = "https://api.cdek.ru/v2/calculator/tariff"
 
+def _safe_cache_key(prefix: str, *parts) -> str:
+    raw = ":".join(str(p).strip() for p in parts if p is not None)
+    key = f"{prefix}:{raw}"
+    # оставить только допустимые символы
+    key = re.sub(r"[^A-Za-z0-9:._-]", "_", key)
+    # страховка по длине (лимит ~250 байт у memcached)
+    if len(key) > 230:
+        digest = hashlib.md5(key.encode("utf-8")).hexdigest()
+        key = f"{prefix}:{digest}"
+    return key
+
 def _get_token():
-    key = "cdek_token"
+    key = _safe_cache_key("cdek_token")
     cached = cache.get(key)
     if cached:
         return cached["access_token"]
@@ -38,11 +48,16 @@ def _auth_headers():
     return {"Authorization": f"Bearer {_get_token()}"}
 
 def get_city_code(city: str):
-    key = f"cdek_city_{city}"
+    key = _safe_cache_key("cdek_city", city)
     code = cache.get(key)
     if code:
         return code
-    r = requests.get(CDEK_CITY_URL, params={"city": city, "country_codes": "RU"}, headers=_auth_headers(), timeout=20)
+    r = requests.get(
+        CDEK_CITY_URL,
+        params={"city": city, "country_codes": "RU"},
+        headers=_auth_headers(),
+        timeout=20,
+    )
     r.raise_for_status()
     items = r.json()
     if not items:
@@ -64,28 +79,34 @@ def get_pvz(city: str):
     r.raise_for_status()
     out = []
     for p in r.json():
-        if not p.get("location"): 
+        loc = p.get("location") or {}
+        if "latitude" not in loc or "longitude" not in loc:
             continue
         out.append({
             "id": p.get("code"),
             "name": p.get("name") or "СДЭК ПВЗ",
-            "address": p["location"].get("address") or "",
-            "lat": p["location"]["latitude"],
-            "lon": p["location"]["longitude"],
-            "city_code": p["location"]["city_code"],
+            "address": loc.get("address") or "",
+            "lat": loc.get("latitude"),
+            "lon": loc.get("longitude"),
+            "city_code": loc.get("city_code"),
             "provider": "cdek",
         })
     return out
 
+
 def get_pvz_by_code(code: str) -> dict | None:
-    """Подтянуть один ПВЗ по коду, чтобы достать city_code, если его нет на фронте."""
     if not code:
         return None
-    cache_key = f"cdek_pvz_{code}"
+    cache_key = _safe_cache_key("cdek_pvz", code)
     cached = cache.get(cache_key)
     if cached:
         return cached
-    r = requests.get(CDEK_PVZ_URL, params={"code": code}, headers=_auth_headers(), timeout=20)
+    r = requests.get(
+        CDEK_PVZ_URL,
+        params={"code": code},
+        headers=_auth_headers(),
+        timeout=20,
+    )
     r.raise_for_status()
     items = r.json()
     pvz = items[0] if items else None

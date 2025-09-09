@@ -11,6 +11,7 @@ class CheckoutForm(forms.Form):
     delivery_group = forms.ChoiceField(choices=DELIVERY_GROUP_CHOICES, required=False)
     delivery_method = forms.CharField(required=False)   # 'pickup_store' | 'pickup_pvz'
     pickup_location = forms.CharField(required=False)   # строка "Название, адрес"
+    pvz_provider = forms.CharField(required=False)
     pvz_code = forms.CharField(required=False)
     pvz_address = forms.CharField(required=False)
 

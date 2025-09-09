@@ -14,9 +14,9 @@
 .infoswiper__slide {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;      /* держим пропорцию баннера */
+  aspect-ratio: 3.5 / 1;      
   overflow: hidden;
-  border-radius: 12px;       /* если нужны скругления */
+  border-radius: 12px;      
 }
 
 .infoswiper__slide img {

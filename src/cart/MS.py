@@ -90,7 +90,7 @@ def build_ms_order_payload(order) -> dict:
         })
 
     desc = []
-    desc.append(f"{order.pvz_code}")
+    desc.append(f"{order.pvz_provider}: {order.pvz_code}")
     desc.append(order.order_notes)
     description = "\n\n".join(desc)
 

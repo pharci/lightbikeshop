@@ -69,7 +69,7 @@ def send_tg_order(order, request):
             f"<b>Заказ <a href='{admin_url}'>№{esc(order.order_id)}</a></b>"
             + (f" — <b><a href='{ms_url}'>МойСклад</a></b>" if ms_url else "")
         ),
-        f"Статус: <b>{esc(order.get_status_display())}</b>"
+        f"<b>Статус: {esc(order.get_status_display())}</b>"
     ]
 
     lines += [
@@ -83,12 +83,10 @@ def send_tg_order(order, request):
         lines.append(f"<b>Комментарий:</b> {esc(order.order_notes)}")
 
     lines.append("")
-    if order.pvz_code:
-        lines.append(f"<b>ПВЗ: {esc(order.pvz_code)}</b>")
-    else:
-        lines.append("<b>Самовывоз</b>")
-    if order.pvz_address:
-        lines.append(f"<blockquote>{esc(order.city.strip())} {esc(order.pvz_address.strip())}</blockquote>")
+    lines.append("<b>Доставка:</b>")
+    lines.append(f"<blockquote><b>Провайдер: {esc(order.pvz_provider)}</b>")
+    lines.append(f"<b>ПВЗ: {esc(order.pvz_code)}</b>")
+    lines.append(f"<code>{esc(order.city.strip())}, {esc(order.pvz_address.strip())}</code></blockquote>")
 
     lines.append("")
     lines.append("<b>Товары:</b>")
@@ -97,24 +95,14 @@ def send_tg_order(order, request):
     for it in order.items.select_related("variant"):
         url = request.build_absolute_uri(it.variant.get_absolute_url())
         lines.append(f"{it.quantity} × <a href='{url}'>{esc(it.variant.display_name())}</a>: {fmt(it.price)} ₽")
-    lines.append("</blockquote>")
+    lines.append(f"</blockquote><b>Итого товаров:</b> {order.get_total_count()} шт",)
 
-    if order.promo_code:
-        lines += [
-            f"<b>Промокод:</b> {esc(order.promo_code.code)}", 
-            "",
-        ]
-
-    # блок сумм из новых полей
-    lines += [
-
-        f"<b>Итого товаров:</b> {order.get_total_count()} шт",
-        f"<b>Сумма без скидок:</b> {fmt(order.subtotal)} ₽",
-        f"<b>Скидка всего:</b> -{fmt(order.discount_total)} ₽",
-        f"<b>Доставка:</b> {fmt(order.shipping_total)} ₽",
-        f"",
-        f"<b>Итого к оплате:</b> {fmt(order.total)} ₽"
-    ]
+    lines.append("")
+    lines.append(f"<blockquote><b>Промокод:</b> {esc(order.promo_code.code if order.promo_code else "Нет")}")
+    lines.append(f"<b>Сумма без скидок:</b> {fmt(order.subtotal)} ₽")
+    lines.append(f"<b>Скидка всего:</b> {fmt(order.discount_total)} ₽")
+    lines.append(f"<b>Доставка:</b> {fmt(order.shipping_total)} ₽</blockquote>")
+    lines.append(f"<b>Итого к оплате:</b> {fmt(order.total)} ₽")
 
     text = "\n".join(lines)
 

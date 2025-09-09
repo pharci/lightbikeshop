@@ -54,7 +54,7 @@ class ImageInline(SortableInlineAdminMixin, admin.TabularInline):
 class CategoryAttributeInline(SortableInlineAdminMixin, admin.TabularInline):
     model = CategoryAttribute
     extra = 0
-    fields = ("attribute", "is_required", "is_filterable", "is_variant", "sort_order")
+    fields = ("attribute", "is_filterable", "is_variant", "sort_order")
     autocomplete_fields = ("attribute",)
     sortable = "sort_order"
 

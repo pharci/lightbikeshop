@@ -19,6 +19,21 @@ body{
 .layout{display:flex; flex-direction:column; min-height:100vh; overflow: visible;}
 .page-wrapper{flex:1 0 auto;}
 
+
+.hover-shadow{ box-shadow: var(--shadow); }
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 12px;
+}
+
+@media (max-width: 1024px) {
+  .container {
+    max-width: 100%;
+  }
+}
+
 /* ===== Header ===== */
 .header{position:sticky; top:0; z-index:100; background:var(--white);}
 .header__bar{border-bottom:1px solid var(--border); background:var(--white); height:64px}
@@ -195,12 +210,6 @@ body{
 @media (min-width: 601px) {
   .footerbar { display: none; }
 }
-
-
-/* ===== Helpers ================================================================================================ */
-.hover-shadow{ box-shadow: var(--shadow); }
-.container{ max-width:1200px; margin:0 auto; padding:0 16px; }
-
 
 
 .breadcrumbs {

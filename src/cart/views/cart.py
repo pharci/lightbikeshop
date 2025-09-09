@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 from django.http import HttpRequest, JsonResponse
 
-from cart.models import Cart, SessionCart
+from cart.models import Cart, SessionCart, PromoCode
 from products.models import Variant
 
 def get_cart(request: HttpRequest):

@@ -393,8 +393,10 @@ class Order(models.Model):
     payment_url  = models.URLField("Ссылка на оплату", blank=True)
 
     city = models.CharField('Город', max_length=120, db_index=True, blank=True, default="")
-    pvz_address = models.CharField('Адрес ПВЗ', max_length=255, blank=True)
+    pvz_provider = models.CharField('Провайдер ПВЗ', max_length=32, blank=True)
     pvz_code    = models.CharField('Код ПВЗ', max_length=64, blank=True)
+    pvz_address = models.CharField('Адрес ПВЗ', max_length=255, blank=True)
+    invoice = models.CharField('Накладная', max_length=32, blank=True, null=True)
 
     promo_code = models.ForeignKey(
         "PromoCode", null=True, blank=True, on_delete=models.SET_NULL, verbose_name="Промокод", related_name="orders"

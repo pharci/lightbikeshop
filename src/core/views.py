@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from .models import Wheel, FAQ, Page, SocialLink
 from cart.models import PickupPoint
-from products.models import Brand, Variant
+from products.models import Brand, Variant, Category
 
  
 def home(request):
@@ -12,7 +12,6 @@ def home(request):
     pickups = PickupPoint.objects.filter(is_main=True).order_by("city", "sort", "title")
 
     social_links = SocialLink.objects.all()
-    social_tg = SocialLink.objects.filter(title__iexact="Telegram").first()
 
     return render(request, "core/home.html", {
         "wheel": wheel,

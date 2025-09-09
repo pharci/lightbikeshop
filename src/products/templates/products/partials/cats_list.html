@@ -13,8 +13,6 @@
         <div class="category-card__media">
           {% if child.image %}
             <img src="{{ child.image.url }}" alt="{{ child }}">
-          {% else %}
-            <img src="{% static 'images/none.jpg' %}" alt="{{ child }}">
           {% endif %}
         </div>
         <div class="category-card__body">

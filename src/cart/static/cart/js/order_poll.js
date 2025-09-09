@@ -42,3 +42,15 @@ window.addEventListener('pagehide', () => {
   clearTimeout(timer);
 });
 })();
+
+
+function copyTrack() {
+  const el = document.getElementById('trackNum');
+  navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);  // 3 секунды
+  });
+}
