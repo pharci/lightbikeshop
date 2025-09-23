@@ -156,3 +156,41 @@ def send_tg_order_status(order, request):
         _send_tg(cid, text, kb)  # внутри parse_mode='HTML'
 
     return text
+
+
+def send_tg_order_error(order, errorText, request):
+    esc = escape
+
+    scheme = "https" if request.is_secure() else "http"
+    domain = get_current_site(request).domain
+    admin_url = f"{scheme}://{domain}{reverse('admin:cart_order_change', args=[order.id])}"
+
+    ms_url = None
+    if getattr(order, "ms_order_id", None):
+        ms_id = str(order.ms_order_id)
+        base = getattr(settings, "MOYSKLAD_URL", "https://online.moysklad.ru/app")
+        ms_url = f"{base}/#customerorder/edit?id={ms_id}"
+
+    lines = [
+        (
+            f"<b>Заказ <a href='{admin_url}'>№{esc(order.order_id)}</a></b>"
+            + (f" — <b><a href='{ms_url}'>МойСклад</a></b>" if ms_url else "")
+        ),
+        f"Статус: <b>{esc(order.get_status_display())}</b>",
+        f"Ошибка: <b>{esc(errorText)}</b>",
+    ]
+
+    text = "\n".join(lines)
+
+    phone_digits = "".join(ch for ch in (order.contact_phone or "") if ch.isdigit() or ch == "+")
+    tg_link = f"tg://resolve?phone={phone_digits}" if phone_digits else admin_url
+
+    kb_rows = [
+        [{"text": "Написать в TG", "url": tg_link}],
+    ]
+    kb = {"inline_keyboard": kb_rows}
+
+    for cid in RECIPIENTS:
+        _send_tg(cid, text, kb)  # внутри parse_mode='HTML'
+
+    return text

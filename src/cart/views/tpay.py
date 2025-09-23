@@ -11,7 +11,7 @@ from cart.models import Order
 from cart.MS import set_ms_order_state_by_uuid
 from cart.order_utils import as_kop, D, allocate_lines
 from cart.order_utils import as_kop, D, allocate_lines
-from accounts.telegram import send_tg_order_status
+from accounts.telegram import send_tg_order_status, send_tg_order_error
 
 def build_receipt(order):
     subtotal = D(order.subtotal or 0)              # сумма товаров до скидки
@@ -140,15 +140,17 @@ def payment_callback(request):
         return HttpResponse("NO ORDER", status=404)
 
     if success and status in ("CONFIRMED", "AUTHORIZED"):
-        order.status = "paid"
-        try:
-            set_ms_order_state_by_uuid(order.ms_order_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
-            send_tg_order_status(order, request)
-        except:
-            pass
+        if (order.status != "paid"):
+            order.status = "paid"
+            try:
+                set_ms_order_state_by_uuid(order.ms_order_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
+                send_tg_order_status(order, request)
+            except Exception as e:
+                send_tg_order_error(order, f"Произошла ошибка при установке статуса 'Оплачен': {e}", request)
         
     elif status in ("REJECTED", "CANCELED"):
-        order.status = "created"  # или сразу canceled, если хочешь
+        order.status = "created"
+        
     order.save(update_fields=["status"])
 
     return HttpResponse("OK")
