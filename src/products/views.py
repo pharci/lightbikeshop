@@ -72,3 +72,8 @@ def catalog(request):
         'brands': brands,
         'roots': roots,
         })
+
+
+def brands(request):
+    brands = Brand.objects.all()
+    return render(request, 'products/catalog.html', {'brands': brands})

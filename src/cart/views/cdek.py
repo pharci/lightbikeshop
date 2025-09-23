@@ -145,7 +145,8 @@ def calc_cdek_pvz_price(cart, pvz_code: str, to_city_code: str | None = None) ->
             weight=w,
             tariff_code=136,  # склад-склад
         )
-        price = D(str(data.get("total_sum") or "0"))
+        
+        price = D(str(data.get("total_sum") or "0")) + D(100)
         meta = {
             "tariff_code": 136,
             "period_min": data.get("period_min"),

@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% load static l10n %}
 
 {% block title %}Главная{% endblock %}
 
@@ -34,7 +34,11 @@
   {# ---------- Бренды (слайдер) ---------- #}
     {% if brands %}
     <section class="section">
-      <div class="section__header"><h2 class="section__title">Бренды</h2></div>
+      <div class="section__header">
+        <a href="{% url 'products:brands' %}" class="section__title">
+          Бренды<i data-lucide="link" class="sidebar__icon"></i>
+        </a>
+      </div>
 
       <div class="swiper brandswiper">
         <div class="swiper-wrapper">
@@ -95,7 +99,7 @@
 
               {% if p.lat and p.lon %}
                 <a class="btn"
-                  href="https://yandex.ru/maps/?pt={{ p.lon }},{{ p.lat }}&z=16&l=map"
+                  href="https://yandex.ru/maps/?pt={{ p.lon|unlocalize }},{{ p.lat|unlocalize }}&z=16&l=map"
                   target="_blank" rel="noopener">Открыть на карте</a>
               {% else %}
                 <a class="btn"

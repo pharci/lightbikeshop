@@ -116,7 +116,6 @@ def checkout(request):
     if delivery_method == "pickup_pvz" and pvz_provider == "cdek":
         price, _meta = calc_cdek_pvz_price(cart, pvz_code, None)
         shipping_total = price
-        print(price, shipping_total, _meta)
 
     lines = list(iter_cart_variants(cart))
     if not lines:

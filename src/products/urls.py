@@ -5,6 +5,7 @@ app_name = "products"
 
 urlpatterns = [
     re_path(r"^catalog/$", views.catalog, name="catalog"),
+    re_path(r"^brands/$", views.brands, name="brands"),
     re_path(r"^catalog/search/$", views.list, name="search"),
 
     re_path(

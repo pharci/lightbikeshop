@@ -60,7 +60,7 @@ class Brand(models.Model):
     def __str__(self):
         return self.title
     def get_absolute_url(self):
-        return reverse('products:product_list_by_brand', args=[self.slug])
+        return reverse('products:brand', args=[self.slug])
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.title)

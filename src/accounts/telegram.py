@@ -7,7 +7,7 @@ from django.utils.html import escape
 
 TG_API = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}"
 
-RECIPIENTS = [787640915, 483918282, 5627367620]  # я, Андрей, менеджер
+RECIPIENTS = [787640915, 483918282, 5627367620, 793106587]  # я, Андрей, менеджер, Алина
 
 def _send_tg(chat_id: int, text: str, reply_markup: dict | None = None):
     def chunks(s, n=4096):
@@ -85,8 +85,8 @@ def send_tg_order(order, request):
     lines.append("")
     lines.append("<b>Доставка:</b>")
     lines.append(f"<blockquote><b>Провайдер: {esc(order.pvz_provider)}</b>")
-    lines.append(f"<b>ПВЗ: {esc(order.pvz_code)}</b>")
-    lines.append(f"<code>{esc(order.city.strip())}, {esc(order.pvz_address.strip())}</code></blockquote>")
+    lines.append(f"<b>Код: {esc(order.pvz_code)}</b>")
+    lines.append(f"<b>Адрес:</b> <code>{esc(order.city.strip())}, {esc(order.pvz_address.strip())}</code></blockquote>")
 
     lines.append("")
     lines.append("<b>Товары:</b>")

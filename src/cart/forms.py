@@ -3,76 +3,65 @@ from django import forms
 DELIVERY_GROUP_CHOICES = (("pickup", "Самовывоз"), ("pvz", "ПВЗ"))
 
 class CheckoutForm(forms.Form):
-    # 1) оплата — фиксируем онлайн, поле не показываем (но придёт как hidden)
-    payment_type = forms.CharField(initial="online", widget=forms.HiddenInput)
-
-    # 2) адрес и способ
-    city = forms.CharField()
+    payment_type   = forms.CharField(initial="online", widget=forms.HiddenInput)
+    city           = forms.CharField()
     delivery_group = forms.ChoiceField(choices=DELIVERY_GROUP_CHOICES, required=False)
-    delivery_method = forms.CharField(required=False)   # 'pickup_store' | 'pickup_pvz'
-    pickup_location = forms.CharField(required=False)   # строка "Название, адрес"
-    pvz_provider = forms.CharField(required=False)
-    pvz_code = forms.CharField(required=False)
-    pvz_address = forms.CharField(required=False)
+    delivery_method= forms.CharField()
+    pvz_provider   = forms.CharField()
+    pvz_code       = forms.CharField()
+    pvz_address    = forms.CharField()
 
-    # 3) получатель
-    last_name = forms.CharField()
-    first_name = forms.CharField()
-    patronymic = forms.CharField(required=False)
-    contact_phone = forms.CharField()
-    email = forms.EmailField(required=False)
-    order_notes = forms.CharField(required=False)
+    last_name      = forms.CharField()
+    first_name     = forms.CharField()
+    patronymic     = forms.CharField(required=False)
+    contact_phone  = forms.CharField()
+    email          = forms.EmailField(required=False)
+    order_notes    = forms.CharField(required=False)
 
-    @property
-    def user_name(self):
-        if not self.is_valid():
-            return ""
-        cd = self.cleaned_data
-        return " ".join(filter(None, [cd.get("last_name"), cd.get("first_name"), cd.get("patronymic")])).strip()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ("delivery_method", "pvz_provider", "pvz_code", "pvz_address"):
+            self.fields[name].required = False
 
     def clean(self):
         cd = super().clean()
 
-        # город
-        city = (cd.get("city") or "").strip()
+        # нормализация
+        def s(key): return (cd.get(key) or "").strip()
+        city           = s("city")
+        dg             = s("delivery_group") or None
+        dm             = s("delivery_method") or None
+        pvz_provider   = s("pvz_provider")
+        pvz_code       = s("pvz_code")
+        pvz_address    = s("pvz_address")
 
-        dg = (cd.get("delivery_group") or "").strip() or None
-        dm = (cd.get("delivery_method") or "").strip() or None
-        pickup_location = (cd.get("pickup_location") or "").strip()
-        pvz_code = (cd.get("pvz_code") or "").strip()
-        pvz_address = (cd.get("pvz_address") or "").strip()
+        if not city:
+            self.add_error("city", "Укажите город.")
+        cd["city"] = city
 
         # автоопределение метода
         if dm in ("pickup_store", "pickup_pvz"):
             dg = "pickup" if dm == "pickup_store" else "pvz"
         elif pvz_code or pvz_address:
             dg, dm = "pvz", "pickup_pvz"
-        elif pickup_location:
-            dg, dm = "pickup", "pickup_store"
 
         if not dg:
             self.add_error("delivery_group", "Выберите способ доставки.")
+            cd["payment_type"] = "online"
             return cd
 
-        if dg == "pickup":
-            if not pickup_location:
-                self.add_error("pickup_location", "Выберите пункт самовывоза.")
-            cd["delivery_method"] = "pickup_store"
-            cd["pvz_code"] = ""
-            cd["pvz_address"] = pickup_location
-
-        elif dg == "pvz":
-            if not (pvz_code or pvz_address):
-                self.add_error("pvz_code", "Выберите ПВЗ на карте.")
-                self.add_error("pvz_address", "Адрес ПВЗ обязателен.")
-            cd["delivery_method"] = "pickup_pvz"
-            cd["pvz_code"] = pvz_code
-            cd["pvz_address"] = pvz_address
-
+        if dg == "pvz":
+            if not pvz_provider or not pvz_code or not pvz_address:
+                self.add_error("delivery_group", "Выберите пункт выдачи.")
+            cd.update(
+                delivery_group="pvz",
+                delivery_method="pickup_pvz",
+                pvz_provider=pvz_provider,
+                pvz_code=pvz_code,
+                pvz_address=pvz_address,
+            )
         else:
             self.add_error("delivery_group", "Неверный способ доставки.")
 
-        # ЖЁСТКО фиксируем онлайн-оплату
         cd["payment_type"] = "online"
-
         return cd

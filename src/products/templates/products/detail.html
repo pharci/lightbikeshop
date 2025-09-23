@@ -97,6 +97,7 @@
         {% if rows %}
           <div class="variant-picker">
             {% for row in rows %}
+              {% if row.items %}
               <div class="variant-picker__row">
                 <div class="variant-picker__label">{{ row.label }}:</div>
                 <div class="variant-picker__list" role="list">
@@ -110,6 +111,7 @@
                   {% endfor %}
                 </div>
               </div>
+              {% endif %}
             {% endfor %}
           </div>
         {% endif %}
