@@ -187,71 +187,44 @@ MS_STATUS_MAP = {
 @csrf_exempt
 def ms_order_webhook(request):
     try:
-        payload = json.loads(request.body.decode("utf-8") or "{}")
-    except json.JSONDecodeError:
-        return JsonResponse({"ok": True, "note": "bad json"}, status=200)
-
-    events = payload.get("events") or []
-    if not isinstance(events, list) or not events:
-        return JsonResponse({"ok": True, "note": "no events"}, status=200)
-
-    results = []
+        events = (json.loads(request.body.decode("utf-8") or "{}").get("events")) or []
+    except Exception:
+        return JsonResponse({"ok": True}, status=200)
 
     for ev in events:
-        href = (((ev or {}).get("meta") or {}).get("href"))
+        href = (ev or {}).get("meta", {}).get("href")
         if not href:
-            results.append({"href": None, "note": "no href"})
             continue
-
         try:
-            data = _get(href)  # должен возвращать dict
-        except Exception as e:
-            results.append({"href": href, "note": f"pull failed: {e}"})
+            d = _get(href)
+        except Exception:
+            continue
+        if (d.get("meta") or {}).get("type") != "customerorder":
             continue
 
-        # фильтрация на всякий: работаем только с заказами покупателя
-        if (data.get("meta") or {}).get("type") != "customerorder":
-            results.append({"href": href, "note": "skip type"})
+        ms_id = d.get("id")
+        if not ms_id:
             continue
 
-        # статус
-        state = data.get("state") or {}
-        state_href = (state.get("meta") or {}).get("href") or ""
+        state_href = ((d.get("state") or {}).get("meta") or {}).get("href") or ""
         state_id = state_href.rsplit("/", 1)[-1] if state_href else None
-        new_status = MS_STATUS_MAP.get(state_id) if state_id else None
+        new_status = MS_STATUS_MAP.get(state_id)
 
-        # атрибуты → накладная
         invoice = None
-        for a in data.get("attributes") or []:
+        for a in d.get("attributes") or []:
             if a.get("id") == "4e9549ae-66ac-11ef-0a80-05be0019d751" or a.get("name") == "Накладная СДЭК":
                 invoice = a.get("value")
                 break
 
-        ms_id = data.get("id")
-        if not ms_id:
-            results.append({"href": href, "note": "no ms id"})
-            continue
+        if new_status:
+            rows = Order.objects.filter(ms_order_id=ms_id).exclude(status=new_status).update(status=new_status)
+            if rows:
+                try:
+                    send_tg_order_status(Order.objects.get(ms_order_id=ms_id), request)
+                except Exception:
+                    pass
 
-        try:
-            with transaction.atomic():
-                order = Order.objects.select_for_update().get(ms_order_id=ms_id)
+        if invoice is not None:
+            Order.objects.filter(ms_order_id=ms_id).exclude(invoice=invoice).update(invoice=invoice)
 
-                changed_fields = []
-                if new_status is not None and order.status != new_status:
-                    order.status = new_status
-                    changed_fields.append("status")
-                    send_tg_order_status(order, request)
-
-                # допускаем None → "" если у модели пустая строка по умолчанию
-                if invoice != getattr(order, "invoice", None):
-                    order.invoice = invoice
-                    changed_fields.append("invoice")
-
-                if changed_fields:
-                    order.save(update_fields=changed_fields)
-
-            results.append({"href": href, "state_id": state_id, "saved": bool(changed_fields)})
-        except Order.DoesNotExist:
-            results.append({"href": href, "note": "order not found"})
-
-    return JsonResponse({"ok": True, "results": results}, status=200)
+    return JsonResponse({"ok": True}, status=200)

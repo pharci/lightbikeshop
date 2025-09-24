@@ -23,23 +23,35 @@ class CheckoutForm(forms.Form):
         for name in ("delivery_method", "pvz_provider", "pvz_code", "pvz_address"):
             self.fields[name].required = False
 
+    @property
+    def user_name(self):
+        return self.cleaned_data.get("user_name", "")
+
     def clean(self):
         cd = super().clean()
 
-        # нормализация
-        def s(key): return (cd.get(key) or "").strip()
-        city           = s("city")
-        dg             = s("delivery_group") or None
-        dm             = s("delivery_method") or None
-        pvz_provider   = s("pvz_provider")
-        pvz_code       = s("pvz_code")
-        pvz_address    = s("pvz_address")
+        s = lambda k: (cd.get(k) or "").strip()
 
+        # ФИО → user_name
+        last_name  = s("last_name")
+        first_name = s("first_name")
+        patronymic = s("patronymic")
+        cd["last_name"], cd["first_name"], cd["patronymic"] = last_name, first_name, patronymic
+        cd["user_name"] = " ".join(p for p in (last_name, first_name, patronymic) if p)
+
+        # город
+        city = s("city")
         if not city:
             self.add_error("city", "Укажите город.")
         cd["city"] = city
 
-        # автоопределение метода
+        # доставка
+        dg = s("delivery_group") or None
+        dm = s("delivery_method") or None
+        pvz_provider = s("pvz_provider")
+        pvz_code     = s("pvz_code")
+        pvz_address  = s("pvz_address")
+
         if dm in ("pickup_store", "pickup_pvz"):
             dg = "pickup" if dm == "pickup_store" else "pvz"
         elif pvz_code or pvz_address:
