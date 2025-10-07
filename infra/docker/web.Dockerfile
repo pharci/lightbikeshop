@@ -16,8 +16,7 @@ RUN pip install -U pip && pip install "poetry>=1.7" && \
     poetry install --only main --no-interaction --no-ansi
 
 COPY src/ /app/
-COPY infra/docker/entrypoint.sh /entrypoint.sh
-RUN chmod 0755 /entrypoint.sh
+COPY infra/docker/launcher.py /launcher.py
 
 EXPOSE 8000
-CMD ["/entrypoint.sh"]
+CMD ["python","/launcher.py"]

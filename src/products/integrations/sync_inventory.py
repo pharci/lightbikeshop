@@ -49,9 +49,12 @@ def sync_inventory() -> dict:
         vid = row.get("assortmentId") or (href.rstrip("/").split("/")[-1] if href else None)
         if not vid:
             continue
-        report_ids.add(vid)
-        qty = int(row.get("stock", 0) or 0)
 
+        qty = int(row.get("stock", 0) or 0)
+        if qty < 0:  # skip negative values
+            qty = 0
+
+        report_ids.add(vid)
         v = Variant.objects.filter(id=vid).only("id", "inventory").first()
         if v and v.inventory != qty:
             v.inventory = qty
