@@ -212,15 +212,25 @@ def paginate_qs(qs: QuerySet, page: int, per_page: int = 24):
 
 # ---------- фасеты ----------
 
+def _params_without_brands(p: FilterParams) -> FilterParams:
+    return FilterParams(
+        q=p.q, page=p.page, sort=p.sort,
+        price_min=p.price_min, price_max=p.price_max,
+        in_stock=p.in_stock, brand_slugs=[],  # ключевая строка
+        attr_params=p.attr_params
+    )
+
 def faceting_base_qs(cat, br, params):
-    qs = Variant.objects.select_related("product", "product__brand", "product__category")\
-        .annotate(has_stock=Case(When(Q(inventory__gt=0), then=Value(1)),
-                                 default=Value(0), output_field=IntegerField()))
-    # вместо простого cat-фильтра:
+    qs = (Variant.objects
+          .select_related("product", "product__brand", "product__category")
+          .annotate(has_stock=Case(When(Q(inventory__gt=0), then=Value(1)),
+                                   default=Value(0), output_field=IntegerField())))
     cat_ids = effective_category_ids(cat)
     if cat_ids:
         qs = qs.filter(product__category_id__in=cat_ids)
-    return apply_scope(qs, None, br, params)  # cat уже учли
+
+    # важно: убираем бренды из GET-параметров, но сохраняем br из пути
+    return apply_scope(qs, None, br, _params_without_brands(params))
 
 def price_range_facet(qs: QuerySet) -> Dict[str, Optional[float]]:
     return qs.aggregate(min=Min("price"), max=Max("price"))

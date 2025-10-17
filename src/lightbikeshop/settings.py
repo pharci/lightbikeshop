@@ -93,7 +93,6 @@ MIDDLEWARE = [
 
     # твои middlewares
     "accounts.middlewares.LoginValidationMiddleware",
-    "accounts.middlewares.RegisterValidationMiddleware",   
     "cart.middleware.CheckoutCartGuardMiddleware", 
 ]
 
@@ -200,6 +199,8 @@ EMAIL_HOST_PASSWORD = env_str("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
 DEFAULT_FROM_EMAIL = env_str("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+OTP_ACTIVE_ID = env_str("OTP_ACTIVE_ID", "")
+OTP_PREV_ID   = env_str("OTP_PREV_ID", "")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ReCAPTCHA

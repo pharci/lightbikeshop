@@ -1,285 +1,100 @@
-# accounts/views.py — разделённые verify-вьюхи и единая проверка кода
-
-import time
-import json
-import hmac
-import hashlib
-import urllib.parse
-import re
+import time, hmac, hashlib, urllib.parse, re
 
 from django.conf import settings
-from django.contrib import messages, auth
-from django.contrib.auth import logout, login, authenticate
+from django.urls import reverse
+from django.contrib import messages
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.hashers import make_password
+from django.http import HttpResponseBadRequest, HttpResponseRedirect, HttpResponseForbidden, JsonResponse
+from django.shortcuts import render, redirect
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import csrf_protect, csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.http import require_POST
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
-from django.http import (
-    JsonResponse, HttpResponseBadRequest, HttpResponseRedirect, HttpResponseForbidden
-)
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
-from django.views.decorators.csrf import csrf_protect, csrf_exempt
-from django.views.decorators.http import require_POST
-from django.utils.crypto import constant_time_compare as ct
 
-from cart.models import Cart, Order
-from .forms import RegistrationForm, LoginForm, RecoveryForm, RecoveryInputPasswordForm
-from .models import User
-from .captcha import verify_recaptcha
-from .utils import generate_verification_code, send_verification_code
-from .security import set_action_guard, clear_action_guard, hit_rate_limit
+from .otp import gen_code, current_id, sign_with_id
+from .models import EmailOTP, User
+from cart.models import Order
+from .utils import verify_recaptcha, send_verification_code
 from .telegram import _send_tg
 
+def _norm_email(s: str) -> str:
+    s = (s or "").strip().lower()
+    try:
+        validate_email(s)
+        return s
+    except ValidationError:
+        return ""
 
-# ===== Код: хранение/проверка =====
-
-MAX_CODE_ATTEMPTS = 5
-
-def _now_epoch() -> int:
-    return int(time.time())
-
-def _put_code(request, code: str, ttl_sec: int):
-    s = request.session
-    s['vc_code'] = str(code)
-    s['vc_exp'] = _now_epoch() + int(ttl_sec)
-    s['vc_try'] = 0
-    s.modified = True
-
-def _clear_code(request):
-    for k in ('vc_code', 'vc_exp', 'vc_try'):
-        request.session.pop(k, None)
-    request.session.modified = True
-
-def _consume_code(request, user_code: str) -> (bool, str):
-    exp = int(request.session.get('vc_exp') or 0)
-    if _now_epoch() > exp:
-        _clear_code(request)
-        return False, 'expired'
-    tries = int(request.session.get('vc_try') or 0)
-    if tries >= MAX_CODE_ATTEMPTS:
-        _clear_code(request)
-        return False, 'tries'
-    stored = str(request.session.get('vc_code') or '')
-    ok = ct(str(user_code or ''), stored)
-    if ok:
-        _clear_code(request)
-        return True, 'ok'
-    request.session['vc_try'] = tries + 1
-    request.session.modified = True
-    return False, 'mismatch'
-
-def _flash_code_error(request, reason: str):
-    if reason == 'expired':
-        messages.error(request, 'Код истёк. Запросите новый.')
-    elif reason == 'tries':
-        messages.error(request, 'Слишком много попыток. Попробуйте позже.')
-    else:
-        left = max(0, MAX_CODE_ATTEMPTS - int(request.session.get('vc_try', 0)))
-        messages.error(request, f'Неверный код. Осталось попыток: {left}')
-
-
-# ===== Аутентификация =====
-
-@csrf_protect
+@never_cache
+@ensure_csrf_cookie
 def login_view(request):
-    if request.method == 'POST':
-        recaptcha_response = request.POST.get('g-recaptcha-response')
-        if not verify_recaptcha(recaptcha_response):
-            messages.error(request, 'Подозрительная активность. Попробуйте ещё раз.')
-            return redirect('accounts:login')
+    if request.method == "GET":
+        return render(request, "accounts/login.html", {"RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY})
+    return redirect("accounts:login")
 
-        form = LoginForm(request.POST)
-        if not form.is_valid():
-            for field, errors in form.errors.items():
-                messages.error(request, f'{field}: {", ".join(errors)}')
-            return redirect('accounts:login')
+@require_POST
+@csrf_protect
+def api_send_code(request):
+    email = _norm_email(request.POST.get("email"))
+    recaptcha = request.POST.get("g-recaptcha-response")
+    if not email:
+        return JsonResponse({"ok": False, "error": "invalid_email"}, status=400)
+    if not verify_recaptcha(recaptcha):
+        return JsonResponse({"ok": False, "error": "recaptcha"}, status=400)
 
-        email = form.cleaned_data['email']
-        password = form.cleaned_data['password']
-        if not email or not password:
-            return redirect('accounts:login')
+    user, _ = User.objects.get_or_create(email=email, defaults={"is_active": True})
 
-        user = authenticate(request, email=email, password=password)
-        if user is None:
-            messages.error(request, 'Неправильная почта или пароль.')
-            return redirect('accounts:login')
-
-        if hit_rate_limit(request, f"login_code:{email}", cooldown_sec=30):
-            messages.error(request, 'Слишком часто. Попробуйте через 30 секунд.')
-            return redirect('accounts:login')
-
-        code = generate_verification_code()
+    code = gen_code(6)
+    try:
         send_verification_code(email, code)
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": "send_fail"}, status=502)
 
-        _put_code(request, code, ttl_sec=5 * 60)
-        request.session['login_user_id'] = user.id
-        set_action_guard(request, 'login', ttl_minutes=30)
-        return redirect('accounts:verify_login')
+    sid = current_id()
+    req = EmailOTP.create_for_email(
+        email=email,
+        code=code,              # ← передаём сырой код
+        secret_id=sid,
+        ip=request.META.get("REMOTE_ADDR"),
+        ua=request.META.get("HTTP_USER_AGENT", "")[:255],
+    )
 
-    context = {'form': LoginForm(), "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY}
-    return render(request, 'accounts/login.html', context)
+    # сессия пригодится для последующего login
+    request.session["otp_email"] = email
+    request.session["otp_req_id"] = str(req.request_id)
+    return JsonResponse({"ok": True, "request_id": str(req.request_id)})
 
-
+@require_POST
 @csrf_protect
-def verify_login(request):
-    if request.method == 'POST':
-        ok, reason = _consume_code(request, request.POST.get('code', '').strip())
-        if ok:
-            uid = request.session.pop('login_user_id', None)
-            clear_action_guard(request)
-            if not uid:
-                return redirect('accounts:login')
-            user = get_object_or_404(User, id=uid)
-            login(request, user)
-            return redirect('core:home')
-        _flash_code_error(request, reason)
-    return render(request, 'accounts/verify_code.html', {'action': 'login'})
+def api_verify_code(request):
+    email = _norm_email(request.POST.get("email") or request.session.get("otp_email"))
+    request_id = request.POST.get("request_id") or request.session.get("otp_req_id")
+    code = (request.POST.get("code") or "").strip()
 
+    if not (email and request_id and code):
+        return JsonResponse({"ok": False, "error": "missing"}, status=400)
 
-@csrf_protect
-def register_view(request):
-    if request.method == 'POST':
-        recaptcha_response = request.POST.get('g-recaptcha-response')
-        if not verify_recaptcha(recaptcha_response):
-            messages.error(request, 'Подозрительная активность. Попробуйте ещё раз.')
-            return redirect('accounts:register')
+    try:
+        otp = EmailOTP.objects.get(request_id=request_id, email=email)
+    except EmailOTP.DoesNotExist:
+        return JsonResponse({"ok": False, "error": "not_found"}, status=404)
 
-        form = RegistrationForm(request.POST)
-        if not form.is_valid():
-            for field, errors in form.errors.items():
-                messages.error(request, f'{field}: {", ".join(errors)}')
-            return redirect('accounts:register')
+    if not otp.can_verify():
+        return JsonResponse({"ok": False, "error": "expired_or_locked"}, status=400)
 
-        email = form.cleaned_data['email']
-        password = form.cleaned_data['password1']
+    if not otp.verify_and_consume(code):
+        return JsonResponse({"ok": False, "error": "bad_code", "attempts_left": max(0, otp.max_attempts - otp.attempts)}, status=400)
 
-        if hit_rate_limit(request, f"reg_code:{email}", cooldown_sec=30):
-            messages.error(request, 'Слишком часто. Попробуйте через 30 секунд.')
-            return redirect('accounts:register')
+    user, _ = User.objects.get_or_create(email=email, defaults={"is_active": True})
+    if not user.is_active:
+        return JsonResponse({"ok": False, "error": "inactive"}, status=403)
 
-        code = generate_verification_code()
-        send_verification_code(email, code)
-
-        _put_code(request, code, ttl_sec=5 * 60)
-        request.session['reg_email'] = email
-        request.session['reg_pwd_hash'] = make_password(password)
-        set_action_guard(request, 'registration', ttl_minutes=30)
-        return redirect('accounts:verify_register')
-
-    context = {'form': RegistrationForm(), "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY}
-    return render(request, 'accounts/register.html', context)
-
-
-@csrf_protect
-def verify_register(request):
-    if request.method == 'POST':
-        ok, reason = _consume_code(request, request.POST.get('code', '').strip())
-        if ok:
-            email = request.session.pop('reg_email', '')
-            pwd_hash = request.session.pop('reg_pwd_hash', '')
-            clear_action_guard(request)
-            if not (email and pwd_hash):
-                return redirect('accounts:register')
-
-            user = User.objects.create_user(email=email, password='')
-            user.password = pwd_hash
-            user.save(update_fields=['password'])
-            Cart.objects.get_or_create(user=user)
-
-            login(request, user)
-            messages.success(request, 'Регистрация завершена.')
-            return redirect('accounts:profile')
-        _flash_code_error(request, reason)
-    return render(request, 'accounts/verify_code.html', {'action': 'registration'})
-
-
-@csrf_protect
-def recovery_view(request):
-    if request.method == 'POST':
-        recaptcha_response = request.POST.get('g-recaptcha-response')
-        if not verify_recaptcha(recaptcha_response):
-            messages.error(request, 'Подозрительная активность. Попробуйте ещё раз.')
-            return redirect('accounts:recovery')
-
-        form = RecoveryForm(request.POST)
-        if not form.is_valid():
-            for field, errors in form.errors.items():
-                messages.error(request, f'{field}: {", ".join(errors)}')
-            return redirect('accounts:recovery')
-
-        email = form.cleaned_data['email']
-
-        if hit_rate_limit(request, f"recovery_code:{email}", cooldown_sec=30):
-            messages.error(request, 'Слишком часто. Попробуйте через 30 секунд.')
-            return redirect('accounts:recovery')
-
-        code = generate_verification_code()
-        send_verification_code(email, code)
-
-        _put_code(request, code, ttl_sec=5 * 60)
-        request.session['recovery_email'] = email
-        set_action_guard(request, 'recovery', ttl_minutes=30)
-        return redirect('accounts:verify_recovery')
-
-    context = {'form': RecoveryForm(), "RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY}
-    return render(request, 'accounts/recovery.html', context)
-
-
-@csrf_protect
-def verify_recovery(request):
-    if request.method == 'POST':
-        ok, reason = _consume_code(request, request.POST.get('code', '').strip())
-        if ok:
-            clear_action_guard(request)
-            return redirect('accounts:recovery_input_password')
-        _flash_code_error(request, reason)
-    return render(request, 'accounts/verify_code.html', {'action': 'recovery'})
-
-
-@csrf_protect
-def recovery_input_password_view(request):
-    if request.method == 'POST':
-        form = RecoveryInputPasswordForm(request.POST)
-        if not form.is_valid():
-            messages.error(request, 'Пароли не совпадают.')
-            return redirect('accounts:recovery_input_password')
-
-        password = form.cleaned_data['password1']
-        email = request.session.get('recovery_email')
-
-        attempts = int(request.session.get('recovery_attempts', 0))
-        if attempts >= 5:
-            for k in ('recovery_email', 'recovery_attempts'):
-                request.session.pop(k, None)
-            messages.error(request, 'Слишком много попыток.')
-            return redirect('accounts:recovery_input_password')
-        
-        user = User.objects.get(email=email)
-        if not user:
-            for k in ('recovery_email', 'recovery_attempts'):
-                request.session.pop(k, None)
-            messages.error(request, 'Пользователь не найден.')
-            return redirect('accounts:recovery')
-
-        user.set_password(password)
-        user.save(update_fields=['password'])
-
-        authenticated = authenticate(request, email=email, password=password)
-        if authenticated:
-            login(request, authenticated)
-            for k in ('recovery_email', 'recovery_attempts'):
-                request.session.pop(k, None)
-            return redirect('accounts:profile')
-
-        messages.error(request, 'Ошибка. Попробуйте ещё раз.')
-        for k in ('recovery_email', 'recovery_attempts'):
-            request.session.pop(k, None)
-        return redirect('accounts:recovery_input_password')
-
-    context = {'form': RecoveryInputPasswordForm()}
-    return render(request, 'accounts/recovery_input_password.html', context)
+    login(request, user)
+    request.session["otp_email"] = None
+    request.session["otp_req_id"] = None
+    return JsonResponse({"ok": True, "redirect": "/"})
 
 
 # ===== Профиль/выход =====
@@ -292,75 +107,6 @@ def profile_view(request):
 def logout_view(request):
     logout(request)
     return redirect('accounts:login')
-
-# ===== Привязка e-mail =====
-
-@login_required
-@require_POST
-@csrf_protect
-def bind_email(request):
-    email = (request.POST.get('email') or '').strip().lower()
-    if not email:
-        messages.error(request, "Введите e-mail.", extra_tags="email")
-        return redirect('accounts:profile')
-    try:
-        validate_email(email)
-    except ValidationError:
-        messages.error(request, "Некорректный e-mail.", extra_tags="email")
-        return redirect('accounts:profile')
-
-    # мгновенная проверка занятости
-    if User.objects.filter(email__iexact=email).exists():
-        messages.error(request, "Этот e-mail уже занят.", extra_tags="email")
-        return redirect('accounts:profile')
-
-    if hit_rate_limit(request, f"bind_email:{email}", cooldown_sec=30):
-        messages.error(request, "Слишком часто. Попробуйте через 30 секунд.", extra_tags="email")
-        return redirect('accounts:profile')
-
-    code = generate_verification_code()
-    send_verification_code(email, code)
-
-    _put_code(request, code, ttl_sec=5 * 60)
-    request.session['bind_email'] = email
-    set_action_guard(request, 'bind_email', ttl_minutes=30)
-    return redirect('accounts:verify_bind_email')
-
-
-@login_required
-@csrf_protect
-def verify_bind_email(request):
-    if request.method == 'POST':
-        ok, reason = _consume_code(request, request.POST.get('code', '').strip())
-        if ok:
-            email = (request.session.pop('bind_email', '') or '').strip().lower()
-            clear_action_guard(request)
-            if not email:
-                messages.error(request, 'Не найден e-mail для привязки.')
-                return redirect('accounts:profile')
-
-            # повторно на момент подтверждения
-            if User.objects.filter(email__iexact=email).exists():
-                messages.error(request, 'Этот e-mail уже занят.', extra_tags='email')
-                return redirect('accounts:profile')
-
-            try:
-                with transaction.atomic():
-                    u = User.objects.select_for_update().get(pk=request.user.pk)
-                    u.email = email
-                    if hasattr(u, 'email_verified'):
-                        u.email_verified = True
-                    u.save(update_fields=['email'] + (['email_verified'] if hasattr(u, 'email_verified') else []))
-            except IntegrityError:
-                messages.error(request, 'Этот e-mail уже занят.', extra_tags='email')
-                return redirect('accounts:profile')
-
-            messages.success(request, 'E-mail привязан.')
-            return redirect('accounts:profile')
-
-        _flash_code_error(request, reason)
-    return render(request, 'accounts/verify_code.html', {'action': 'bind_email'})
-
 
 # ===== Telegram Login =====
 

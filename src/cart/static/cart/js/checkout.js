@@ -366,3 +366,139 @@ function escapeHtml(s) {
 const radioPvz = document.getElementById('dg_pvz');
 if (radioPvz && radioPvz.checked && !panelPvz.hidden) ensureMap();
 })();
+
+
+
+(() => {
+  const el = document.getElementById('contact_phone');
+
+  // Плейсхолдер через JS
+  el.setAttribute('placeholder', '+7 (___) ___-__-__');
+
+  const CC = '+7 (';
+  const MIN_POS = CC.length;  // запрет удаления префикса
+  const onlyDigits = s => s.replace(/\D+/g, '');
+
+  const toNat = v => {
+    // нормализуем: 8XXXXXXXXXX / 7XXXXXXXXXX / 9XXXXXXXXX -> 7 + 10
+    let d = onlyDigits(v);
+    if (d.startsWith('8')) d = '7' + d.slice(1);
+    if (!d.startsWith('7')) d = '7' + d;  // добавить код страны если нет
+    return d.slice(1, 11);  // 10 нац. цифр
+  };
+
+  const clamp10 = s => s.slice(0, 10);
+
+  function formatRU(n10) {
+    const b = n10.slice(0, 3);
+    const c = n10.slice(3, 6);
+    const d = n10.slice(6, 8);
+    const e = n10.slice(8, 10);
+    let out = CC + b;
+    if (b.length === 3) out += ')';
+    if (c) out += ' ' + c;
+    if (d) out += '-' + d;
+    if (e) out += '-' + e;
+    return out;
+  }
+
+  function natDigitsBeforeCaret(val, pos) {
+    // считаем только национальные цифры, игнорируя "+7("
+    const pre = val.slice(0, Math.max(pos, 0));
+    return toNat(pre).length;
+  }
+
+  function caretForNatIndex(formatted, idx) {
+    if (idx <= 0) return MIN_POS;
+    let count = 0;
+    for (let i = 0; i < formatted.length; i++) {
+      const ch = formatted[i];
+      if (/\d/.test(ch) && i >= MIN_POS) {
+        count++;
+        if (count >= idx) return i + 1;
+      }
+    }
+    return formatted.length;
+  }
+
+  function setFormatted(raw, caretPos) {
+    const idx = natDigitsBeforeCaret(raw, caretPos);
+    const n10 = clamp10(toNat(raw));
+    const next = formatRU(n10);
+    el.value = next;
+    const nextPos = caretForNatIndex(next, idx);
+    el.setSelectionRange(nextPos, nextPos);
+  }
+
+  function ensurePrefixIfEmpty() {
+    if (!el.value) {
+      el.value = CC;
+      el.setSelectionRange(MIN_POS, MIN_POS);
+    } else if (!el.value.startsWith(CC)) {
+      // аккуратно восстановим без стирания цифр
+      setFormatted(el.value, el.selectionStart || el.value.length);
+    }
+  }
+
+  // Инициализация без очистки
+  ensurePrefixIfEmpty();
+
+  el.addEventListener('focus', () => {
+    // не стираем существующее, только гарантируем префикс
+    ensurePrefixIfEmpty();
+  });
+
+  el.addEventListener('keydown', (e) => {
+    const k = e.key;
+    const selStart = el.selectionStart ?? 0;
+    const selEnd = el.selectionEnd ?? 0;
+
+    // навигация
+    if (k === 'Tab' || k === 'ArrowLeft' || k === 'ArrowRight' ||
+        k === 'Home' || k === 'End')
+      return;
+
+    // запрет удаления префикса
+    if (k === 'Backspace' && selStart <= MIN_POS && selEnd <= MIN_POS) {
+      e.preventDefault();
+      el.setSelectionRange(MIN_POS, MIN_POS);
+      return;
+    }
+    if (k === 'Delete' && selStart < MIN_POS && selEnd <= MIN_POS) {
+      e.preventDefault();
+      el.setSelectionRange(MIN_POS, MIN_POS);
+      return;
+    }
+
+    // разрешаем только цифры и управление
+    if (k === 'Backspace' || k === 'Delete') return;
+    if (/\d/.test(k)) return;
+
+    e.preventDefault();
+  });
+
+  el.addEventListener('input', () => {
+    const pos = el.selectionStart || 0;
+    setFormatted(el.value, pos);
+
+    // жесткий лимит 11 цифр (1 страна + 10 нац)
+    const digits = onlyDigits(el.value);
+    if (digits.length > 11) {
+      const n10 = clamp10(toNat(el.value));
+      el.value = formatRU(n10);
+    }
+  });
+
+  el.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    const before = el.value.slice(0, el.selectionStart);
+    const after = el.value.slice(el.selectionEnd);
+    const merged = before + text + after;
+    const pos = (before + text).length;
+    setFormatted(merged, pos);
+  });
+
+  // на случай предзаполнения сервером
+  setFormatted(el.value || CC, (el.value || CC).length);
+})();

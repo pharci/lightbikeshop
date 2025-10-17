@@ -111,7 +111,7 @@ class CategoryAdmin(SortableAdminBase, ColumnToggleModelAdmin):
 
 @admin.register(Brand)
 class BrandAdmin(ColumnToggleModelAdmin):
-    list_display = ("image_preview", "title", "slug", "image")
+    list_display = ("image_preview", "title", "slug", "image", "description")
     default_selected_columns = ["image_preview", "title"]
     list_display_links = ("image_preview",)
     search_fields = ("title", "slug")
@@ -224,7 +224,7 @@ class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
     autocomplete_fields = ("product",)
     inlines = [ImageInline, AttributeValueInline]
     ordering = ("-updated",)
-    list_editable = ("old_price", "price", "inventory")
+    list_editable = ("old_price", "price", "inventory", "new", "rec", "is_active")
     list_per_page = 50
     date_hierarchy = "updated"
     preserve_filters = True

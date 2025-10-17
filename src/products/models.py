@@ -57,6 +57,7 @@ class Brand(models.Model):
     slug = models.SlugField('Название в ссылке', max_length=200, db_index=True, unique=True)
     title = models.CharField(max_length=100)
     image = models.ImageField(upload_to='brends/')
+    description = models.TextField('Описание', blank=True, default='')
     def __str__(self):
         return self.title
     def get_absolute_url(self):
@@ -259,7 +260,6 @@ class Variant(models.Model):
     
     @cached_property
     def merged_attribute_values(self):
-        # нужен prefetch: attribute_values__attribute и product__attribute_values__attribute
         prod = {av.attribute_id: av for av in self.product.attribute_values.all()}
         var  = {av.attribute_id: av for av in self.attribute_values.all()}
         prod.update(var)  # вариант перекрывает товар

@@ -2,6 +2,8 @@
 {% load static %}
 
 {% block title %}{{ variant.display_name }}{% endblock %}
+{% block meta_description %}{{ variant.product.description|default:variant.display_name|striptags|truncatechars:155 }}{% endblock %}
+{% block canonical %}{{ request.scheme }}://{{ request.get_host }}{{ variant.get_absolute_url }}{% endblock %}
 
 {% block styles %}
   {{ block.super }}
@@ -172,6 +174,13 @@
               </header>
 
               <div class="specs">
+                {% if variant.product.brand %}
+                  <div class="specs__row">
+                    <div class="specs__key">Бренд</div>
+                    <div class="specs__val">{{ variant.product.brand }}</div>
+                  </div>
+                {% endif %}
+
                 {% for av in attrs|dictsort:"attribute.name" %}
                   <div class="specs__row">
                     <div class="specs__key">
@@ -194,20 +203,38 @@
           {% endif %}
         {% endwith %}
 
-        {# === ОПИСАНИЕ (из базового товара) === #}
+        {# Описание товара #}
         {% if variant.product.description %}
-          <section class="section card-like variant-page__desc">
-            <header class="section__head">
-              <h2 class="section__title">Описание</h2>
-              <button class="link link--muted section__toggle" type="button"
-                      data-collapsible="#descBody"
-                      aria-expanded="false">Показать полностью</button>
-            </header>
+        <section class="section card-like variant-page__desc">
+          <header class="section__head">
+            <h2 class="section__title">Описание</h2>
+            <button class="link link--muted section__toggle"
+                    type="button"
+                    data-collapsible="#descBody"
+                    aria-expanded="false">Показать полностью</button>
+          </header>
+          <div id="descBody" class="prose prose--clamp">
+            {{ variant.product.description|safe }}
+          </div>
+        </section>
+        {% endif %}
 
-            <div id="descBody" class="prose prose--clamp">
-              {{ variant.product.description|safe }}
-            </div>
-          </section>
+        {# Описание бренда #}
+        {% if variant.product.brand and variant.product.brand.description %}
+        <section class="section card-like brand-page__desc">
+          <header class="section__head">
+            <h2 class="section__title">
+              <a href="{{ variant.product.brand.get_absolute_url }}" class="section__title">{{ variant.product.brand }}<i data-lucide="link" class="sidebar__icon"></i></a>
+            </h2>
+            <button class="link link--muted section__toggle"
+                    type="button"
+                    data-collapsible="#brandDesc"
+                    aria-expanded="false">Показать полностью</button>
+          </header>
+          <div id="brandDesc" class="prose prose--clamp">
+            {{ variant.product.brand.description|safe }}
+          </div>
+        </section>
         {% endif %}
 
     </div>

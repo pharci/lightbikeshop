@@ -1,93 +1,138 @@
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
-from django.contrib.auth.hashers import make_password, check_password
+# accounts/models.py
+from __future__ import annotations
+import uuid
+from datetime import timedelta
+
 from django.db import models
+from django.utils import timezone
+from django.contrib.auth.models import PermissionsMixin, BaseUserManager
+
+from accounts.otp import sign_with_id
+
+# ===== User =====
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
+    use_in_migrations = True
+
+    def _create_user(self, email: str, **extra):
         if not email:
-            raise ValueError('Email is required')
+            raise ValueError("Email обязателен")
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
-        if password:
-            user.set_password(password)  # Устанавливаем реальный пароль
-        else:
-            user.set_unusable_password()  # Устанавливаем недопустимый пароль
-        user.save()
+        user = self.model(email=email, **extra)
+        user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
+    def create_user(self, email: str, **extra):
+        extra.setdefault("is_staff", False)
+        extra.setdefault("is_superuser", False)
+        extra.setdefault("is_active", True)
+        return self._create_user(email, **extra)
 
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True')
+    def create_superuser(self, email: str, **extra):
+        extra.setdefault("is_staff", True)
+        extra.setdefault("is_superuser", True)
+        extra.setdefault("is_active", True)
+        if extra.get("is_staff") is not True or extra.get("is_superuser") is not True:
+            raise ValueError("Суперпользователь требует is_staff=True и is_superuser=True")
+        return self._create_user(email, **extra)
 
-        return self.create_user(email, password, **extra_fields)
 
-
-class User(AbstractBaseUser):
+class User(PermissionsMixin):
     id = models.AutoField(primary_key=True)
-    email = models.EmailField('Почта', unique=True, null=True, blank=True)
-    telegram_id = models.CharField('Telegram Id', max_length=200, null=True, blank=True)
-    telegram_username = models.CharField('Telegram Username', max_length=200, null=True, blank=True)
-    is_active = models.BooleanField('Активный?', default=True)
-    is_staff = models.BooleanField('Персонал?', default=False)
-    is_superuser = models.BooleanField('Суперюзер?', default=False)
-    last_login = models.DateTimeField('Последний вход', blank=True, null=True)
-    password = models.CharField("Пароль", max_length=128, blank=True, null=True)
+    email = models.EmailField("Почта", unique=True, db_index=True)
+
+    # опционально
+    first_name = models.CharField("Имя", max_length=150, blank=True)
+    last_name = models.CharField("Фамилия", max_length=150, blank=True)
+    telegram_id = models.CharField("Telegram Id", max_length=200, null=True, blank=True)
+    telegram_username = models.CharField("Telegram Username", max_length=200, null=True, blank=True)
+
+    # статусы
+    is_active = models.BooleanField("Активный?", default=True)
+    is_staff = models.BooleanField("Персонал?", default=False)
+
+    # системные
+    last_login = models.DateTimeField("Последний вход", blank=True, null=True)
+    date_joined = models.DateTimeField("Создан", default=timezone.now)
 
     objects = UserManager()
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
-
-    def save(self, *args, **kwargs):
-        if self.password and not self.password.startswith("pbkdf2_"):
-            self.password = make_password(self.password)
-        super().save(*args, **kwargs)
-
-    def has_perm(self, perm, obj=None):
-        return self.is_staff
-
-    def has_module_perms(self, app_label):
-        return self.is_staff
-
-    def set_password(self, raw_password):
-        self.password = make_password(raw_password)
-        self.save()
-
-    def check_password(self, raw_password):
-        if not self.password:  # None или пустая строка → пароля нет
-            return False
-
-        def setter(raw_password):
-            self.set_password(raw_password)
-            self.save(update_fields=["password"])
-
-        return check_password(raw_password, self.password, setter)
-
-    def get_username(self):
-        return self.email
-
-    @property
-    def is_anonymous(self):
-        return False
-
-    @property
-    def is_authenticated(self):
-        return True
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS: list[str] = []
 
     class Meta:
-        verbose_name = 'Пользователь'
-        verbose_name_plural = 'Пользователи'
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
+        indexes = [models.Index(fields=["email"])]
 
-    def __str__(self):
-        if self.email:
-            return self.email
-        if self.telegram_username:
-            return f"@{self.telegram_username}"
-        if self.telegram_id:
-            return f"tg_id:{self.telegram_id}"
-        return f"user#{self.id}"
+    def __str__(self) -> str:
+        return self.email or f"user#{self.pk}"
+
+    # Django ожидает свойства, не методы
+    @property
+    def is_authenticated(self) -> bool:
+        return True
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+
+
+# ===== Email OTP =====
+
+OTP_TTL_SECONDS = 180
+OTP_MAX_ATTEMPTS = 5
+
+class EmailOTP(models.Model):
+    request_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(db_index=True)
+
+    code_hmac = models.CharField(max_length=64)
+    secret_id = models.CharField(max_length=64)
+
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    max_attempts = models.PositiveSmallIntegerField(default=OTP_MAX_ATTEMPTS)
+
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    ua = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Заявка OTP (email)"
+        verbose_name_plural = "Заявки OTP (email)"
+        indexes = [
+            models.Index(fields=["email", "created_at"]),
+            models.Index(fields=["expires_at"]),
+        ]
+
+    @classmethod
+    def create_for_email(cls, *, email: str, code: str, secret_id: str, ttl_sec: int = OTP_TTL_SECONDS, **meta):
+        now = timezone.now()
+        return cls.objects.create(
+            email=email,
+            code_hmac=sign_with_id(code, secret_id),
+            secret_id=secret_id,
+            expires_at=now + timedelta(seconds=ttl_sec),
+            **meta,
+        )
+
+    def can_verify(self) -> bool:
+        if self.consumed_at:
+            return False
+        if timezone.now() > self.expires_at:
+            return False
+        if self.attempts >= self.max_attempts:
+            return False
+        return True
+
+    def verify_and_consume(self, code: str) -> bool:
+        if not self.can_verify():
+            return False
+        self.attempts += 1
+        ok = self.code_hmac == sign_with_id(code, self.secret_id)
+        if ok:
+            self.consumed_at = timezone.now()
+        self.save(update_fields=["attempts", "consumed_at"])
+        return ok

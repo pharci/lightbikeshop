@@ -1,9 +1,7 @@
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
-import secrets
-
-def generate_verification_code():
-    return str(secrets.randbelow(900000) + 100000)
+import requests
+from django.conf import settings
 
 def send_verification_code(email, code: str):
     subject = "LIGHTBIKESHOP — подтверждение входа"
@@ -48,3 +46,19 @@ def send_verification_code(email, code: str):
     email_obj = EmailMultiAlternatives(subject, text_message, from_email, recipient_list)
     email_obj.attach_alternative(html_message, "text/html")
     email_obj.send()
+
+def verify_recaptcha(response):
+    secret_key = settings.RECAPTCHA_SECRET_KEY
+    url = 'https://www.google.com/recaptcha/api/siteverify'
+    payload = {
+        'secret': secret_key,
+        'response': response
+    }
+    response = requests.post(url, data=payload)
+
+    data = response.json()
+
+    if data['success']:
+        return True
+    else:
+        return False

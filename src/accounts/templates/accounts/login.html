@@ -5,89 +5,60 @@
 
 {% block styles %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'accounts/css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'accounts/css/login.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="container auth">
-
-  <div class="section__header u-center">
-    <h1 class="section__title">Вход</h1>
-  </div>
+  <div class="section__header u-center"><h1 class="section__title">Войти или зарегистрироваться</h1></div>
 
   <div class="auth__grid">
     <section class="card auth-card">
-      <form method="POST"
-            action="{% url 'accounts:login' %}"
-            id="login-form"
-            class="form"
-            novalidate>
+      <form id="email-step" class="form" novalidate>
         {% csrf_token %}
-
-        {# EMAIL #}
         <div class="field">
           <label for="id_email" class="label">Почта</label>
-          <input type="email"
-                 id="id_email"
-                 name="email"
-                 class="input"
-                 placeholder="you@example.com"
-                 required
-                 autocomplete="email" />
-          <p id="email-error" class="error" hidden>Аккаунта с такой почтой не существует.</p>
-          <p id="email-invalid-error" class="error" hidden>Введите корректный адрес электронной почты.</p>
+          <input id="id_email" type="email" class="input" placeholder="you@example.com" autocomplete="email" required />
+          <p id="email-error" class="error" hidden>Введите корректный e-mail.</p>
         </div>
-
-        {# PASSWORD #}
-        <div class="field">
-          <label for="id_password" class="label">Пароль</label>
-          <input type="password"
-                 id="id_password"
-                 name="password"
-                 class="input"
-                 placeholder="Ваш пароль"
-                 required
-                 autocomplete="current-password" />
-          {% if messages %}
-            {% for message in messages %}
-              {% if message.tags == 'error' %}
-                <p class="error">{{ message }}</p>
-              {% endif %}
-            {% endfor %}
-          {% endif %}
-        </div>
-
-        {# reCAPTCHA v3 (скрытое поле) #}
-        <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
-
         <div class="actions">
-          <button type="submit" class="btn" id="login-button">Войти</button>
-          <a class="link" href="{% url 'accounts:recovery' %}">Забыли пароль?</a>
+          <button type="submit" class="btn" id="send-btn">Войти</button>
         </div>
-
-        <div class="social-buttons">
-          {# Telegram Login Widget #}
-          <div style="margin-top:10px;">
-            <script async src="https://telegram.org/js/telegram-widget.js?22"
-              data-telegram-login="lightbikebot"   {# @botname без @ #}
-              data-size="large"
-              data-userpic="false"
-              data-request-access="write"
-              data-auth-url="https://pharci.ru/tg/auth/">
-            </script>
-          </div>
-        </div>
-
-        <p class="legal">
-          This site is protected by reCAPTCHA and the Google
-          <a class="link" href="https://policies.google.com/privacy" rel="noopener" target="_blank">Privacy Policy</a> and
-          <a class="link" href="https://policies.google.com/terms" rel="noopener" target="_blank">Terms of Service</a> apply.
-        </p>
+        <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
       </form>
 
-      <p class="hint">
-        Нет аккаунта?
-        <a class="link" href="{% url 'accounts:register' %}">Зарегистрироваться</a>
+      <form id="code-step" class="form" novalidate hidden>
+        {% csrf_token %}
+        <input type="hidden" id="request_id">
+        <input type="hidden" id="email_hidden">
+        <div class="field">
+          <label for="id_code" class="label">Код из письма</label>
+          <div class="code-row">
+            <input id="id_code" type="text" class="input code-input" inputmode="numeric" maxlength="6" placeholder="XXXXXX" required />
+            <button type="submit" class="btn" id="verify-btn">Подтвердить</button>
+          </div>
+          <p id="code-error" class="error" hidden>Неверный код.</p>
+          <p id="code-info" class="hint" hidden></p>
+        </div>
+        <div class="inline inline--gap-sm">
+          <button type="button" id="resend-btn" class="btn-link" disabled>Отправить ещё <span id="resend-timer"></span></button>
+          <button type="button" id="change-email-btn" class="btn-link">Изменить почту</button>
+        </div>
+      </form>
+
+      <div class="mt-2">
+        <script async src="https://telegram.org/js/telegram-widget.js?22"
+          data-telegram-login="lightbikebot"
+          data-size="large"
+          data-userpic="false"
+          data-request-access="write"
+          data-auth-url="https://pharci.ru/tg/auth/"></script>
+      </div>
+
+      <p class="legal">
+        This site is protected by reCAPTCHA and the Google
+        <a class="link" href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+        <a class="link" href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
       </p>
     </section>
   </div>
@@ -96,10 +67,7 @@
 
 {% block scripts %}
   {{ block.super }}
-  <script src="{% static 'accounts/js/login.js' %}"></script>
-  <script src="{% static 'accounts/js/recaptcha.js' %}"></script>
   <script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}"></script>
-  <script>
-    window.recaptchaSiteKey = "{{ RECAPTCHA_SITE_KEY }}";
-  </script>
+  <script>window.recaptchaSiteKey="{{ RECAPTCHA_SITE_KEY }}";</script>
+  <script src="{% static 'accounts/js/login.js' %}"></script>
 {% endblock %}

@@ -6,6 +6,7 @@ from django.http import HttpRequest, JsonResponse, HttpResponseForbidden, HttpRe
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.cache import never_cache
 
 from accounts.telegram import send_tg_order, send_tg_order_status
 from cart.signals_copurchase_variant import bump_copurchases_variants
@@ -78,6 +79,7 @@ def order_status(request, order_id):
     order = get_object_or_404(Order, order_id=order_id)
     return JsonResponse({"status": order.status})
 
+@never_cache
 @transaction.atomic
 def checkout(request):
     cart = get_cart(request)
@@ -149,23 +151,23 @@ def checkout(request):
     order.payment_url = url
     order.save(update_fields=["payment_url"])
 
-    try:
-        ms_data = create_customer_order(order)
-        if ms_data and ms_data.get("id"):
-            order.ms_order_id = ms_data["id"]
-            order.save(update_fields=["ms_order_id"])
-    except Exception as e:
-        print(e)
+    # try:
+    #     ms_data = create_customer_order(order)
+    #     if ms_data and ms_data.get("id"):
+    #         order.ms_order_id = ms_data["id"]
+    #         order.save(update_fields=["ms_order_id"])
+    # except Exception as e:
+    #     print(e)
 
-    try:
-        send_tg_order(order, request)
-    except Exception as e:
-        print(e)
+    # try:
+    #     send_tg_order(order, request)
+    # except Exception as e:
+    #     print(e)
 
-    cart.clear()
-    if hasattr(cart, "PROMO_KEY") and hasattr(cart, "session"):
-        cart.session.pop(cart.PROMO_KEY, None)
-        cart.session.modified = True
+    # cart.clear()
+    # if hasattr(cart, "PROMO_KEY") and hasattr(cart, "session"):
+    #     cart.session.pop(cart.PROMO_KEY, None)
+    #     cart.session.modified = True
 
     return redirect(url)
 

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.db import transaction
 
 from cart.models import Order
 from cart.MS import set_ms_order_state_by_uuid
@@ -110,47 +111,43 @@ def create_PaymentURL(order, request):
 @csrf_exempt
 @require_POST
 def payment_callback(request):
-    ct = request.META.get("CONTENT_TYPE", "")
-    body = request.body.decode("utf-8") if request.body else ""
-
+    ct = request.META.get("CONTENT_TYPE","").lower()
+    b = request.body.decode("utf-8") if request.body else ""
     try:
-        data = json.loads(body) if body and "json" in ct.lower() else {}
+        d = json.loads(b) if b and "json" in ct else {}
     except json.JSONDecodeError:
-        data = {}
-    if not data and body:
-        data = {k: v[0] for k, v in parse_qs(body).items()}
-
-    if not data:
+        d = {}
+    if not d and b:
+        d = {k:v[0] for k,v in parse_qs(b).items()}
+    if not d:
         return HttpResponse("BAD BODY", status=400)
 
-    token = str(data.get("Token") or "")
-    calc = tinkoff_token(data, settings.T_BANK_PASSWORD)
-    if token.lower() != calc.lower():
+    if str(d.get("Token","")).lower() != tinkoff_token(d, settings.T_BANK_PASSWORD).lower():
         return HttpResponse("BAD TOKEN", status=400)
 
-    order_id = data.get("OrderId")
-    status = str(data.get("Status") or "").upper()
-    success = data.get("Success")
-    if isinstance(success, str):
-        success = success.lower() == "true"
-
     try:
-        order = Order.objects.get(order_id=order_id)
+        order = Order.objects.get(order_id=d.get("OrderId"))
     except Order.DoesNotExist:
         return HttpResponse("NO ORDER", status=404)
 
-    if success and status in ("CONFIRMED", "AUTHORIZED"):
-        if (order.status != "paid"):
-            order.status = "paid"
+    status = str(d.get("Status","")).upper()
+    success = d.get("Success")
+    if isinstance(success,str):
+        success = success.lower() == "true"
+
+    if success and status == "CONFIRMED":
+        with transaction.atomic():
+            upd = Order.objects.filter(pk=order.pk).exclude(status="paid").update(status="paid")
+        if upd:
             try:
                 set_ms_order_state_by_uuid(order.ms_order_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
                 send_tg_order_status(order, request)
             except Exception as e:
                 send_tg_order_error(order, f"Произошла ошибка при установке статуса 'Оплачен': {e}", request)
-        
-    elif status in ("REJECTED", "CANCELED"):
-        order.status = "created"
-        
-    order.save(update_fields=["status"])
+        return HttpResponse("OK")
+
+    if status in ("REJECTED","CANCELED"):
+        Order.objects.filter(pk=order.pk).exclude(status="created").update(status="created")
+        return HttpResponse("OK")
 
     return HttpResponse("OK")

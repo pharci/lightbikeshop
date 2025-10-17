@@ -1,208 +1,65 @@
-.product-card {
-    background-color: white;
-    border-radius: 15px;
-    padding: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    will-change: transform;
-    cursor: pointer; 
-    transition: transform .15s ease, 
-    box-shadow .15s ease;
-    border: 1px solid var(--border);
+.product-card{
+  background-color:#fff;
+  border-radius:15px;
+  padding:.5rem;
+  display:flex; flex-direction:column; height:100%;
+  will-change:transform; cursor:pointer;
+  transition:transform .15s, box-shadow .15s;
+  border:1px solid var(--border);
 }
+.product-card:hover{transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.08);}
+.product-card:active{transform:translateY(-1px) scale(.995);}
+.product-card:focus-visible{outline:2px solid #0d6efd; outline-offset:2px;}
 
-.product-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.08); }
-.product-card:active { transform: translateY(-1px) scale(.995); }
-.product-card:focus-visible { outline: 2px solid #0d6efd; outline-offset: 2px; }
-
-.product-card__inner {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}
+.product-card__inner{display:flex; flex-direction:column; height:100%;}
 
 /* Обертка для изображения и бейджа */
-.product-card__image-wrapper {
-    position: relative;
-    border-radius: 8px;
-    overflow: hidden;
-    aspect-ratio: 1 / 1;
-    margin-bottom: 5px;
-}
-
-.product-card__thumbnail {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    aspect-ratio: 1 / 1;
-}
+.product-card__image-wrapper{position:relative; border-radius:8px; overflow:hidden; aspect-ratio:1/1; margin-bottom:5px;}
+.product-card__thumbnail{display:block; width:100%; height:100%; object-fit:cover; aspect-ratio:1/1; clip-path: inset(0 0.5px 0 0.5px);}
 
 /* Абсолютный бейдж */
-.product-card__badges {
-    position: absolute;
-    top: 0.2rem;
-    left: 0.2rem;
-    display: flex;
-    gap: 0.25rem;
-    z-index: 2;
-}
+.product-card__badges{position:absolute; top:.2rem; left:.2rem; display:flex; gap:.25rem; z-index:2;}
+.product-badge{color:black; font-size:.7rem; font-weight:bold; padding:.1rem .4rem; border-radius:6px;}
+.product-badge--sale{color:#fff; background:red;}
+.product-badge--new{color:#fff; background:#28a745;}
 
-.product-badge {
-    color: black;
-    font-size: 0.7rem;
-    font-weight: bold;
-    padding: 0.1rem 0.4rem;
-    border-radius: 6px;
-}
-.product-badge--sale {
-  color: white;
-  background: red;
-}
-.product-badge--new {
-  color: white;
-  background:#28a745;
-}
-
-
-.product-card__content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    margin-top: 0.5rem;
-}
-
-
+.product-card__content{display:flex; flex-direction:column; flex:1; margin-top:.5rem;}
 
 /* Fallback statuses */
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: .3rem;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-  border-radius: 8px;
-}
-
-.status__qty { font-weight:600; color: var(--text); font-size:14px }
+.status{display:inline-flex; align-items:center; gap:.3rem; font-size:14px; font-weight:500; color:var(--text); border-radius:8px;}
+.status__qty{font-weight:600; color:var(--text); font-size:14px}
 
 /* сама точка */
-.status__dot {
-  margin-top: 1px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  position: relative;
-}
-
-/* состояния */
-.status--out .status__dot      { background:#dc3545; }
-.status--out .status__dot::after { background:#dc3545; }
-
-.status--in .status__dot       { background:#28a745; }
-.status--in .status__dot::after  { background:#28a745; }
-
-
+.status__dot{margin-top:1px; width:8px; height:8px; border-radius:50%; display:inline-block; position:relative;}
+.status--out .status__dot{background:#dc3545;}
+.status--out .status__dot::after{background:#dc3545;}
+.status--in .status__dot{background:#28a745;}
+.status--in .status__dot::after{background:#28a745;}
 
 /* Фиксированная высота названия для выравнивания карточек */
-.product-card__title {
-    color: rgba(0, 0, 0, 1);
-    font-size: 16px;
-    margin: 0.25rem 0;
-    text-align: left;
-    line-height: 1.3;
-    min-height: calc(1.3em * 2); /* ровно 2 строки */
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+.product-card__title{
+  color:rgba(0,0,0,1); font-size:16px; margin:.25rem 0; text-align:left; line-height:1.3;
+  min-height:calc(1.3em * 2); overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
 }
 
 .product-card__price-row{
-  margin-top:auto;
-  display:flex;
-  align-items:baseline;
-  gap:5px;
-  flex-wrap:wrap;              /* перенос на маленьких экранах */
-  white-space:nowrap;          /* держим числа целиком */
-  font-variant-numeric: tabular-nums;
+  margin-top:auto; display:flex; align-items:baseline; gap:5px; white-space:nowrap; font-variant-numeric:tabular-nums;
 }
-.product-card__price{
-  margin:0;
-  font-size:20px;
-  font-weight:700;
-  color:#393D46;
-}
-.product-card__old-price{
-  font-size:14px;
-  color:#8a8f9a;
-  text-decoration:line-through;
-  transform: translateY(1px);  /* визуально ровнее по базовой линии */
-}
-
-
+.product-card__price{margin:0; font-size:20px; font-weight:700; color:#393D46;}
+.product-card__Old-price,.product-card__old-price{font-size:14px; color:#8a8f9a; text-decoration:line-through; transform:translateY(1px);}
 
 /* контейнер слайдера в карточке */
-.product-card__swiper{
-  border-radius: 8px;
-  overflow: hidden;
-}
-.product-card__swiper .product-card__thumbnail{
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-
+.product-card__swiper{border-radius:8px; overflow:hidden;}
 
 /* полоска-пагинация под фото */
 .hover-strip{
-  display: flex;
-  align-items: stretch;
-  gap: 5px;
-  height: 2px;
-  border-radius: 999px;
-  background: #eceff3;
-  overflow: hidden;
-  user-select: none;
-  position: relative;  /* создаём свой контекст слоя */
-  z-index: 1;
+  display:flex; align-items:stretch; gap:5px; height:2px; border-radius:999px; background:#eceff3; overflow:hidden; user-select:none; position:relative; z-index:1;
 }
-
-.hover-strip.is-empty{
-  background: transparent;
-  visibility: hidden;
-}
-
-.hover-strip__seg{
-  flex: 1 1 0;
-  border: 0;
-  padding: 0;
-  background: #d8dde6;
-  cursor: pointer;
-  transition: background .15s ease, opacity .15s ease;
-}
-.hover-strip__seg.is-active{ background:#99a2b3; }
-.hover-strip__seg:hover{ background:#b3bccd; }
+.hover-strip.is-empty{background:transparent; visibility:hidden;}
+.hover-strip__seg{flex:1 1 0; border:0; padding:0; background:#d8dde6; cursor:pointer; transition:background .15s,opacity .15s;}
+.hover-strip__seg.is-active{background:#99a2b3;}
+.hover-strip__seg:hover{background:#b3bccd;}
 
 /* слой с вертикальными зонами поверх фото */
-.hover-zones {
-  position: absolute;
-  inset: 0;                /* растянуть на всю картинку */
-  display: flex;           /* ровные вертикальные доли */
-  gap: 0;                  /* без зазоров */
-  z-index: 5;              /* выше изображений */
-  pointer-events: none;    /* по умолчанию не ловим события... */
-  border-radius: inherit;  /* повторяем скругление */
-}
-
-/* ...но сами сегменты события ловят */
-.hover-zone {
-  flex: 1 1 0;
-  pointer-events: auto;
-  background: transparent;   /* невидимые */
-}
+.hover-zones{position:absolute; inset:0; display:flex; gap:0; z-index:5; pointer-events:none; border-radius:inherit;}
+.hover-zone{flex:1 1 0; pointer-events:auto; background:transparent;}

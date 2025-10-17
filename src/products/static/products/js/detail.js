@@ -144,11 +144,10 @@ init();
 })();
 
 
-// Тоггл "Показать полностью" для описания
+
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-collapsible]');
   if (!btn) return;
-
   const sel = btn.getAttribute('data-collapsible');
   const el = document.querySelector(sel);
   if (!el) return;
@@ -156,29 +155,31 @@ document.addEventListener('click', (e) => {
   const expanded = btn.getAttribute('aria-expanded') === 'true';
   btn.setAttribute('aria-expanded', String(!expanded));
 
-  if (expanded) {
-    // свернуть
-    el.classList.remove('prose--expanded');
-    el.classList.add('prose--clamp');
-    btn.textContent = 'Показать полностью';
-  } else {
-    // развернуть
-    el.classList.remove('prose--clamp');
-    el.classList.add('prose--expanded');
-    btn.textContent = 'Свернуть';
-  }
+  el.classList.toggle('prose--expanded', !expanded);
+  el.classList.toggle('prose--clamp', expanded);
+  btn.textContent = expanded ? 'Показать полностью' : 'Свернуть';
 });
 
-// Если описание короткое — прячем кнопку
+// Инициализация: скрыть кнопку, если текст короткий
 document.addEventListener('DOMContentLoaded', () => {
-  const el = document.querySelector('#descBody');
-  const btn = document.querySelector('[data-collapsible="#descBody"]');
-  if (!el || !btn) return;
+  document.querySelectorAll('[data-collapsible]').forEach((btn) => {
+    const sel = btn.getAttribute('data-collapsible');
+    const el = document.querySelector(sel);
+    if (!el) return;
 
-  const isScrollable =
-      el.scrollHeight > 340;  // немного больше max-height, с запасом
-  if (!isScrollable) {
-    btn.style.display = 'none';
-    el.classList.remove('prose--clamp');
-  }
+    // вычисляем порог по max-height из CSS, иначе запас 340
+    const cs = getComputedStyle(el);
+    const maxH = parseFloat(cs.maxHeight) || 340;
+
+    if (el.scrollHeight <= maxH + 4) {  // небольшой допуск
+      btn.style.display = 'none';
+      el.classList.remove('prose--clamp');
+    } else {
+      // стартуем в «свернутом» состоянии
+      btn.style.display = '';
+      btn.setAttribute('aria-expanded', 'false');
+      el.classList.add('prose--clamp');
+      el.classList.remove('prose--expanded');
+    }
+  });
 });

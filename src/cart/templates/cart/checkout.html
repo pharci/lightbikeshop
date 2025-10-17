@@ -100,7 +100,19 @@
           <div class="field"><label class="field__label" for="patronymic">Отчество</label><input class="field__control {% if form.patronymic.errors %}is-invalid{% endif %}" id="patronymic" name="patronymic" value="{{ form.patronymic.value|default_if_none:'' }}">{% for e in form.patronymic.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
         </div>
         <div class="inline">
-          <div class="field"><label class="field__label" for="contact_phone">Телефон *</label><input class="field__control {% if form.contact_phone.errors %}is-invalid{% endif %}" id="contact_phone" name="contact_phone" type="tel" value="{{ form.contact_phone.value|default_if_none:'' }}" required>{% for e in form.contact_phone.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
+
+          <div class="field"><label class="field__label" for="contact_phone">Телефон *</label>
+          <input id="contact_phone"
+                name="contact_phone"
+                type="tel"
+                class="field__control {% if form.contact_phone.errors %}is-invalid{% endif %}"
+                inputmode="numeric"
+                autocomplete="tel"
+                maxlength="18"
+                required>
+            {% for e in form.contact_phone.errors %}<div class="field__error">{{ e }}</div>{% endfor %}
+          </div>
+
           <div class="field"><label class="field__label" for="email">Email</label><input class="field__control {% if form.email.errors %}is-invalid{% endif %}" id="email" name="email" type="email" value="{{ form.email.value|default_if_none:'' }}">{% for e in form.email.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>
         </div>
         <div class="field"><label class="field__label" for="order_notes">Комментарий</label><input class="field__control {% if form.order_notes.errors %}is-invalid{% endif %}" id="order_notes" name="order_notes" value="{{ form.order_notes.value|default_if_none:'' }}">{% for e in form.order_notes.errors %}<div class="field__error">{{ e }}</div>{% endfor %}</div>

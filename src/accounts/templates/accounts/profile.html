@@ -5,13 +5,12 @@
 
 {% block styles %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'accounts/css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'accounts/css/profile.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="container profile">
 
-  <!-- Модалка -->
   <div id="confirmationOverlay" class="overlay">
     <div class="overlay__content">
       <h2 class="overlay__title">Отменить заказ?</h2>
@@ -24,33 +23,20 @@
   </div>
 
   <div class="profile__grid">
-    <!-- Левое меню -->
     <aside class="card sidebar">
       <nav aria-label="Навигация профиля">
         <ul class="sidebar__list">
-          <li><a class="sidebar__link js-tab" data-section="profile">
-            <i data-lucide="user" class="sidebar__icon"></i> Профиль
-          </a></li>
-          <li><a class="sidebar__link js-tab" data-section="apps">
-            <i data-lucide="link" class="sidebar__icon"></i> Подключённые приложения
-          </a></li>
-          <li><a class="sidebar__link js-tab" data-section="orders">
-            <i data-lucide="package" class="sidebar__icon"></i> Заказы
-          </a></li>
-          <li><a class="sidebar__link js-tab" data-section="history">
-            <i data-lucide="clock" class="sidebar__icon"></i> История заказов
-          </a></li>
+          <li><a class="sidebar__link js-tab" data-section="profile"><i data-lucide="user" class="sidebar__icon"></i> Профиль</a></li>
+          <li><a class="sidebar__link js-tab" data-section="apps"><i data-lucide="link" class="sidebar__icon"></i> Подключённые приложения</a></li>
+          <li><a class="sidebar__link js-tab" data-section="orders"><i data-lucide="package" class="sidebar__icon"></i> Заказы</a></li>
+          <li><a class="sidebar__link js-tab" data-section="history"><i data-lucide="clock" class="sidebar__icon"></i> История заказов</a></li>
         </ul>
-        <a class="sidebar__logout" href="{% url 'accounts:logout' %}">
-          <i data-lucide="log-out" class="sidebar__icon"></i> Выйти
-        </a>
+        <a class="sidebar__logout" href="{% url 'accounts:logout' %}"><i data-lucide="log-out" class="sidebar__icon"></i> Выйти</a>
       </nav>
     </aside>
 
-    <!-- Контент -->
     <main>
 
-      <!-- Профиль -->
       <section id="section-profile" class="card js-section" hidden>
         <div class="profile__box">
           <div class="profile__row">
@@ -68,16 +54,14 @@
         </div>
       </section>
 
-      <!-- Подключённые приложения -->
       <section id="section-apps" class="js-section" hidden>
         {% if not user.telegram_id %}
-          <!-- Привязать Telegram -->
           <div class="card appcard">
             <div class="appicon"><i data-lucide="send"></i></div>
-            <h3 class="section__title section__title--sm">Telegram</h3>
-            <div style="margin-top:10px;">
+            <h3 class="section__title">Telegram</h3>
+            <div class="mt-2">
               <script async src="https://telegram.org/js/telegram-widget.js?22"
-                data-telegram-login="lightbikebot"   {# @botname без @ #}
+                data-telegram-login="lightbikebot"
                 data-size="large"
                 data-userpic="false"
                 data-request-access="write"
@@ -85,46 +69,20 @@
               </script>
             </div>
             {% for message in messages %}
-                {% if "tg" in message.tags %}
-                  <div class="tg-message {{ message.tags }}">{{ message }}</div>
-                {% endif %}
+              {% if "tg" in message.tags %}
+                <div class="tg-message {{ message.tags }}">{{ message }}</div>
+              {% endif %}
             {% endfor %}
           </div>
         {% endif %}
-
-        <div class="card appcard">
-          <div class="appicon"><i data-lucide="mail"></i></div>
-          <h3 class="section__title section__title--sm">Почта</h3>
-          <form action="{% url 'accounts:bind_email' %}" method="post" class="form-narrow">
-            {% csrf_token %}
-            <input class="input" type="email" name="email" required placeholder="your@email" value="{{ user.email }}">
-            <button type="submit" class="btn">Привязать/обновить почту</button>
-          </form>
-          <small class="helper-text">Почта нужна для уведомлений и входа.</small>
-          {% for message in messages %}
-              {% if "email" in message.tags %}
-                <div class="tg-message {{ message.tags }}">{{ message }}</div>
-              {% endif %}
-          {% endfor %}
-        </div>
-
-        <!-- Сброс пароля -->
-        <div class="card appcard">
-          <div class="appicon"><i data-lucide="key-round"></i></div>
-          <h3 class="section__title section__title--sm">Сброс пароля</h3>
-          <a href="{% url 'accounts:recovery' %}" class="btn">Изменить пароль</a>
-        </div>
       </section>
 
-      <!-- Заказы -->
       <section id="section-orders" class="js-section" hidden>
         {% for order in orders|dictsortreversed:"date_ordered" %}
           {% if order.status != 'delivered' and order.status != 'canceled' %}
             <article class="order card" id="{{ order.order_id }}">
               <header class="order__head">
-                <h3 class="order__title">
-                  <a href="{{ order.get_absolute_url }}">Заказ № {{ order.order_id }}</a>
-                </h3>
+                <h3 class="order__title"><a href="{{ order.get_absolute_url }}">Заказ № {{ order.order_id }}</a></h3>
                 <span class="badge
                   {% if order.status == 'created' %}badge--info
                   {% elif order.status == 'paid' %}badge--warn
@@ -185,7 +143,6 @@
         {% endfor %}
       </section>
 
-      <!-- История -->
       <section id="section-history" class="js-section" hidden>
         {% for order in orders|dictsortreversed:"date_ordered" %}
           {% if order.status == 'delivered' or order.status == 'canceled' %}
@@ -225,8 +182,7 @@
                   <div class="order__row"><span class="order__label">Количество товаров</span><span class="order__value">{{ order.get_total_count }}</span></div>
                   <div class="order__row"><span class="order__label">Итого к оплате</span><span class="order__value">{{ order.total|floatformat:2 }}₽</span></div>
                 </div>
-
-                <div class="order__actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                <div class="order__actions order__actions--wrap">
                   <a href="{{ order.get_absolute_url }}" class="btn">Подробнее</a>
                   <a href="https://t.me/light_bikeshop" class="btn">Помощь</a>
                 </div>

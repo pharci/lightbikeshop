@@ -2,6 +2,7 @@
 {% load static shop_extras %}
 
 {% block title %}{% if cat %}{{ cat.name }}{% elif brand %}{{ brand.title }}{% else %}Поиск{% endif %}{% endblock %}
+{% block canonical %}{{ request.scheme }}://{{ request.get_host }}{{ cat.get_absolute_url }}{% endblock %}
 
 {% block styles %}
   {{ block.super }}
