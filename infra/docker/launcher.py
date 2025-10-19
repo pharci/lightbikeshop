@@ -57,7 +57,7 @@ def execv(argv: list[str]) -> None:
 
 if ROLE == "web":
     subprocess.check_call([sys.executable, "manage.py", "migrate", "--noinput"])
-    subprocess.check_call([sys.executable, "manage.py", "collectstatic", "--noinput"])
+    subprocess.check_call([sys.executable, "manage.py", "collectstatic", "--noinput", "--clear"])
     execv([
         "gunicorn", "lightbikeshop.wsgi:application",
         "--bind", "0.0.0.0:8000",

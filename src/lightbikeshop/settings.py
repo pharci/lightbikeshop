@@ -186,6 +186,11 @@ NUMBER_GROUPING = 3
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "core.storage.CssOnlyManifestStaticFilesStorage"},
+}
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
@@ -342,5 +347,3 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60.0,  # раз в минуту
     },
 }
-
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
