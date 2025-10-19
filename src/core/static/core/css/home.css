@@ -12,12 +12,17 @@
 
 /* ====== Бренды ====== */
 .brandswiper{overflow:hidden;}
-.brandswiper__slide{width:auto;}
+.brandswiper__slide{width:120px !important;}         /* фикс ширины слайда = квадрат */
 .brand-card{display:flex;flex-direction:column;align-items:center;text-decoration:none;color:inherit;transition:transform .15s ease;}
-.brand-card__logo{width:100%;}
-.brand-card__logo img{width:100%;height:120px;object-fit:contain;display:block;border-radius:12px;border:1px solid var(--border);}
+.brand-card__logo{position:relative;width:100%;aspect-ratio:1/1;}  /* квадрат задаёт контейнер */
+@supports not (aspect-ratio:1/1){.brand-card__logo::before{content:"";display:block;padding-top:100%;}}
+.brand-card__logo img{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;display:block;border-radius:12px;border:1px solid var(--border);
+  -webkit-transform:translateZ(0);backface-visibility:hidden;   /* фикс Safari */
+}
 .brand-card__title{font-weight:600;font-size:14px;text-align:center;}
-.brand-card:hover{transform:translateY(-2px);color:black}
+.brand-card:hover{transform:translateY(-2px);color:black;}
 
 /* модификатор компонента карточки под слайдер */
 .product-card--slider .product-card__actions{display:none;}
