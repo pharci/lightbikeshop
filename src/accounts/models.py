@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth.models import PermissionsMixin, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 
 from accounts.otp import sign_with_id
 
@@ -13,70 +13,36 @@ from accounts.otp import sign_with_id
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
-
-    def _create_user(self, email: str, **extra):
-        if not email:
-            raise ValueError("Email обязателен")
+    def create_user(self, email, **extra):
+        if not email: raise ValueError("Email обязателен")
         email = self.normalize_email(email)
         user = self.model(email=email, **extra)
+        user.set_unusable_password()  # пароль не используем
         user.save(using=self._db)
         return user
-
-    def create_user(self, email: str, **extra):
-        extra.setdefault("is_staff", False)
-        extra.setdefault("is_superuser", False)
-        extra.setdefault("is_active", True)
-        return self._create_user(email, **extra)
-
-    def create_superuser(self, email: str, **extra):
+    def create_superuser(self, email, **extra):
         extra.setdefault("is_staff", True)
         extra.setdefault("is_superuser", True)
         extra.setdefault("is_active", True)
-        if extra.get("is_staff") is not True or extra.get("is_superuser") is not True:
-            raise ValueError("Суперпользователь требует is_staff=True и is_superuser=True")
-        return self._create_user(email, **extra)
+        return self.create_user(email, **extra)
 
 
-class User(PermissionsMixin):
-    id = models.AutoField(primary_key=True)
-    email = models.EmailField("Почта", unique=True, db_index=True)
-
-    # опционально
-    first_name = models.CharField("Имя", max_length=150, blank=True)
-    last_name = models.CharField("Фамилия", max_length=150, blank=True)
-    telegram_id = models.CharField("Telegram Id", max_length=200, null=True, blank=True)
-    telegram_username = models.CharField("Telegram Username", max_length=200, null=True, blank=True)
-
-    # статусы
-    is_active = models.BooleanField("Активный?", default=True)
-    is_staff = models.BooleanField("Персонал?", default=False)
-
-    # системные
-    last_login = models.DateTimeField("Последний вход", blank=True, null=True)
-    date_joined = models.DateTimeField("Создан", default=timezone.now)
+class User(AbstractBaseUser, PermissionsMixin):
+    email = models.EmailField(unique=True, db_index=True)
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name  = models.CharField(max_length=150, blank=True)
+    telegram_id = models.CharField(max_length=200, null=True, blank=True)
+    telegram_username = models.CharField(max_length=200, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_staff  = models.BooleanField(default=False)
+    date_joined = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()
-
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS: list[str] = []
+    REQUIRED_FIELDS = []
 
-    class Meta:
-        verbose_name = "Пользователь"
-        verbose_name_plural = "Пользователи"
-        indexes = [models.Index(fields=["email"])]
-
-    def __str__(self) -> str:
-        return self.email or f"user#{self.pk}"
-
-    # Django ожидает свойства, не методы
-    @property
-    def is_authenticated(self) -> bool:
-        return True
-
-    @property
-    def is_anonymous(self) -> bool:
-        return False
-
+    def __str__(self): return self.email or f"user#{self.pk}"
+    
 
 # ===== Email OTP =====
 
