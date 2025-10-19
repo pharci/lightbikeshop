@@ -171,7 +171,6 @@ body{
 @media (max-width:600px){
   .footer__grid{display:none}
   .footer__mobile{display:block;max-width:720px;margin:16px auto 88px;padding:0 16px}
-  .page-wrapper{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
 }
 @media (min-width:601px){
   .footerbar{display:none}
