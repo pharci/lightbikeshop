@@ -20,7 +20,7 @@
 @media (max-width:991.98px){
   .variant-page__grid{
     grid-template-columns:1fr;
-    grid-template-areas:"media" "info" "specs" "desc";
+    grid-template-areas:"media" "info" "specs" "desc" "brand-desc";
   }
   .variant-page__info{
     position:static;
