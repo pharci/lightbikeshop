@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import EmailMultiAlternatives, get_connection
 from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.utils.html import escape
@@ -169,7 +169,6 @@ def date_str_local(dt) -> str:
 def send_verification_code(email: str, code: str) -> None:
     site_name = getattr(settings, "SITE_NAME", "LIGHTBIKESHOP")
     subject = f"{site_name} — подтверждение входа"
-    from_email = settings.DEFAULT_FROM_EMAIL
     recipient_list = [email]
     home_url = abs_url("/")
 
@@ -201,8 +200,8 @@ def send_verification_code(email: str, code: str) -> None:
       </div>
     </div>
     """
-
-    email_obj = EmailMultiAlternatives(subject, text_message, from_email, recipient_list)
+    conn = get_connection(username=settings.AUTH_EMAIL_HOST_USER, password=settings.AUTH_EMAIL_HOST_PASSWORD)
+    email_obj = EmailMultiAlternatives(subject, text_message, settings.AUTH_EMAIL_HOST_USER, recipient_list, connection=conn)
     email_obj.attach_alternative(html_message, "text/html")
     email_obj.send()
 
@@ -211,7 +210,7 @@ def send_order_created_email(email: str, order) -> None:
     items = prefetch_items(order)
     site_name = getattr(settings, "SITE_NAME", "LIGHTBIKESHOP")
     subject = f"{site_name} — заказ №{order.order_id} оформлен"
-    from_email = settings.DEFAULT_FROM_EMAIL
+    from_email = settings.ORDER_EMAIL_HOST_USER
     recipient_list = [email]
 
     # text
@@ -282,7 +281,8 @@ def send_order_created_email(email: str, order) -> None:
     </div>
     """
 
-    email_obj = EmailMultiAlternatives(subject, text_message, from_email, recipient_list)
+    conn = get_connection(username=settings.ORDER_EMAIL_HOST_USER, password=settings.ORDER_EMAIL_HOST_PASSWORD)
+    email_obj = EmailMultiAlternatives(subject, text_message, settings.ORDER_EMAIL_HOST_USER, recipient_list, connection=conn)
     email_obj.attach_alternative(html_message, "text/html")
     email_obj.send()
 
@@ -294,7 +294,7 @@ def send_order_status_changed_email(email: str, order) -> None:
     new_h = human_status_current(order)
 
     subject = f"{site_name} — заказ №{order.order_id}, статус: {new_h}"
-    from_email = settings.DEFAULT_FROM_EMAIL
+    from_email = settings.ORDER_EMAIL_HOST_USER
     recipient_list = [email]
 
     # text
@@ -363,6 +363,7 @@ def send_order_status_changed_email(email: str, order) -> None:
     </div>
     """
 
-    email_obj = EmailMultiAlternatives(subject, text_message, from_email, recipient_list)
+    conn = get_connection(username=settings.ORDER_EMAIL_HOST_USER, password=settings.ORDER_EMAIL_HOST_PASSWORD)
+    email_obj = EmailMultiAlternatives(subject, text_message, settings.ORDER_EMAIL_HOST_USER, recipient_list, connection=conn)
     email_obj.attach_alternative(html_message, "text/html")
     email_obj.send()
