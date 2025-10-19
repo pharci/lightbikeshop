@@ -6,5 +6,5 @@ urlpatterns = [
 	#Leave as empty string for base url
 	path('', views.home, name="home"),
 	path('faq/', views.faq, name="faq"),
-    path("pages/<slug:slug>/", views.page_detail, name="detail"),
+    path("legal/<slug:slug>/", views.page_detail, name="detail"),
 ]

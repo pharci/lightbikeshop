@@ -7,7 +7,6 @@ class LoginValidationMiddleware:
 
     def __call__(self, request):
         if request.path == reverse('accounts:login'):
-
             if request.user.is_authenticated:
                 return redirect('accounts:profile')
                 

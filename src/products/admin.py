@@ -256,8 +256,6 @@ class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
             im0 = imgs[0]
             url = im0.image.url if getattr(im0, "image", None) else None
         if not url:
-            url = obj.main_image_url()
-        if not url:
             return "—"
         return format_html('<img src="{}" style="height:48px;width:auto;border-radius:4px;">', url)
 # ---------- AttributeValue ----------

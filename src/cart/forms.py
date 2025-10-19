@@ -18,7 +18,6 @@ class CheckoutForm(forms.Form):
     first_name     = forms.CharField()
     patronymic     = forms.CharField(required=False)
     contact_phone  = forms.CharField()
-    email          = forms.EmailField(required=False)
     order_notes    = forms.CharField(required=False)
 
     @property

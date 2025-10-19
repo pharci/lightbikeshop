@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+from django.contrib.admin.utils import quote as admin_quote
+from django.urls import reverse
 from decimal import Decimal
 
 from django.contrib import admin
@@ -57,7 +58,7 @@ class OrderAdmin(ColumnToggleModelAdmin):
     Заказы: превью, визитка, статус, деньги, промо, дата.
     """
     list_display = (
-        "image_preview", "identity", "ms_order_id", "status_badge",
+        "image_preview", "identity", "storefront_link", "ms_order_id", "status_badge",
         "money_summary", "promo_badge", "date_ordered",
     )
     default_selected_columns = list(list_display)
@@ -123,64 +124,109 @@ class OrderAdmin(ColumnToggleModelAdmin):
         )
 
     # Превью первой картинки
-    def image_preview(self, obj: Order):
+    def image_preview(self, obj):
         item = obj.items.first()
-        img = (item.variant.images.first().image if item and hasattr(item.variant, "images") else None)
-        if img:
+        if not item or not getattr(item, "variant", None):
+            return format_html(
+                '<div style="width:75px;height:75px;border-radius:8px;background:#f9f9f9;'
+                'display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;border:1px solid #ddd;">–</div>'
+            )
+
+        # безопасно достаём первую картинку
+        images_mgr = getattr(item.variant, "images", None)
+        first_img_obj = images_mgr.first() if images_mgr else None
+        img_field = getattr(first_img_obj, "image", None)
+        img_url = getattr(img_field, "url", None)
+
+        if img_url:
             return format_html(
                 '<div style="width:75px;height:75px;overflow:hidden;border-radius:8px;'
                 'background:#f9f9f9;display:flex;align-items:center;justify-content:center;border:1px solid #ddd;">'
                 '<img src="{}" style="max-width:100%;max-height:100%;object-fit:contain"/></div>',
-                img.url
+                img_url
             )
+
         return format_html(
             '<div style="width:75px;height:75px;border-radius:8px;background:#f9f9f9;'
             'display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;border:1px solid #ddd;">–</div>'
         )
+
     image_preview.short_description = "Фото"
 
-    # Визитка
     def identity(self, obj: Order):
         who = obj.user_name or "—"
         phone = obj.contact_phone or ""
         email = obj.email or ""
+
+        # палитры чипов
+        COLORS = {
+            "user":  ("#eef2ff", "#c7d2fe", "#4338ca"),  # синий
+            "who":   ("#ecfeff", "#a5f3fc", "#155e75"),  # бирюзовый
+            "phone": ("#fef3c7", "#fde68a", "#92400e"),  # янтарный
+            "email": ("#f0fdf4", "#bbf7d0", "#166534"),  # зелёный
+        }
+
+        def chip(text, key, href=None):
+            bg, br, fg = COLORS[key]
+            style = (
+                f"padding:2px 8px;border-radius:999px;"
+                f"background:{bg};border:1px solid {br};color:{fg};"
+                f"font-size:11px;text-decoration:none;display:inline-block;"
+            )
+            if href:
+                return format_html('<a href="{}" target="_blank" rel="noopener" style="{}">{}</a>', href, style, text)
+            return format_html('<span style="{}">{}</span>', style, text)
+
+        # чип пользователя (ссылка в админку)
         user_chip = ""
         if obj.user_id and obj.user:
-            user_chip = format_html(
-                '<span style="margin-left:6px;padding:2px 6px;'
-                'background:#eef2ff;border:1px solid #c7d2fe;'
-                'color:#4338ca;border-radius:6px;font-size:11px;">{}</span>',
-                obj.user,
+            u = obj.user
+            u_url = reverse(
+                f"admin:{u._meta.app_label}_{u._meta.model_name}_change",
+                args=[admin_quote(u.pk)]
             )
+            label = getattr(u, "email", None) or getattr(u, "username", None) or str(u.pk)
+            user_chip = chip(label, "user", href=u_url)
+
+        who_chip   = chip(who,   "who")
+        phone_chip = chip(phone, "phone") if phone else ""
+        email_chip = chip(email, "email") if email else ""
 
         return format_html(
-            """
-            <div style="line-height:1.4;font-size:13px;">
-            <div style="font-weight:600;font-size:14px;margin-bottom:2px;">
-                Заказ #{} {}
+            '''
+            <div style="line-height:1.45;font-size:13px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <button type="button" data-oid="{oid}"
+                        onclick="(function(el){{var t=el.getAttribute('data-oid');try{{navigator.clipboard.writeText(t);}}catch(_e){{var i=document.createElement('input');i.value=t;document.body.appendChild(i);i.select();document.execCommand('copy');i.remove();}}var n=document.createElement('div');n.textContent='Скопировано #'+t;n.style.cssText='position:fixed;left:50%;top:16px;transform:translateX(-50%);background:#111827;color:#fff;padding:6px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:12px;z-index:99999';document.body.appendChild(n);setTimeout(function(){{n.remove();}},1200);}})(this)"
+                        title="Скопировать номер"
+                        style="padding:4px 8px;border:1px solid #e5e7eb;border-radius:999px;cursor:pointer;font-weight:600;">
+                Заказ #{oid}
+                </button>
             </div>
-            <div style="color:#111827;">{}</div>
-            {}
-            <div style="color:#6b7280;font-size:12px;">{}</div>
+
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">
+                {user_chip}
+                {who_chip}
+                {phone_chip}
             </div>
-            """,
-            obj.order_id,
-            format_html(user_chip),
-            who,
-            format_html('<div style="color:#374151;font-size:12px;">{}</div>', phone) if phone else "",
-            email,
+            </div>
+            ''',
+            oid=obj.order_id,
+            user_chip=user_chip,
+            who_chip=who_chip,
+            phone_chip=phone_chip,
         )
     identity.short_description = "Визитка"
 
     # Бейдж статуса
     def status_badge(self, obj: Order):
         colors = {
-            "created":   ("#eef2ff", "#c7d2fe", "#4338ca"),  # Новый
-            "paid":      ("#ecfdf5", "#6ee7b7", "#047857"),  # Оплачен (зелёный ярче)
-            "assembled": ("#fefce8", "#fde68a", "#92400e"),  # Собран (жёлтый)
-            "shipped":   ("#eff6ff", "#bfdbfe", "#1d4ed8"),  # Отправлен (синий)
-            "delivered": ("#f0fdf4", "#bbf7d0", "#166534"),  # Доставлен (тёмно-зелёный)
-            "canceled":  ("#fef2f2", "#fecaca", "#b91c1c"),  # Отменён (красный)
+            "created":   ("#eef2ff", "#c7d2fe", "#4338ca"),
+            "paid":      ("#ecfdf5", "#6ee7b7", "#047857"),
+            "assembled": ("#fefce8", "#fde68a", "#92400e"),
+            "shipped":   ("#eff6ff", "#bfdbfe", "#1d4ed8"),
+            "delivered": ("#f0fdf4", "#bbf7d0", "#166534"),
+            "canceled":  ("#fef2f2", "#fecaca", "#b91c1c"),
         }
         bg, br, fg = colors.get(obj.status, ("#f3f4f6", "#e5e7eb", "#374151"))
         label = dict(Order.STATUS_CHOICES).get(obj.status, obj.status)
@@ -190,6 +236,14 @@ class OrderAdmin(ColumnToggleModelAdmin):
             bg, br, fg, label
         )
     status_badge.short_description = "Статус"
+
+
+    def storefront_link(self, obj: Order):
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">Открыть',
+            obj.get_absolute_url()
+        )
+    storefront_link.short_description = "На сайте"
 
 
 # ───────────────────────────── PICKUP ───────────────────────────── #

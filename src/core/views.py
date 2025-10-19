@@ -1,8 +1,10 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from .models import Wheel, FAQ, Page, SocialLink
 from cart.models import PickupPoint
 from products.models import Brand, Variant, Category
-
+from django.views.decorators.cache import cache_page
+from .sanitize import clean_html
+from django.utils.safestring import mark_safe
  
 def home(request):
     wheel = Wheel.objects.filter(is_active=True).order_by("order")
@@ -26,8 +28,9 @@ def faq(request):
     faqs = FAQ.objects.filter(is_active=True).order_by("order")
     return render(request, "core/faq.html", {"faqs": faqs})
 
-
 def page_detail(request, slug):
-    page = get_object_or_404(Page, slug=slug, is_published=True, external_url="")
-    ctx = {"page": page}
-    return render(request, "core/detail.html", ctx)
+    page = get_object_or_404(Page, slug=slug, is_published=True)
+    if page.external_url:
+        return redirect(page.external_url, permanent=False)
+    body = mark_safe(clean_html(page.body or ""))
+    return render(request, "core/detail.html", {"page": page, "body": body})

@@ -47,16 +47,11 @@
 
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@cdek-it/widget@3" charset="utf-8"></script>
 
-  {# Яндекс.Метрика #}
-  <script type="text/javascript">
-    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-      m[i].l=1*new Date();for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-      k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
-    (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-
-    ym(94255695, "init", { clickmap:true, trackLinks:true, accurateTrackBounce:true, webvisor:true });
-  </script>
-  <noscript><div><img src="https://mc.yandex.ru/watch/94255695" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+  {% if request.COOKIES.cookie_consent == 'all' %}
+  <noscript>
+    <div><img src="https://mc.yandex.ru/watch/94255695" style="position:absolute;left:-9999px;" alt=""></div>
+  </noscript>
+  {% endif %}
 </head>
 
 <body>
@@ -128,7 +123,9 @@
     </main>
 
     <!-- Footer desktop -->
+    <!-- МЕГА‑МОБИЛЬНЫЙ ФУТЕР С КРАСИВЫМИ ССЫЛКАМИ -->
     <footer class="footer">
+      <!-- Desktop grid (как было) -->
       <div class="footer__grid">
         <div class="footer__col">
           <p class="footer__title">Соцсети</p>
@@ -140,8 +137,11 @@
         <div class="footer__col">
           <p class="footer__title">Контакты</p>
           {% for p in footer_cols.2 %}
-            {% if p.external_url %}<a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
-            {% else %}<a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>{% endif %}
+            {% if p.external_url %}
+              <a class="footer__link" href="{{ p.get_absolute_url }}" rel="noopener" target="_blank">{{ p.title }}</a>
+            {% else %}
+              <a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+            {% endif %}
           {% empty %}<p class="footer__text">—</p>{% endfor %}
         </div>
 
@@ -149,14 +149,14 @@
           <p class="footer__title">Информация</p>
           {% for p in footer_cols.3 %}
             <a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
-          {% endfor %}
+          {% empty %}<p class="footer__text">—</p>{% endfor %}
         </div>
 
         <div class="footer__col">
           <p class="footer__title">Помощь</p>
           {% for p in footer_cols.4 %}
             <a class="footer__link" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
-          {% endfor %}
+          {% empty %}<p class="footer__text">—</p>{% endfor %}
         </div>
 
         <div class="footer__bottom">
@@ -164,30 +164,103 @@
         </div>
       </div>
 
-      <!-- Footer mobile bar -->
+      <!-- Mobile: аккуратные аккордеоны и чип‑ссылки -->
+      <div class="footer__mobile" role="navigation" aria-label="Футер">
+        <details class="f-acc" open>
+          <summary class="f-acc__summary"><span>Соцсети</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+          <nav class="f-acc__list">
+            {% for p in footer_cols.1 %}
+              <a class="f-link" href="{{ p.get_absolute_url }}">
+                <i class="f-link__icon" data-lucide="share-2" aria-hidden="true"></i>
+                <span class="f-link__text">{{ p.title }}</span>
+                <i class="f-link__arrow" data-lucide="arrow-up-right" aria-hidden="true"></i>
+              </a>
+            {% empty %}
+              <span class="f-empty">Нет ссылок</span>
+            {% endfor %}
+          </nav>
+        </details>
+
+        <details class="f-acc">
+          <summary class="f-acc__summary"><span>Контакты</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+          <nav class="f-acc__list">
+            {% for p in footer_cols.2 %}
+              {% if p.external_url %}
+                <a class="f-link" href="{{ p.get_absolute_url }}" rel="noopener" target="_blank">
+                  <span class="f-link__text">{{ p.title }}</span>
+                  <i class="f-link__arrow" data-lucide="external-link" aria-hidden="true"></i>
+                </a>
+              {% else %}
+                <a class="f-link" href="{{ p.get_absolute_url }}">
+                  <span class="f-link__text">{{ p.title }}</span>
+                  <i class="f-link__arrow" data-lucide="arrow-right" aria-hidden="true"></i>
+                </a>
+              {% endif %}
+            {% empty %}
+              <span class="f-empty">Нет ссылок</span>
+            {% endfor %}
+          </nav>
+        </details>
+
+        <details class="f-acc">
+          <summary class="f-acc__summary"><span>Информация</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+          <nav class="f-acc__list">
+            {% for p in footer_cols.3 %}
+              <a class="f-link" href="{{ p.get_absolute_url }}">
+                <i class="f-link__icon" data-lucide="file-text" aria-hidden="true"></i>
+                <span class="f-link__text">{{ p.title }}</span>
+                <i class="f-link__arrow" data-lucide="arrow-right" aria-hidden="true"></i>
+              </a>
+            {% empty %}
+              <span class="f-empty">Нет ссылок</span>
+            {% endfor %}
+          </nav>
+        </details>
+
+        <details class="f-acc">
+          <summary class="f-acc__summary"><span>Помощь</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+          <nav class="f-acc__list">
+            {% for p in footer_cols.4 %}
+              <a class="f-link" href="{{ p.get_absolute_url }}">
+                <i class="f-link__icon" data-lucide="life-buoy" aria-hidden="true"></i>
+                <span class="f-link__text">{{ p.title }}</span>
+                <i class="f-link__arrow" data-lucide="arrow-right" aria-hidden="true"></i>
+              </a>
+            {% empty %}
+              <span class="f-empty">Нет ссылок</span>
+            {% endfor %}
+          </nav>
+        </details>
+
+        <div class="f-copy">
+          <p class="footer__copy">© 2025 <a href="/" class="footer__brand">Lightbikeshop.ru</a></p>
+        </div>
+      </div>
+
+      <!-- Mobile bottom bar (обновлённый) -->
       <div class="footerbar" role="navigation" aria-label="Нижнее меню">
-        <a href="{% url 'core:home' %}" class="footerbar__btn">
+        <a href="{% url 'core:home' %}" class="footerbar__btn" aria-label="Главная">
           <i data-lucide="home"></i><span>Главная</span>
         </a>
-        <a href="{% url 'products:catalog' %}" class="footerbar__btn">
+        <a href="{% url 'products:catalog' %}" class="footerbar__btn" aria-label="Каталог">
           <i data-lucide="grid"></i><span>Каталог</span>
         </a>
-        <a href="{% url 'cart:cart' %}" class="footerbar__btn">
+        <a href="{% url 'cart:cart' %}" class="footerbar__btn" aria-label="Корзина">
           <span class="footerbar__icon">
             <i data-lucide="shopping-cart"></i>
             <span class="cart-count"><span class="cart-count-text">{{ cartItems }}</span></span>
           </span>
           <span>Корзина</span>
         </a>
-        <a href="{% url 'core:faq' %}" class="footerbar__btn">
+        <a href="{% url 'core:faq' %}" class="footerbar__btn" aria-label="FAQ">
           <i data-lucide="help-circle"></i><span>FAQ</span>
         </a>
         {% if user.is_authenticated %}
-        <a href="{% url 'accounts:profile' %}" class="footerbar__btn">
+        <a href="{% url 'accounts:profile' %}" class="footerbar__btn" aria-label="Профиль">
           <i data-lucide="user"></i><span>Профиль</span>
         </a>
         {% else %}
-        <a href="{% url 'accounts:login' %}" class="footerbar__btn">
+        <a href="{% url 'accounts:login' %}" class="footerbar__btn" aria-label="Войти">
           <i data-lucide="user"></i><span>Войти</span>
         </a>
         {% endif %}
@@ -205,5 +278,16 @@
   <script>lucide.createIcons();</script>
 
   {% block scripts %}{% endblock %}
+
+  <div id="cookie-banner" class="cc" style="display:none;">
+    <div class="cc__text">
+      Мы используем cookies. Нажмите «Принять всё» для аналитики.
+      <a class="cc__link" href="/legal/cookies/" target="_blank" rel="noopener">Подробнее</a>
+    </div>
+    <div class="cc__actions">
+      <button id="cc-necessary" type="button" class="cc__btn cc__btn--ghost">Только необходимые</button>
+      <button id="cc-accept" type="button" class="cc__btn cc__btn--primary">Принять всё</button>
+    </div>
+  </div>
 </body>
 </html>

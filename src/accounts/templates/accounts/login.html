@@ -9,57 +9,85 @@
 {% endblock %}
 
 {% block content %}
-<div class="container auth">
-  <div class="auth__grid">
-    <section class="card auth-card">
-      <form id="email-step" class="form" novalidate>
-        {% csrf_token %}
-        <div class="field">
-          <label for="id_email" class="label">Почта</label>
-          <input id="id_email" type="email" class="input" placeholder="you@example.com" autocomplete="email" required />
-          <p id="email-error" class="error" hidden>Введите корректный e-mail.</p>
-        </div>
-        <div class="actions">
-          <button type="submit" class="btn" id="send-btn">Войти</button>
-        </div>
-        <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
-      </form>
+<div class="auth-wrap">
+  <section class="card auth-card">
+    <header class="auth-head">
+      <h1 class="auth-title">Вход / Регистрация</h1>
+      <p class="auth-sub">Укажите e-mail. Мы отправим 6-значный код.</p>
+    </header>
 
-      <form id="code-step" class="form" novalidate hidden>
-        {% csrf_token %}
-        <input type="hidden" id="request_id">
-        <input type="hidden" id="email_hidden">
-        <div class="field">
-          <label for="id_code" class="label">Код из письма</label>
-          <div class="code-row">
-            <input id="id_code" type="text" class="input code-input" inputmode="numeric" maxlength="6" placeholder="XXXXXX" required />
-            <button type="submit" class="btn" id="verify-btn">Подтвердить</button>
-          </div>
-          <p id="code-error" class="error" hidden>Неверный код.</p>
-          <p id="code-info" class="hint" hidden></p>
-        </div>
-        <div class="inline inline--gap-sm">
-          <button type="button" id="resend-btn" class="btn-link" disabled>Отправить ещё <span id="resend-timer"></span></button>
-          <button type="button" id="change-email-btn" class="btn-link">Изменить почту</button>
-        </div>
-      </form>
-
-      <div class="mt-2">
-        <script async src="https://telegram.org/js/telegram-widget.js?22"
-          data-telegram-login="lightbikebot"
-          data-size="large"
-          data-userpic="false"
-          data-request-access="write"
-          data-auth-url="{{ request.scheme }}://{{ request.get_host }}/tg/auth"></script>
+    <!-- Шаг 1: e-mail -->
+    <form id="email-step" class="form" novalidate>
+      {% csrf_token %}
+      <div class="field">
+        <label for="id_email" class="label">Почта</label>
+        <input id="id_email" type="email" class="input" placeholder="you@example.com" autocomplete="email" required />
+        <p id="email-error" class="error" hidden aria-live="polite">Введите корректный e-mail.</p>
       </div>
 
-      <p class="legal">
-        This site is protected by reCAPTCHA and the Google
-        <a class="link" href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
-        <a class="link" href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
-      </p>
-    </section>
-  </div>
+      <div class="field">
+        <label class="checkbox" for="id_consent">
+          <input id="id_consent" name="consent" type="checkbox" required />
+          <span class="checkbox__text">
+            Я соглашаюсь с
+            <a class="link" href="/legal/privacy/" target="_blank" rel="noopener">политикой конфиденциальности</a>
+            и
+            <a class="link" href="/legal/terms/" target="_blank" rel="noopener">пользовательским соглашением</a>.
+          </span>
+        </label>
+        <p id="consent-error" class="error" hidden aria-live="polite">Согласие обязательно.</p>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn--pill w-100" id="send-btn">
+        <span class="btn__text">Отправить код</span>
+      </button>
+
+      <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
+    </form>
+
+    <!-- Шаг 2: код -->
+    <form id="code-step" class="form" novalidate hidden>
+      {% csrf_token %}
+      <input type="hidden" id="request_id">
+      <input type="hidden" id="email_hidden">
+
+      <div class="field">
+        <label for="id_code" class="label">Код из письма</label>
+        <div class="code-row">
+          <input id="id_code" type="text" class="input code-input" inputmode="numeric" maxlength="6" placeholder="XXXXXX" required />
+          <button type="submit" class="btn btn-primary btn--pill" id="verify-btn">Подтвердить</button>
+        </div>
+        <p id="code-error" class="error" hidden aria-live="polite">Неверный код.</p>
+        <p id="code-info" class="hint" hidden></p>
+      </div>
+
+      <div class="code-actions">
+        <button type="button" id="resend-btn" class="btn btn-ghost btn-sm btn--pill" disabled>
+          Отправить ещё <span id="resend-timer"></span>
+        </button>
+        <button type="button" id="change-email-btn" class="btn btn-ghost btn-sm btn--pill">
+          Изменить почту
+        </button>
+      </div>
+    </form>
+
+    <div class="divider"><span>или</span></div>
+
+    <div class="u-center mt-2">
+      <script async src="https://telegram.org/js/telegram-widget.js?22"
+        data-telegram-login="lightbikebot"
+        data-size="large"
+        data-userpic="false"
+        data-request-access="write"
+        data-auth-url="{{ request.scheme }}://{{ request.get_host }}/tg/auth"></script>
+    </div>
+
+    <p class="legal">
+      This site is protected by reCAPTCHA and the Google
+      <a class="link" href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and
+      <a class="link" href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.
+    </p>
+  </section>
 </div>
 {% endblock %}
 

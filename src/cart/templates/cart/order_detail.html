@@ -12,32 +12,91 @@
           </div>
         {% endwith %}
         <h1 class="section__title">Заказ {{ order.order_id }}</h1>
-        <div class="confirm__order">от {{ order.date_ordered|date:"d.m.Y H:i" }} • статус: <span class="status-badge status-badge--{{ order.status }}">{{ order.get_status_display|default:order.status }}</span></div>
+
+        {# Бейдж статуса: разные подписи для самовывоза и доставки #}
+        <div class="confirm__order">
+          от {{ order.date_ordered|date:"d.m.Y H:i" }} • статус:
+          <span class="status-badge status-badge--{{ order.status }}">
+            {% with st=order.status %}
+              {% if order.pvz_provider == "Самовывоз" %}
+                {% if st == "created" %}создан
+                {% elif st == "paid" %}оплачен
+                {% elif st == "assembled" %}готов к выдаче
+                {% elif st == "delivered" %}завершён
+                {% else %}{{ order.get_status_display|default:st }}{% endif %}
+              {% else %}
+                {% if st == "created" %}создан
+                {% elif st == "paid" %}оплачен
+                {% elif st == "assembled" %}собран
+                {% elif st == "shipped" %}отправлен
+                {% elif st == "delivered" %}доставлен
+                {% else %}{{ order.get_status_display|default:st }}{% endif %}
+              {% endif %}
+            {% endwith %}
+          </span>
+        </div>
+
         <div class="confirm__actions">
           <a href="https://t.me/light_bikeshop" class="btn">Помощь</a>
         </div>
       </div>
 
+      {# Шаги: разная дорожка для самовывоза и доставки #}
       <section class="island">
-        <ol class="steps">
-          <li class="steps__item {% if order.status == 'created' %}is-active{% elif order.status in 'paid assembled shipped delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Новый</span></li>
-          <li class="steps__item {% if order.status == 'paid' %}is-active{% elif order.status in 'assembled shipped delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Оплачен</span></li>
-          <li class="steps__item {% if order.status == 'assembled' %}is-active{% elif order.status in 'shipped delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Собран</span></li>
-          <li class="steps__item {% if order.status == 'shipped' %}is-active{% elif order.status == 'delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Отправлен</span></li>
-          <li class="steps__item {% if order.status == 'delivered' %}is-active{% endif %}"><span class="steps__dot"></span><span class="steps__label">Доставлен</span></li>
-        </ol>
+        {% if order.pvz_provider == "Самовывоз" %}
+          <ol class="steps" style="grid-template-columns:repeat(4,1fr);">
+            <li class="steps__item {% if order.status == 'created' %}is-active{% elif order.status in 'paid assembled delivered' %}is-done{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Новый</span>
+            </li>
+            <li class="steps__item {% if order.status == 'paid' %}is-active{% elif order.status in 'assembled delivered' %}is-done{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Оплачен</span>
+            </li>
+            <li class="steps__item {% if order.status == 'assembled' %}is-active{% elif order.status == 'delivered' %}is-done{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Готов к выдаче</span>
+            </li>
+            <li class="steps__item {% if order.status == 'delivered' %}is-active{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Завершён</span>
+            </li>
+          </ol>
+        {% else %}
+          <ol class="steps" style="grid-template-columns:repeat(5,1fr);">
+            <li class="steps__item {% if order.status == 'created' %}is-active{% elif order.status in 'paid assembled shipped delivered' %}is-done{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Новый</span>
+            </li>
+            <li class="steps__item {% if order.status == 'paid' %}is-active{% elif order.status in 'assembled shipped delivered' %}is-done{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Оплачен</span>
+            </li>
+            <li class="steps__item {% if order.status == 'assembled' %}is-active{% elif order.status in 'shipped delivered' %}is-done{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Собран</span>
+            </li>
+            <li class="steps__item {% if order.status == 'shipped' %}is-active{% elif order.status == 'delivered' %}is-done{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Отправлен</span>
+            </li>
+            <li class="steps__item {% if order.status == 'delivered' %}is-active{% endif %}">
+              <span class="steps__dot"></span><span class="steps__label">Доставлен</span>
+            </li>
+          </ol>
+        {% endif %}
       </section>
 
+      {# Блок «Доставка»: определяем тип по pvz_provider #}
       <section class="island">
         <h3 class="island__title">Доставка</h3>
         <div class="order-summary__row"><span class="muted">Город:</span><span>{{ order.city }}</span></div>
-        {% if order.pvz_code %}
-          <div class="order-summary__row"><span class="muted">Тип:</span><span>ПВЗ ({{ order.pvz_provider }})</span></div>
-          <div class="order-summary__row"><span class="muted">Код ПВЗ:</span><span>{{ order.pvz_code }}</span></div>
-          {% if order.pvz_address %}<div class="order-summary__row"><span class="muted">Адрес:</span><span>{{ order.pvz_address }}</span></div>{% endif %}
-        {% else %}
+
+        {% if order.pvz_provider == "Самовывоз" %}
           <div class="order-summary__row"><span class="muted">Тип:</span><span>Самовывоз</span></div>
+        {% else %}
+          <div class="order-summary__row"><span class="muted">Тип:</span><span>ПВЗ ({{ order.pvz_provider }})</span></div>
         {% endif %}
+
+        {% if order.pvz_code %}
+          <div class="order-summary__row"><span class="muted">Код ПВЗ:</span><span>{{ order.pvz_code }}</span></div>
+        {% endif %}
+        {% if order.pvz_address %}
+          <div class="order-summary__row"><span class="muted">Адрес:</span><span>{{ order.pvz_address }}</span></div>
+        {% endif %}
+
         {% if order.invoice %}
           <div class="order-summary__row">
             <span class="muted">Трек-номер:</span>

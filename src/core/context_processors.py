@@ -78,6 +78,17 @@ def breadcrumbs(request):
 
     if _apply_rules(items, path, rm):
         return {"breadcrumbs": items}
+    
+    if path.startswith("/legal/"):
+        slug = kw.get("slug")
+        if not slug:
+            # на случай прямого вызова без resolver_match
+            parts = [p for p in path.strip("/").split("/") if p]
+            slug = parts[1] if len(parts) > 1 else ""
+        title = Page.objects.filter(slug=slug, is_published=True)\
+                            .values_list("title", flat=True).first() or "Документ"
+        items.append((title, None))
+        return {"breadcrumbs": items}
 
     brand_slug = kw.get("brand") or kw.get("brand_slug")
     if brand_slug:

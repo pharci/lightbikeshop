@@ -1,9 +1,13 @@
 /* ===== Product Detail – full CSS ===== */
 
 .variant-page{margin-bottom:24px;}
-
-/* Layout */
 .variant-page__grid{display:grid; grid-template-columns:1fr; gap:12px;}
+.variant-page__media{grid-area:media;}
+.variant-page__info{display: flex; grid-area:info; position:sticky; top:112px; flex-direction: column;}
+.variant-page__specs{grid-area:specs;}
+.variant-page__desc{grid-area:desc;}
+.brand-page__desc{grid-area:brand-desc;}
+
 @media (min-width:992px){
   .variant-page__grid{
     display:grid;
@@ -12,18 +16,16 @@
     grid-template-areas:"media info" "specs info" "desc info" "brand-desc info";
     gap:12px; align-items:start;
   }
-  .variant-page__media{grid-area:media;}
-  .variant-page__info{grid-area:info; position:sticky; top:112px;}
-  .variant-page__specs{grid-area:specs;}
-  .variant-page__desc{grid-area:desc;}
-  .brand-page__desc{grid-area:brand-desc;}
 }
 @media (max-width:991.98px){
   .variant-page__grid{
     grid-template-columns:1fr;
     grid-template-areas:"media" "info" "specs" "desc";
   }
-  .variant-page__info{position:none;}
+  .variant-page__info{
+    position:static;
+    top:auto;
+  }
 }
 
 /* === ГРИД С КВАДРАТНЫМ ФОТО СЛЕВА === */
@@ -66,8 +68,18 @@
 
 /* Fallback availabilityes */
 .availability{
-  display:inline-flex; align-items:center; gap:.6rem; font-size:14px; font-weight:500; color:var(--text);
-  padding:6px 12px; border-radius:8px; background:rgba(0,0,0,0.04); margin-bottom:12px;
+  display:inline-flex; 
+  align-items:center; 
+  flex:0 0 auto;
+  align-self:flex-start;
+  gap:.6rem; 
+  font-size:14px; 
+  font-weight:500; 
+  color:var(--text);
+  padding:6px 12px; 
+  border-radius:8px; 
+  background:rgba(0,0,0,0.04); 
+  margin-bottom:12px;
 }
 .availability__qty{font-weight:600; color:var(--text); font-size:14px}
 .availability__dot{width:8px; height:8px; border-radius:50%; display:inline-block; position:relative;}

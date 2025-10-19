@@ -18,6 +18,7 @@ from cart.models import Order, OrderItem
 from .tpay import create_PaymentURL
 from .cart import get_cart
 from .cdek import calc_cdek_pvz_price
+from accounts.email import send_order_created_email, send_order_status_changed_email
 
 
 @require_GET
@@ -122,12 +123,14 @@ def checkout(request):
     lines = list(iter_cart_variants(cart))
     if not lines:
         return redirect("cart:cart")
+    
+    email = request.user.email if request.user.is_authenticated else None
 
     order = Order.objects.create(
         user=request.user if request.user.is_authenticated else None,
         user_name=form.user_name,
         contact_phone=form.cleaned_data.get("contact_phone", ""),
-        email=form.cleaned_data.get("email", ""),
+        email=email,
         order_notes=form.cleaned_data.get("order_notes") or "",
         subtotal=subtotal,
         discount_total=discount,
@@ -146,28 +149,32 @@ def checkout(request):
         OrderItem.objects.create(order=order, variant=v, price=v.price, quantity=q, amount=q * v.price)
     bump_copurchases_variants([v.id for v, q in lines for _ in range(q)])
 
-    # создаём ссылку на оплату; корзину чистим только после успеха
     url = create_PaymentURL(order, request)
     order.payment_url = url
     order.save(update_fields=["payment_url"])
 
-    # try:
-    #     ms_data = create_customer_order(order)
-    #     if ms_data and ms_data.get("id"):
-    #         order.ms_order_id = ms_data["id"]
-    #         order.save(update_fields=["ms_order_id"])
-    # except Exception as e:
-    #     print(e)
+    try:
+        ms_data = create_customer_order(order)
+        if ms_data and ms_data.get("id"):
+            order.ms_order_id = ms_data["id"]
+            order.save(update_fields=["ms_order_id"])
+    except Exception as e:
+        print(e)
 
-    # try:
-    #     send_tg_order(order, request)
-    # except Exception as e:
-    #     print(e)
+    try:
+        send_tg_order(order, request)
+    except Exception as e:
+        print(e)
 
-    # cart.clear()
-    # if hasattr(cart, "PROMO_KEY") and hasattr(cart, "session"):
-    #     cart.session.pop(cart.PROMO_KEY, None)
-    #     cart.session.modified = True
+    try:
+        send_order_created_email(email, order)
+    except Exception as e:
+        print(e)
+
+    cart.clear()
+    if hasattr(cart, "PROMO_KEY") and hasattr(cart, "session"):
+        cart.session.pop(cart.PROMO_KEY, None)
+        cart.session.modified = True
 
     return redirect(url)
 
@@ -222,7 +229,9 @@ def ms_order_webhook(request):
             rows = Order.objects.filter(ms_order_id=ms_id).exclude(status=new_status).update(status=new_status)
             if rows:
                 try:
-                    send_tg_order_status(Order.objects.get(ms_order_id=ms_id), request)
+                    order = Order.objects.get(ms_order_id=ms_id)
+                    send_tg_order_status(order, request)
+                    send_order_status_changed_email(order.email, order)
                 except Exception:
                     pass
 

@@ -83,23 +83,45 @@
             <article class="order card" id="{{ order.order_id }}">
               <header class="order__head">
                 <h3 class="order__title"><a href="{{ order.get_absolute_url }}">Заказ № {{ order.order_id }}</a></h3>
+
                 <span class="badge
                   {% if order.status == 'created' %}badge--info
                   {% elif order.status == 'paid' %}badge--warn
                   {% elif order.status == 'assembled' %}badge--ok
                   {% elif order.status == 'shipped' %}badge--danger
-                  {% else %}badge--muted{% endif %}">{{ order.get_status_display }}</span>
+                  {% elif order.status == 'delivered' %}badge--ok
+                  {% else %}badge--muted{% endif %}">
+                  {% if order.pvz_provider == 'Самовывоз' %}
+                    {% if order.status == 'created' %}Создан
+                    {% elif order.status == 'paid' %}Оплачен
+                    {% elif order.status == 'assembled' %}Готов к выдаче
+                    {% elif order.status == 'delivered' %}Завершён
+                    {% elif order.status == 'canceled' %}Отменён
+                    {% else %}{{ order.get_status_display }}{% endif %}
+                  {% else %}
+                    {% if order.status == 'created' %}Создан
+                    {% elif order.status == 'paid' %}Оплачен
+                    {% elif order.status == 'assembled' %}Собран
+                    {% elif order.status == 'shipped' %}Отправлен
+                    {% elif order.status == 'delivered' %}Доставлен
+                    {% elif order.status == 'canceled' %}Отменён
+                    {% else %}{{ order.get_status_display }}{% endif %}
+                  {% endif %}
+                </span>
               </header>
 
               <div class="order__meta">
                 <div class="order__row"><span class="order__label">Дата оформления</span><span class="order__value">{{ order.date_ordered|date:"d.n.Y, H:i" }}</span></div>
-                {% if order.pvz_code %}
-                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">ПВЗ</span></div>
+                {% if order.pvz_provider == 'Самовывоз' %}
+                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">Самовывоз</span></div>
+                {% else %}
+                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">{% if order.pvz_code %}ПВЗ ({{ order.pvz_provider }}){% else %}Доставка{% endif %}</span></div>
+                  {% if order.pvz_code %}
+                    <div class="order__row"><span class="order__label">Код ПВЗ</span><span class="order__value">{{ order.pvz_code }}</span></div>
+                  {% endif %}
                   {% if order.pvz_address %}
                     <div class="order__row"><span class="order__label">Адрес</span><span class="order__value">{{ order.pvz_address }}</span></div>
                   {% endif %}
-                {% else %}
-                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">Самовывоз</span></div>
                 {% endif %}
               </div>
 
@@ -149,18 +171,32 @@
             <article class="order card" id="{{ order.order_id }}">
               <header class="order__head">
                 <h3 class="order__title"><a href="{{ order.get_absolute_url }}">Заказ № {{ order.order_id }}</a></h3>
-                <span class="badge {% if order.status == 'delivered' %}badge--ok{% else %}badge--danger{% endif %}">{{ order.get_status_display }}</span>
+
+                <span class="badge {% if order.status == 'delivered' %}badge--ok{% else %}badge--danger{% endif %}">
+                  {% if order.pvz_provider == 'Самовывоз' %}
+                    {% if order.status == 'delivered' %}Завершён
+                    {% elif order.status == 'canceled' %}Отменён
+                    {% else %}{{ order.get_status_display }}{% endif %}
+                  {% else %}
+                    {% if order.status == 'delivered' %}Доставлен
+                    {% elif order.status == 'canceled' %}Отменён
+                    {% else %}{{ order.get_status_display }}{% endif %}
+                  {% endif %}
+                </span>
               </header>
 
               <div class="order__meta">
                 <div class="order__row"><span class="order__label">Дата оформления</span><span class="order__value">{{ order.date_ordered|date:"d.n.Y, H:i" }}</span></div>
-                {% if order.pvz_code %}
-                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">ПВЗ</span></div>
+                {% if order.pvz_provider == 'Самовывоз' %}
+                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">Самовывоз</span></div>
+                {% else %}
+                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">{% if order.pvz_code %}ПВЗ ({{ order.pvz_provider }}){% else %}Доставка{% endif %}</span></div>
+                  {% if order.pvz_code %}
+                    <div class="order__row"><span class="order__label">Код ПВЗ</span><span class="order__value">{{ order.pvz_code }}</span></div>
+                  {% endif %}
                   {% if order.pvz_address %}
                     <div class="order__row"><span class="order__label">Адрес</span><span class="order__value">{{ order.pvz_address }}</span></div>
                   {% endif %}
-                {% else %}
-                  <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">Самовывоз</span></div>
                 {% endif %}
               </div>
 

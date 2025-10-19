@@ -93,7 +93,7 @@ MIDDLEWARE = [
 
     # твои middlewares
     "accounts.middlewares.LoginValidationMiddleware",
-    "cart.middleware.CheckoutCartGuardMiddleware", 
+    "cart.middleware.CheckoutGuardMiddleware", 
 ]
 
 ROOT_URLCONF = "lightbikeshop.urls"
@@ -111,6 +111,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.breadcrumbs",
                 "core.context_processors.footer_pages",
+                "cart.context_processors.cartCount",
             ],
         },
     },

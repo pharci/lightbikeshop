@@ -13,11 +13,13 @@ from django.views.decorators.http import require_POST
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 
-from .otp import gen_code, current_id, sign_with_id
+from .otp import gen_code, current_id
 from .models import EmailOTP, User
 from cart.models import Order
-from .utils import verify_recaptcha, send_verification_code
+from cart.adopt import adopt_session_cart
+from .utils import verify_recaptcha
 from .telegram import _send_tg
+from .email import send_verification_code
 
 def _norm_email(s: str) -> str:
     s = (s or "").strip().lower()
@@ -39,31 +41,33 @@ def login_view(request):
 def api_send_code(request):
     email = _norm_email(request.POST.get("email"))
     recaptcha = request.POST.get("g-recaptcha-response")
+    agree = request.POST.get("agree") == "1"
+
     if not email:
         return JsonResponse({"ok": False, "error": "invalid_email"}, status=400)
     if not verify_recaptcha(recaptcha):
         return JsonResponse({"ok": False, "error": "recaptcha"}, status=400)
 
-    user, _ = User.objects.get_or_create(email=email, defaults={"is_active": True})
+    exists = User.objects.filter(email=email).exists()
+    if not exists and not agree:
+        return JsonResponse({"ok": False, "error": "need_consent"}, status=400)
 
     code = gen_code(6)
     try:
         send_verification_code(email, code)
-    except Exception as e:
+    except Exception:
         return JsonResponse({"ok": False, "error": "send_fail"}, status=502)
 
     sid = current_id()
     req = EmailOTP.create_for_email(
-        email=email,
-        code=code,              # ← передаём сырой код
-        secret_id=sid,
+        email=email, code=code, secret_id=sid,
         ip=request.META.get("REMOTE_ADDR"),
         ua=request.META.get("HTTP_USER_AGENT", "")[:255],
     )
 
-    # сессия пригодится для последующего login
     request.session["otp_email"] = email
     request.session["otp_req_id"] = str(req.request_id)
+    request.session["otp_allow_signup"] = bool(agree)
     return JsonResponse({"ok": True, "request_id": str(req.request_id)})
 
 @require_POST
@@ -72,7 +76,6 @@ def api_verify_code(request):
     email = _norm_email(request.POST.get("email") or request.session.get("otp_email"))
     request_id = request.POST.get("request_id") or request.session.get("otp_req_id")
     code = (request.POST.get("code") or "").strip()
-
     if not (email and request_id and code):
         return JsonResponse({"ok": False, "error": "missing"}, status=400)
 
@@ -80,20 +83,27 @@ def api_verify_code(request):
         otp = EmailOTP.objects.get(request_id=request_id, email=email)
     except EmailOTP.DoesNotExist:
         return JsonResponse({"ok": False, "error": "not_found"}, status=404)
-
     if not otp.can_verify():
         return JsonResponse({"ok": False, "error": "expired_or_locked"}, status=400)
-
     if not otp.verify_and_consume(code):
         return JsonResponse({"ok": False, "error": "bad_code", "attempts_left": max(0, otp.max_attempts - otp.attempts)}, status=400)
 
-    user, _ = User.objects.get_or_create(email=email, defaults={"is_active": True})
+    user = User.objects.filter(email=email).first()
+    if user is None:
+        if not request.session.get("otp_allow_signup"):
+            return JsonResponse({"ok": False, "error": "signup_not_allowed"}, status=403)
+        user = User.objects.create_user(
+            email=email,
+            is_active=True,
+        )
+        adopt_session_cart(request, user)
+
     if not user.is_active:
         return JsonResponse({"ok": False, "error": "inactive"}, status=403)
-
     login(request, user)
-    request.session["otp_email"] = None
-    request.session["otp_req_id"] = None
+    # очистить одноразовые флаги
+    for k in ("otp_email","otp_req_id","otp_allow_signup"):
+        request.session.pop(k, None)
     return JsonResponse({"ok": True, "redirect": "/"})
 
 

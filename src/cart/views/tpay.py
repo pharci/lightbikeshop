@@ -12,7 +12,8 @@ from cart.models import Order
 from cart.MS import set_ms_order_state_by_uuid
 from cart.order_utils import as_kop, D, allocate_lines
 from cart.order_utils import as_kop, D, allocate_lines
-from accounts.telegram import send_tg_order_status, send_tg_order_error
+from accounts.telegram import send_tg_order_status
+from accounts.email import send_order_status_changed_email
 
 def build_receipt(order):
     subtotal = D(order.subtotal or 0)              # сумма товаров до скидки
@@ -131,23 +132,42 @@ def payment_callback(request):
         return HttpResponse("NO ORDER", status=404)
 
     status = str(d.get("Status","")).upper()
-    success = d.get("Success")
-    if isinstance(success,str):
-        success = success.lower() == "true"
+    success = (str(d.get("Success","")).lower() == "true")
 
     if success and status == "CONFIRMED":
+        changed = False
         with transaction.atomic():
-            upd = Order.objects.filter(pk=order.pk).exclude(status="paid").update(status="paid")
-        if upd:
-            try:
-                set_ms_order_state_by_uuid(order.ms_order_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
-                send_tg_order_status(order, request)
-            except Exception as e:
-                send_tg_order_error(order, f"Произошла ошибка при установке статуса 'Оплачен': {e}", request)
+            o = Order.objects.select_for_update().get(pk=order.pk)
+            if o.status != "paid":
+                o.status = "paid"
+                o.save(update_fields=["status", "updated"])
+                changed = True
+                oid = o.order_id
+                ms_id = o.ms_order_id
+
+        if changed:
+            def _after_commit(oid=oid, ms_id=ms_id):
+                try:
+                    set_ms_order_state_by_uuid(ms_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
+                except Exception:
+                    pass
+                try:
+                    oo = Order.objects.filter(order_id=oid).only("pk").first()
+                    if oo:
+                        send_order_status_changed_email(oo.email, oo)
+                        send_tg_order_status(oo, request)
+                except Exception:
+                    pass
+            transaction.on_commit(_after_commit)
+
         return HttpResponse("OK")
 
     if status in ("REJECTED","CANCELED"):
-        Order.objects.filter(pk=order.pk).exclude(status="created").update(status="created")
+        with transaction.atomic():
+            o = Order.objects.select_for_update().get(pk=order.pk)
+            if o.status not in ("paid", "delivered", "canceled"):
+                o.status = "created"
+                o.save(update_fields=["status","updated"])
         return HttpResponse("OK")
 
     return HttpResponse("OK")

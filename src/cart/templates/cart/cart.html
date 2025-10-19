@@ -37,15 +37,23 @@
         <span id="cart-total-price">{{ cart.get_cart_total_price|floatformat:2 }} ₽</span>
       </div>
 
-      <a id="checkout-btn" class="btn btn--disabled" href="{% url 'cart:checkout' %}"></a>
+      {% if not request.user.is_authenticated %}
+        <a class="btn btn--disabled" href="#" aria-disabled="true">Оформить заказ</a>
+        <div class="note note--danger">
+          Чтобы оформить заказ, <a class="link" href="{% url 'accounts:login' %}?next={% url 'cart:checkout' %}">войдите в аккаунт</a>.
+        </div>
 
-      <p class="summary__fineprint">
-        Продолжая, вы соглашаетесь с <a href="#">политикой обработки персональных данных</a>.
-      </p>
+      {% elif cart.get_total_items|default:0 <= 0 %}
+        <a class="btn btn--disabled" href="#" aria-disabled="true">Оформить заказ</a>
+        <div class="note note--danger">В корзине пусто. Добавьте товары.</div>
+
+      {% else %}
+        <a id="checkout-btn" class="btn" href="{% url 'cart:checkout' %}">Оформить заказ</a>
+      {% endif %}
 
       {% for message in messages %}
-        {% if message.tags == 'error' %}
-          <p class="error">{{ message }}</p>
+        {% if message.level_tag == 'error' and 'global' in message.tags %}
+          <p class="field__error">{{ message }}</p>
         {% endif %}
       {% endfor %}
     </aside>
