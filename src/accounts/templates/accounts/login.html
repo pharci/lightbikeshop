@@ -10,8 +10,6 @@
 
 {% block content %}
 <div class="container auth">
-  <div class="section__header u-center"><h1 class="section__title">Войти или зарегистрироваться</h1></div>
-
   <div class="auth__grid">
     <section class="card auth-card">
       <form id="email-step" class="form" novalidate>
@@ -52,7 +50,7 @@
           data-size="large"
           data-userpic="false"
           data-request-access="write"
-          data-auth-url="https://pharci.ru/tg/auth/"></script>
+          data-auth-url="{{ request.scheme }}://{{ request.get_host }}/tg/auth"></script>
       </div>
 
       <p class="legal">

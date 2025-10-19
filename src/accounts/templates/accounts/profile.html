@@ -65,7 +65,7 @@
                 data-size="large"
                 data-userpic="false"
                 data-request-access="write"
-                data-auth-url="https://pharci.ru/tg/link/">
+                data-auth-url="{{ request.scheme }}://{{ request.get_host }}/tg/link">
               </script>
             </div>
             {% for message in messages %}
