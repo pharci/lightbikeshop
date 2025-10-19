@@ -1,64 +1,63 @@
 from django.contrib import admin
-from column_toggle.admin import ColumnToggleModelAdmin
-from .models import Wheel, FAQ, Page, SocialLink
-from django.utils.safestring import mark_safe
 from django.utils.html import format_html
 
-@admin.register(Wheel)
-class WheelAdmin(ColumnToggleModelAdmin):
-    list_display = ("image_preview", "title", "order", "is_active", "url", 'image')
-    default_selected_columns = list(list_display),
-    list_editable = ("image", "url", "order", "is_active")
-    list_display_links = ("image_preview", "title")
-    search_fields = ("title",)
-    ordering = ("order",)
-    list_per_page = 30
+from column_toggle.admin import ColumnToggleModelAdmin
 
-    def image_preview(self, obj):
-        if obj.image:
-            return mark_safe(f'<img src="{obj.image.url}" style="height:100px;" />')
-        return "-"
-    
-
-@admin.register(FAQ)
-class FAQAdmin(ColumnToggleModelAdmin):
-    list_display = ("title", "order", "is_active", "color")
-    default_selected_columns = list(list_display),
-    list_editable = ("order", "is_active", "color")
-    search_fields = ("title", "content")
-    ordering = ("order",)
-
-@admin.register(Page)
-class PageAdmin(admin.ModelAdmin):
-    list_display = ("title", "slug", "column", "order", "is_published")
-    list_filter = ("column", "is_published")
-    search_fields = ("title", "slug", "body")
-    prepopulated_fields = {"slug": ("title",)}
+from .models import SocialLink, Wheel, FAQ, Page
 
 
 @admin.register(SocialLink)
-class SocialLinkAdmin(admin.ModelAdmin):
-    list_display = ("title", "url", "order", "icon_tag")
-    list_editable = ("order",)
+class SocialLinkAdmin(ColumnToggleModelAdmin, admin.ModelAdmin):
+    list_display = ("icon_thumb", "order", "title", "url")
+    default_selected_columns = list(list_display)
+    list_display_links = ("icon_thumb", )
+    list_editable = ("order", "title", "url", "order", "title")
     search_fields = ("title", "url")
-    ordering = ("order", "title")
-    readonly_fields = ("icon_preview",)
-    fields = ("title", "url", "icon", "order", "icon_preview")
 
-    def icon_tag(self, obj):
+    def icon_thumb(self, obj):
         if not obj.icon:
             return "—"
-        return format_html(
-            '<img src="{}" style="height:24px;width:24px;object-fit:contain;border-radius:4px;" />',
-            obj.icon.url,
-        )
-    icon_tag.short_description = "Иконка"
+        return format_html('<img src="{}" class="adm-thumb" width="28" height="28" alt="{}">', obj.icon.url, obj.title)
+    icon_thumb.short_description = "Иконка"
 
-    def icon_preview(self, obj):
-        if not obj.icon:
+
+@admin.register(Wheel)
+class WheelAdmin(ColumnToggleModelAdmin, admin.ModelAdmin):
+    # добавлен raw-поле is_active для list_editable
+    list_display = ("image_thumb", "order", "title", "is_active", )
+    default_selected_columns = list(list_display)
+    list_display_links = ("image_thumb", )
+    list_editable = ("order", "title", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("title", "url")
+
+    def image_thumb(self, obj):
+        if not obj.image:
             return "—"
-        return format_html(
-            '<img src="{}" style="max-height:120px;object-fit:contain;border:1px solid #eee;padding:4px;border-radius:6px;" />',
-            obj.icon.url,
-        )
-    icon_preview.short_description = "Предпросмотр"
+        return format_html('<img src="{}" class="adm-thumb" width="64" height="36" alt="{}">', obj.image.url, obj.title)
+    image_thumb.short_description = "Превью"
+
+
+@admin.register(FAQ)
+class FAQAdmin(ColumnToggleModelAdmin, admin.ModelAdmin):
+    list_display = ("id", "order", "title", "color_chip", "color", "is_active")
+    default_selected_columns = list(list_display)
+    list_display_links = ("id",)
+    list_editable = ("order", "title", "color", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("title", "content", "color")
+
+    def color_chip(self, obj):
+        return format_html('<span class="adm-chip">цвет: {}</span>', obj.color)
+    color_chip.short_description = "Флажок"
+
+
+@admin.register(Page)
+class PageAdmin(ColumnToggleModelAdmin, admin.ModelAdmin):
+    list_display = ("id", "order", "title", "slug", "column", "is_published", "external_url", "anchor")
+    default_selected_columns = list(list_display)
+    list_display_links = ("id",)
+    list_editable = ("order", "title", "slug", "column", "is_published", "external_url", "anchor")
+    list_filter = ("column", "is_published")
+    search_fields = ("title", "slug", "external_url", "anchor")
+    prepopulated_fields = {"slug": ("title",)}

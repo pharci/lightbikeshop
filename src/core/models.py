@@ -1,6 +1,8 @@
 from django.db import models
 from django.urls import reverse
-from django.core.validators import URLValidator
+from django.core.validators import URLValidator, EmailValidator
+from django.core.exceptions import ValidationError
+import re
 
 class SocialLink(models.Model):
     title = models.CharField(max_length=50)           # название: VK, YouTube
@@ -52,7 +54,23 @@ class FAQ(models.Model):
         verbose_name_plural = "FAQ блоки"
 
 
-validate_url_ext = URLValidator(schemes=["http", "https", "mailto", "tel"])
+
+_http = URLValidator(schemes=["http", "https"])
+_email = EmailValidator()
+_tel_re = re.compile(r"^tel:\+?[0-9]{7,15}$")
+
+def validate_contact_url(value: str):
+    if not value:
+        return
+    if value.startswith("mailto:"):
+        _email(value[len("mailto:"):])
+        return
+    if value.startswith("tel:"):
+        if not _tel_re.match(value):
+            raise ValidationError("Введите телефон в формате tel:+79991234567")
+        return
+    _http(value)
+
 
 class Page(models.Model):
     COLS = [(1, "Соцсети"), (2, "Контакты"), (3, "Информация"), (4, "Помощь")]
@@ -64,7 +82,7 @@ class Page(models.Model):
     order = models.PositiveIntegerField(default=0)  # порядок в колонке
     is_published = models.BooleanField(default=True)
 
-    external_url = models.URLField("Ссылка", blank=True, validators=[validate_url_ext])
+    external_url = models.CharField("Ссылка", max_length=500, blank=True, validators=[validate_contact_url])
     anchor = models.CharField(max_length=120, blank=True)  # напр. "faq-chapter-1"
 
     class Meta:
