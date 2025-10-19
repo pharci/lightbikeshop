@@ -342,3 +342,5 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60.0,  # раз в минуту
     },
 }
+
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
