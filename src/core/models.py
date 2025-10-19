@@ -1,5 +1,6 @@
 from django.db import models
 from django.urls import reverse
+from django.core.validators import URLValidator
 
 class SocialLink(models.Model):
     title = models.CharField(max_length=50)           # название: VK, YouTube
@@ -51,6 +52,8 @@ class FAQ(models.Model):
         verbose_name_plural = "FAQ блоки"
 
 
+validate_url_ext = URLValidator(schemes=["http", "https", "mailto", "tel"])
+
 class Page(models.Model):
     COLS = [(1, "Соцсети"), (2, "Контакты"), (3, "Информация"), (4, "Помощь")]
 
@@ -61,12 +64,8 @@ class Page(models.Model):
     order = models.PositiveIntegerField(default=0)  # порядок в колонке
     is_published = models.BooleanField(default=True)
 
-    # если это просто ссылка, а не внутренняя страница
-    external_url = models.URLField(blank=True)
+    external_url = models.URLField("Ссылка", blank=True, validators=[validate_url_ext])
     anchor = models.CharField(max_length=120, blank=True)  # напр. "faq-chapter-1"
-
-    meta_title = models.CharField(max_length=200, blank=True)
-    meta_description = models.CharField(max_length=300, blank=True)
 
     class Meta:
         verbose_name = "Страницы футера"
