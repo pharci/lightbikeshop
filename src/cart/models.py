@@ -370,7 +370,7 @@ class Order(models.Model):
     )
 
     ms_order_id = models.UUIDField(
-        "ID Мой склад", unique=True, editable=False, null=True, blank=True
+        "ID Мой склад", unique=True, null=True, blank=True
     )
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Пользователь")
