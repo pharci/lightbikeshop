@@ -74,7 +74,7 @@ class OrderAdmin(ColumnToggleModelAdmin):
 
     fieldsets = (
         ("Основное", {
-            "fields": ("user", "status", "user_name", "contact_phone", "email", "order_notes")
+            "fields": ("order_id", "ms_order_id", "user", "status", "user_name", "contact_phone", "email", "order_notes")
         }),
         ("Суммы и оплата", {
             "fields": ("subtotal", "discount_total", "shipping_total", "total", "payment_type", "payment_url")
