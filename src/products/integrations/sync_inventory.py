@@ -1,20 +1,24 @@
-import os, time, requests
+import os, time, requests, sys
 from typing import Iterator, Dict, Any
 from django.db import transaction
 from products.models import Variant
 from django.conf import settings
+from django.utils import timezone
+from django.core.cache import cache
 
-HEADERS = {
+S = requests.Session()
+S.headers.update({
     "Authorization": f"Bearer {settings.MOYSKLAD_TOKEN_ADMIN}",
     "Accept-Encoding": "gzip",
     "User-Agent": "DjangoSync/1.0",
-}
-SLEEP_BETWEEN_REQUESTS = 0.1
+})
+S.hooks["response"] = [lambda r,*a,**k: print(
+    f"{r.request.method} {r.request.url} -> {r.status_code} {r.elapsed.total_seconds()*1000:.0f}ms", flush=True
+)]
 
-def _get(url: str, params=None) -> dict:
-    r = requests.get(url, headers=HEADERS, params=params, timeout=60)
-    r.raise_for_status()
-    return r.json()
+def _get(url, params=None):
+    print("GET", url, "params=", params, flush=True)
+    r = S.get(url, params=params, timeout=60); r.raise_for_status(); return r.json()
 
 def _iter_stock_rows(params: Dict[str, Any]) -> Iterator[dict]:
     url = f"{settings.MOYSKLAD_BASE}/report/stock/all/current"
@@ -37,10 +41,9 @@ def _iter_stock_rows(params: Dict[str, Any]) -> Iterator[dict]:
         data = _get(next_href)
         for r in yield_rows(data):
             yield r
-        time.sleep(SLEEP_BETWEEN_REQUESTS)
 
 def sync_inventory() -> dict:
-    params = {"groupBy": "variant"}
+    params = {"groupBy": "variant", "stockType": "freeStock"}
     report_ids, to_update = set(), []
 
     for row in _iter_stock_rows(params):
@@ -50,8 +53,8 @@ def sync_inventory() -> dict:
         if not vid:
             continue
 
-        qty = int(row.get("stock", 0) or 0)
-        if qty < 0:  # skip negative values
+        qty = int(row.get("freeStock", 0) or 0)
+        if qty < 0:
             qty = 0
 
         report_ids.add(vid)
@@ -66,12 +69,9 @@ def sync_inventory() -> dict:
             Variant.objects.bulk_update(to_update, ["inventory"])
         updated = len(to_update)
 
-    zeroed = (
-        Variant.objects
-        .filter(id__isnull=False)
-        .exclude(id__in=report_ids)
-        .update(inventory=0)
-    )
+    zeroed = (Variant.objects.filter(id__isnull=False).exclude(id__in=report_ids).update(inventory=0))
     total_db = Variant.objects.filter(id__isnull=False).count()
     matched = Variant.objects.filter(id__in=report_ids).count()
-    return {"total": total_db, "matched": matched, "updated": updated, "zeroed": zeroed}
+    stats = {"total": total_db, "matched": matched, "updated": updated, "zeroed": zeroed}
+    cache.set_many({"inv:last": timezone.now(), "inv:stats": stats}, None)
+    return stats

@@ -1,0 +1,138 @@
+{# templates/admin/index.html #}
+{% extends "admin/base_site.html" %}
+{% load i18n static admin_urls admin_list %}
+
+{% block extrahead %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  #orders-summary{color-scheme:light}
+  #orders-summary .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #orders-summary .btn{border:1px solid #e7e9ee;padding:6px 10px;border-radius:8px;background:#fff;text-decoration:none;cursor:pointer;color:#0f1115;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  #orders-summary .btn:disabled{opacity:.45;cursor:not-allowed}
+  #orders-summary .btn.active{background:#0f1115;color:#fff;border-color:#0f1115}
+  #orders-summary .chart-wrap{position:relative;width:100%;height:220px;overflow:hidden}
+  #orders-summary canvas{display:block;max-width:100%;width:100% !important;height:100% !important;box-sizing:border-box}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+
+  <div id="inv-summary" style="background:#fff;border:1px solid #e7e9ee;border-radius:12px;padding:14px;margin-bottom:12px">
+    <h2 style="font-size:16px;margin:0 0 6px 0;color:#0f1115">Сводка остатков</h2>
+    <p style="margin:0;color:#6b7280">Последнее обновление: {% if inv_last %}{{ inv_last|date:"Y-m-d H:i:s" }}{% else %}—{% endif %}</p>
+    <ul style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 0 0;padding:0;list-style:none">
+      <li style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #e7e9ee;border-radius:10px;background:#f7f8fa"><span style="color:#6b7280">Всего товаров</span><span style="font-weight:600;color:#0f1115">{{ inv_stats.total|default_if_none:"—" }}</span></li>
+      <li style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #e7e9ee;border-radius:10px;background:#f7f8fa"><span style="color:#6b7280">Совпало по отчёту</span><span style="font-weight:600;color:#0f1115">{{ inv_stats.matched|default_if_none:"—" }}</span></li>
+      <li style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #e7e9ee;border-radius:10px;background:#f7f8fa"><span style="color:#6b7280">Обновлено</span><span style="font-weight:600;color:#0f1115">{{ inv_stats.updated|default_if_none:"—" }}</span></li>
+      <li style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid #e7e9ee;border-radius:10px;background:#f7f8fa"><span style="color:#6b7280">Обнулено</span><span style="font-weight:600;color:#0f1115">{{ inv_stats.zeroed|default_if_none:"—" }}</span></li>
+    </ul>
+  </div>
+
+  <div id="orders-summary"
+       data-start="{{ ord_start|date:'Y-m-d' }}"
+       data-end="{{ ord_end|date:'Y-m-d' }}"
+       data-period="{{ ord_period|default:'custom' }}"
+       style="background:#fff;border:1px solid #e7e9ee;border-radius:12px;padding:14px;margin-bottom:12px">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="font-size:16px;margin:0;color:#0f1115">Заказы</h2>
+
+      <div class="row">
+        <div class="row" id="nav">
+          <button type="button" id="prevDay" class="btn" aria-label="Предыдущий день">◀</button>
+          <button type="button" id="todayBtn" class="btn">Сегодня</button>
+          <button type="button" id="nextDay" class="btn" aria-label="Следующий день">▶</button>
+        </div>
+
+        <a class="btn {% if ord_period == '7d' %}active{% endif %}"  href="?period=7d&shift=0">7d</a>
+        <a class="btn {% if ord_period == '30d' %}active{% endif %}" href="?period=30d&shift=0">30d</a>
+        <a class="btn {% if ord_period == 'all' %}active{% endif %}"  href="?period=all&shift=0">all</a>
+      </div>
+    </div>
+
+    <p style="margin:8px 0 12px 0;color:#6b7280">
+      {% if ord_period == 'all' %}Интервал: всё время{% else %}Интервал: {{ ord_start|date:"Y-m-d" }} — {{ ord_end|date:"Y-m-d" }}{% endif %}
+      • Всего заказов: <strong>{{ ord_total }}</strong>
+    </p>
+
+    {{ ord_labels|json_script:"ord-labels" }}
+    {{ ord_counts|json_script:"ord-counts" }}
+    <div class="chart-wrap"><canvas id="ordersChart"></canvas></div>
+  </div>
+</div>
+
+{% now "Y-m-d" as today_str %}
+<script>
+(function(){
+  const labels = JSON.parse(document.getElementById('ord-labels').textContent || '[]');
+  const counts = JSON.parse(document.getElementById('ord-counts').textContent || '[]');
+  new Chart(document.getElementById('ordersChart').getContext('2d'),{
+    type:'line',
+    data:{labels,datasets:[{data:counts,label:'Заказы',fill:false,tension:0.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}
+  });
+
+  const wrap = document.getElementById('orders-summary');
+  const btnPrev = document.getElementById('prevDay');
+  const btnNext = document.getElementById('nextDay');
+  const btnToday = document.getElementById('todayBtn');
+
+  const todayStr = "{{ today_str }}";
+  const PERIOD = (wrap.dataset.period || 'custom').toLowerCase();
+
+  let startStr = wrap.dataset.start || todayStr;
+  let endStr   = wrap.dataset.end   || todayStr;
+
+  const DAY = 86400000;
+  const toDate = s => { const [y,m,d]=s.split('-').map(Number); return new Date(y, m-1, d); };
+  const fmt = d => { const z=n=>String(n).padStart(2,'0'); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate()); };
+  const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+  const days = (a,b) => Math.round((b-a)/DAY)+1;
+
+  function gotoRange(s, e){
+    const params = new URLSearchParams(window.location.search);
+    params.delete('period');
+    params.delete('shift');
+    params.set('start', s);
+    params.set('end', e);
+    window.location.search = params.toString();
+  }
+
+  function shiftWindow(sign){
+    if (PERIOD === 'all') { gotoRange(todayStr, todayStr); return; }
+
+    let s = toDate(startStr);
+    let e = toDate(endStr);
+    const len = Math.max(1, days(s,e));     // длина окна 7/30/…
+    const delta = sign * len;                // сдвиг на длину окна
+
+    let ns = addDays(s, delta);
+    let ne = addDays(e, delta);
+
+    const t = toDate(todayStr);
+    if (ne > t) { ne = t; ns = addDays(t, -(len-1)); }
+
+    startStr = fmt(ns);
+    endStr   = fmt(ne);
+    gotoRange(startStr, endStr);
+  }
+
+  function syncNext(){ btnNext.disabled = toDate(endStr) >= toDate(todayStr); }
+  function syncAll(){ const dis = PERIOD === 'all'; btnPrev.disabled = dis; btnNext.disabled = dis; btnToday.disabled = dis; }
+  syncAll();
+
+  btnPrev.addEventListener('click', ()=>shiftWindow(-1));
+  btnNext.addEventListener('click', ()=>shiftWindow(1));
+  btnToday.addEventListener('click', ()=>{
+    const t = toDate(todayStr);
+    const s = toDate(startStr);
+    const e = toDate(endStr);
+    const len = Math.max(1, days(s,e));
+    const ns = addDays(t, -(len-1));
+    gotoRange(fmt(ns), fmt(t));
+  });
+
+  syncNext();
+})();
+</script>
+{% endblock %}

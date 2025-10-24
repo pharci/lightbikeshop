@@ -66,6 +66,12 @@ INSTALLED_APPS = [
     "adminsortable2",
     "debug_toolbar",
 
+    # Project apps
+    "core",
+    "products",
+    "accounts",
+    "cart",
+
     # Django core
     "django.contrib.admin",
     "django.contrib.auth",
@@ -73,12 +79,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
-    # Project apps
-    "core",
-    "products",
-    "accounts",
-    "cart",
 ]
 
 MIDDLEWARE = [
@@ -109,6 +109,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.context_processors.dashboard",
                 "core.context_processors.breadcrumbs",
                 "core.context_processors.footer_pages",
                 "cart.context_processors.cartCount",
@@ -268,12 +269,6 @@ CDEK_BASE = os.getenv("CDEK_BASE", "https://api.edu.cdek.ru")  # prod: https://a
 CDEK_ID = os.environ["CDEK_ID"]      
 CDEK_SECRET = os.environ["CDEK_SECRET"]
 CDEK_SENDER_CODE = os.environ["CDEK_SENDER_CODE"]
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "cdek-cache",
-    }
-}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Security headers & cookies (адекватные дефолты)
@@ -346,4 +341,15 @@ CELERY_BEAT_SCHEDULE = {
         "task": "products.tasks.update_inventory_minutely",
         "schedule": 60.0,  # раз в минуту
     },
+}
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/1")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "TIMEOUT": None,
+        "KEY_PREFIX": "lbs",
+    }
 }

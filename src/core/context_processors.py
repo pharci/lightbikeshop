@@ -3,6 +3,8 @@ from django.urls import reverse, NoReverseMatch
 from django.apps import apps
 from products.models import Category, Brand
 from .models import Page
+from django.core.cache import cache
+from django.utils.timezone import localtime
 
 def _rev(name, fallback="/"):
     try:
@@ -112,3 +114,10 @@ def breadcrumbs(request):
 def footer_pages(request):
     cols = {i: list(Page.objects.filter(is_published=True, column=i)) for i in (1,2,3,4)}
     return {"footer_cols": cols}
+
+def dashboard(request):
+    last = cache.get("inv:last")
+    return {
+        "inv_last": localtime(last) if last else None,
+        "inv_stats": cache.get("inv:stats") or {},
+    }
