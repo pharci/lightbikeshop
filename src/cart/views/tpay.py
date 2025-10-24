@@ -109,65 +109,114 @@ def create_PaymentURL(order, request):
         raise Exception(f"Init error: {data}")
     return data["PaymentURL"]
 
+# @csrf_exempt
+# @require_POST
+# def payment_callback(request):
+#     ct = request.META.get("CONTENT_TYPE","").lower()
+#     b = request.body.decode("utf-8") if request.body else ""
+#     try:
+#         d = json.loads(b) if b and "json" in ct else {}
+#     except json.JSONDecodeError:
+#         d = {}
+#     if not d and b:
+#         d = {k:v[0] for k,v in parse_qs(b).items()}
+#     if not d:
+#         return HttpResponse("BAD BODY", status=400)
+
+#     if str(d.get("Token","")).lower() != tinkoff_token(d, settings.T_BANK_PASSWORD).lower():
+#         return HttpResponse("BAD TOKEN", status=400)
+
+#     try:
+#         order = Order.objects.get(order_id=d.get("OrderId"))
+#     except Order.DoesNotExist:
+#         return HttpResponse("NO ORDER", status=404)
+
+#     status = str(d.get("Status","")).upper()
+#     success = (str(d.get("Success","")).lower() == "true")
+
+#     if success and status in ("CONFIRMED", "AUTHORIZED"):
+#         changed = False
+#         with transaction.atomic():
+#             o = Order.objects.select_for_update().get(pk=order.pk)
+#             if o.status != "paid":
+#                 o.status = "paid"
+#                 o.save(update_fields=["status", "updated"])
+#                 changed = True
+#                 oid = o.order_id
+#                 ms_id = o.ms_order_id
+
+#         if changed:
+#             def _after_commit(oid=oid, ms_id=ms_id):
+#                 try:
+#                     set_ms_order_state_by_uuid(ms_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
+#                 except Exception:
+#                     pass
+#                 try:
+#                     oo = Order.objects.filter(order_id=oid).only("pk").first()
+#                     if oo:
+#                         send_order_status_changed_email(oo.email, oo)
+#                         send_tg_order_status(oo, request)
+#                 except Exception:
+#                     pass
+#             transaction.on_commit(_after_commit)
+
+#         return HttpResponse("OK")
+
+#     if status in ("REJECTED","CANCELED"):
+#         with transaction.atomic():
+#             o = Order.objects.select_for_update().get(pk=order.pk)
+#             if o.status not in ("paid", "delivered", "canceled"):
+#                 o.status = "created"
+#                 o.save(update_fields=["status","updated"])
+#         return HttpResponse("OK")
+
+#     return HttpResponse("OK")
+
+
 @csrf_exempt
 @require_POST
 def payment_callback(request):
-    ct = request.META.get("CONTENT_TYPE","").lower()
-    b = request.body.decode("utf-8") if request.body else ""
+    ct = request.META.get("CONTENT_TYPE", "")
+    body = request.body.decode("utf-8") if request.body else ""
+
     try:
-        d = json.loads(b) if b and "json" in ct else {}
+        data = json.loads(body) if body and "json" in ct.lower() else {}
     except json.JSONDecodeError:
-        d = {}
-    if not d and b:
-        d = {k:v[0] for k,v in parse_qs(b).items()}
-    if not d:
+        data = {}
+    if not data and body:
+        data = {k: v[0] for k, v in parse_qs(body).items()}
+
+    if not data:
         return HttpResponse("BAD BODY", status=400)
 
-    if str(d.get("Token","")).lower() != tinkoff_token(d, settings.T_BANK_PASSWORD).lower():
+    token = str(data.get("Token") or "")
+    calc = tinkoff_token(data, settings.T_BANK_PASSWORD)
+    if token.lower() != calc.lower():
         return HttpResponse("BAD TOKEN", status=400)
 
+    order_id = data.get("OrderId")
+    status = str(data.get("Status") or "").upper()
+    success = data.get("Success")
+    if isinstance(success, str):
+        success = success.lower() == "true"
+
     try:
-        order = Order.objects.get(order_id=d.get("OrderId"))
+        order = Order.objects.get(order_id=order_id)
     except Order.DoesNotExist:
         return HttpResponse("NO ORDER", status=404)
 
-    status = str(d.get("Status","")).upper()
-    success = (str(d.get("Success","")).lower() == "true")
-
-    if success and status == "CONFIRMED":
-        changed = False
-        with transaction.atomic():
-            o = Order.objects.select_for_update().get(pk=order.pk)
-            if o.status != "paid":
-                o.status = "paid"
-                o.save(update_fields=["status", "updated"])
-                changed = True
-                oid = o.order_id
-                ms_id = o.ms_order_id
-
-        if changed:
-            def _after_commit(oid=oid, ms_id=ms_id):
-                try:
-                    set_ms_order_state_by_uuid(ms_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
-                except Exception:
-                    pass
-                try:
-                    oo = Order.objects.filter(order_id=oid).only("pk").first()
-                    if oo:
-                        send_order_status_changed_email(oo.email, oo)
-                        send_tg_order_status(oo, request)
-                except Exception:
-                    pass
-            transaction.on_commit(_after_commit)
-
-        return HttpResponse("OK")
-
-    if status in ("REJECTED","CANCELED"):
-        with transaction.atomic():
-            o = Order.objects.select_for_update().get(pk=order.pk)
-            if o.status not in ("paid", "delivered", "canceled"):
-                o.status = "created"
-                o.save(update_fields=["status","updated"])
-        return HttpResponse("OK")
+    if success and status in ("CONFIRMED", "AUTHORIZED"):
+        if (order.status != "paid"):
+            order.status = "paid"
+            try:
+                set_ms_order_state_by_uuid(order.ms_order_id, 'db567a2a-9f5a-11ef-0a80-176f007f7c59')
+                send_tg_order_status(order, request)
+            except Exception as e:
+                pass
+        
+    elif status in ("REJECTED", "CANCELED"):
+        order.status = "created"
+        
+    order.save(update_fields=["status"])
 
     return HttpResponse("OK")
