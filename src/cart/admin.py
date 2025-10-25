@@ -185,12 +185,11 @@ class OrderAdmin(ColumnToggleModelAdmin):
                 f"admin:{u._meta.app_label}_{u._meta.model_name}_change",
                 args=[admin_quote(u.pk)]
             )
-            label = getattr(u, "email", None) or getattr(u, "username", None) or str(u.pk)
+            label = getattr(u, "email", None) or getattr(u, "telegram_username", None) or f"user#{str(u.pk)}"
             user_chip = chip(label, "user", href=u_url)
 
         who_chip   = chip(who,   "who")
         phone_chip = chip(phone, "phone") if phone else ""
-        email_chip = chip(email, "email") if email else ""
 
         return format_html(
             '''

@@ -41,7 +41,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 
-    def __str__(self): return self.email or f"user#{self.pk}"
+    def __str__(self): return self.email or f"@{self.telegram_username}" or f"user#{self.pk}"
     
 
 # ===== Email OTP =====
