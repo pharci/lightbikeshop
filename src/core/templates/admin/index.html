@@ -59,6 +59,8 @@
     {{ ord_counts|json_script:"ord-counts" }}
     <div class="chart-wrap"><canvas id="ordersChart"></canvas></div>
   </div>
+
+  {% include "admin/app_list.html" with app_list=app_list %}
 </div>
 
 {% now "Y-m-d" as today_str %}
