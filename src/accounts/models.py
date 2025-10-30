@@ -28,10 +28,10 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(unique=True, db_index=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
     first_name = models.CharField(max_length=150, blank=True)
     last_name  = models.CharField(max_length=150, blank=True)
-    telegram_id = models.CharField(max_length=200, null=True, blank=True)
+    telegram_id = models.CharField(max_length=200, unique=True, null=True, blank=True)
     telegram_username = models.CharField(max_length=200, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff  = models.BooleanField(default=False)
@@ -42,6 +42,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     def __str__(self): return self.email or f"@{self.telegram_username}" or f"user#{self.pk}"
+    def save(self, *args, **kwargs):
+        if self.email == '':
+            self.email = None
+        super().save(*args, **kwargs)
     
 
 # ===== Email OTP =====

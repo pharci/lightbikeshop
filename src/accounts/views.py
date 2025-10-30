@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_protect, csrf_exempt, ensure_csrf_
 from django.views.decorators.http import require_POST
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
+from django.db import transaction, IntegrityError
 
 from .otp import gen_code, current_id
 from .models import EmailOTP, User
@@ -148,7 +149,6 @@ def _verify_telegram(request, bot_token: str) -> bool:
 
     return True
 
-
 @csrf_exempt
 def tg_auth(request):
     if request.method != "GET":
@@ -165,31 +165,58 @@ def tg_auth(request):
     if not tg_id:
         return HttpResponseBadRequest("Missing Telegram id")
 
-    username = (request.GET.get("username") or f"user_{tg_id}")
-    username = re.sub(r"[^\w\.]", "", username)[:32]
+    # TTL защиты от повторов
+    try:
+        auth_ts = int(request.GET.get("auth_date", "0"))
+    except ValueError:
+        return HttpResponseBadRequest("Bad auth_date")
+    if abs(int(time.time()) - auth_ts) > 300:
+        return HttpResponseForbidden("Telegram auth too old")
 
-    user, created = User.objects.get_or_create(
-        telegram_id=str(tg_id),
-        defaults={"telegram_username": username},
-    )
-    if not created and username and user.telegram_username != username:
-        user.telegram_username = username
-        user.save(update_fields=["telegram_username"])
+    username = request.GET.get("username") or None
+    first_name = request.GET.get("first_name") or ""
+    last_name = request.GET.get("last_name") or ""
 
-    login(request, user)
+    # атомарно + без email
+    with transaction.atomic():
+        user, created = User.objects.select_for_update().get_or_create(
+            telegram_id=str(tg_id),
+            defaults={
+                "email": None,
+                "telegram_username": username,
+                "first_name": first_name,
+                "last_name": last_name,
+            },
+        )
+        # мягкое обновление профиля при повторном входе
+        dirty = False
+        if not created:
+            if username and username != user.telegram_username:
+                user.telegram_username = username; dirty = True
+            if first_name != user.first_name:
+                user.first_name = first_name; dirty = True
+            if last_name != user.last_name:
+                user.last_name = last_name; dirty = True
+            if user.email == "":  # защита от старых данных
+                user.email = None; dirty = True
+            if dirty:
+                user.save(update_fields=["telegram_username","first_name","last_name","email"])
+
+    # явный backend
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
 
     if created:
         try:
+            # формируем валидную https-ссылку
             host = request.get_host()
             link = f"https://{host}"
-
             msg = (
                 f"✨ Добро пожаловать в <a href=\"{link}\">LightBikeShop</a>!\n\n"
                 "🚴 Здесь вы найдёте всё необходимое для своего велосипеда.\n"
                 "🛒 Следите за обновлениями и акциями прямо в этом чате.\n\n"
                 "Спасибо, что выбрали нас!"
             )
-            _send_tg(tg_id, msg)
+            _send_tg(tg_id, msg)  # parse_mode=HTML внутри функции
         except Exception:
             pass
 
@@ -198,8 +225,9 @@ def tg_auth(request):
 
 @login_required
 def tg_link(request):
-    token = settings.TELEGRAM_BOT_TOKEN
+    token = getattr(settings, "TELEGRAM_BOT_TOKEN", None)
     if not token:
+        messages.error(request, "Telegram токен не настроен", extra_tags="tg")
         return redirect("accounts:profile")
 
     if not _verify_telegram(request, token):
@@ -211,30 +239,50 @@ def tg_link(request):
         messages.error(request, "Не передан Telegram ID", extra_tags="tg")
         return redirect("accounts:profile")
 
-    username = (request.GET.get("username") or f"user_{tg_id}")
-    username = re.sub(r"[^\w\.]", "", username)[:32]
+    # TTL от повторов
+    try:
+        auth_ts = int(request.GET.get("auth_date", "0"))
+    except ValueError:
+        messages.error(request, "Некорректный auth_date", extra_tags="tg")
+        return redirect("accounts:profile")
+    if abs(int(time.time()) - auth_ts) > 300:
+        messages.error(request, "Просроченная авторизация через Telegram", extra_tags="tg")
+        return redirect("accounts:profile")
 
-    if User.objects.filter(telegram_id=str(tg_id)).exclude(pk=request.user.pk).exists():
+    # Валидный username по правилам Telegram
+    raw_username = request.GET.get("username") or ""
+    username = re.sub(r"[^A-Za-z0-9_]", "", raw_username)[:32]
+    if len(username) < 5:
+        username = f"user_{tg_id}"[:32]
+
+    # Защита от гонки и дубликатов
+    try:
+        with transaction.atomic():
+            if User.objects.filter(telegram_id=str(tg_id)).exclude(pk=request.user.pk).exists():
+                messages.error(request, "Этот Telegram уже привязан к другому аккаунту", extra_tags="tg")
+                return redirect("accounts:profile")
+
+            user = request.user
+            user.telegram_id = str(tg_id)
+            user.telegram_username = username
+            user.save(update_fields=["telegram_id", "telegram_username"])
+    except IntegrityError:
         messages.error(request, "Этот Telegram уже привязан к другому аккаунту", extra_tags="tg")
         return redirect("accounts:profile")
 
-    user = request.user
-    user.telegram_id = str(tg_id)
-    user.telegram_username = username
-    user.save(update_fields=["telegram_id", "telegram_username"])
-
     messages.success(request, "Telegram успешно привязан к аккаунту", extra_tags="tg")
-    try:
-        host = request.get_host()
-        link = f"https://{host}"
 
+    try:
+        base = getattr(settings, "SITE_URL", None)
+        link = (base or request.build_absolute_uri("/")).rstrip("/")
         msg = (
             f"✨ Добро пожаловать в <a href=\"{link}\">LightBikeShop</a>!\n\n"
             "🚴 Здесь вы найдёте всё необходимое для своего велосипеда.\n"
             "🛒 Следите за обновлениями и акциями прямо в этом чате.\n\n"
             "Спасибо, что выбрали нас!"
         )
-        _send_tg(tg_id, msg)
+        _send_tg(tg_id, msg)  # внутри должен быть parse_mode=HTML
     except Exception:
         pass
+
     return redirect("accounts:profile")
