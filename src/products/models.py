@@ -8,6 +8,8 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.db.models import Q, CheckConstraint, UniqueConstraint
 from functools import cached_property
+from imagekit.models import ImageSpecField
+from imagekit.processors import ResizeToFill
 
 class Category(models.Model):
     title = models.CharField('Название (основное)', max_length=50, db_index=True, unique=True)
@@ -272,6 +274,28 @@ class Image(models.Model):
     """
     variant = models.ForeignKey(Variant, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField('Изображение', upload_to='gallery/')
+    thumb = ImageSpecField(
+        source="image",
+        processors=[ResizeToFill(300, 300)],
+        format="WEBP",
+        options={"quality": 65}
+    )
+
+    # основное изображение на странице товара
+    medium = ImageSpecField(
+        source="image",
+        processors=[ResizeToFill(900, 900)],
+        format="WEBP",
+        options={"quality": 75}
+    )
+
+    # для lightbox (уменьшенный оригинал)
+    large = ImageSpecField(
+        source="image",
+        processors=[ResizeToFill(1600, 1600)],
+        format="WEBP",
+        options={"quality": 85}
+    )
     alt = models.CharField('Alt-текст', max_length=200, blank=True)
     sort = models.PositiveIntegerField('Порядок', default=0)
 

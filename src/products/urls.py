@@ -20,5 +20,5 @@ urlpatterns = [
         name="category",
     ),
 
-    re_path(r"^brands/(?P<brand>[-\w]+)/$", views.list, name="brand"),
+    re_path(r"^brand/(?P<brand>[-\w]+)/$", views.list, name="brand"),
 ]

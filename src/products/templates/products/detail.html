@@ -28,13 +28,13 @@
                   {% for img in variant.images.all %}
                     <div class="swiper-slide">
                       <a class="lb-link"
-                         href="{{ img.image.url }}"
-                         data-lightbox="variant-gallery"
-                         data-title="{{ img.alt|default:variant.product.base_name }}">
+                        href="{{ img.large.url }}"
+                        data-lightbox="variant-gallery"
+                        data-title="{{ img.alt|default:variant.product.base_name }}">
                         <img class="variant-gallery__image"
-                             src="{{ img.image.url }}"
-                             alt="{{ img.alt|default:variant.product.base_name }}"
-                             loading="lazy">
+                            src="{{ img.medium.url }}"
+                            alt="{{ img.alt|default:variant.product.base_name }}"
+                            loading="lazy">
                       </a>
                     </div>
                   {% endfor %}
@@ -60,9 +60,9 @@
                   {% for img in variant.images.all %}
                     <button class="rail__item" type="button" data-index="{{ forloop.counter0 }}">
                       <img class="rail__thumb"
-                           src="{{ img.image.url }}"
-                           alt="{{ img.alt|default:variant.product.base_name }}"
-                           loading="lazy">
+                        src="{{ img.thumb.url }}"
+                        alt="{{ img.alt|default:variant.product.base_name }}"
+                        loading="lazy">
                     </button>
                   {% endfor %}
                 </div>

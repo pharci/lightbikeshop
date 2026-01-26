@@ -1,11 +1,10 @@
 from django.contrib import admin
-from django.urls import re_path, path, include
+from django.urls import path, include
 from django.conf.urls.static import static
 from django.conf import settings
-from core.dashboard.admin_index import admin_index
 
 urlpatterns = [
-    path("admin/", admin_index, name="admin-index"),
+    path("admin/", include("admin_panel.urls")),
     path('admin/', admin.site.urls),
     path('', include(('core.urls', 'core'), namespace='core')),
     path('', include(('accounts.urls', 'accounts'), namespace='accounts')),

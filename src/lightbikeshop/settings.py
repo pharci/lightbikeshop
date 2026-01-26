@@ -55,24 +55,21 @@ INTERNAL_IPS = ["127.0.0.1"]
 # Apps
 # ──────────────────────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
-    # 3rd-party UI/admin
     "admin_interface",
-    "django_jsonform",
     "rangefilter",
     "django_admin_logs",
     "column_toggle",
     "colorfield",
-    "nested_admin",
     "adminsortable2",
     "debug_toolbar",
+    "imagekit",
 
-    # Project apps
+    "admin_panel",
     "core",
     "products",
     "accounts",
     "cart",
 
-    # Django core
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -109,7 +106,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "core.context_processors.dashboard",
+                "admin_panel.context_processors.dashboard",
                 "core.context_processors.breadcrumbs",
                 "core.context_processors.footer_pages",
                 "cart.context_processors.cartCount",
