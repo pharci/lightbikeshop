@@ -242,7 +242,7 @@ class Variant(models.Model):
 
     def main_image_url(self):
         img = self.images.first()
-        return img.image.url if img and img.image else self.product.imageURL
+        return img.thumb.url if img and img.image else self.product.imageURL
     
     def get_absolute_url(self):
         category = self.product.category

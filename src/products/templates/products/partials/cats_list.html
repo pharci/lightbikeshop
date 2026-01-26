@@ -12,9 +12,7 @@
       <a href="{{ child.get_absolute_url }}" class="category-card hover-shadow border">
         <div class="category-card__media">
           {% if child.image %}
-            <img src="{{ child.image.thumb.url }}"
-              alt="{{ child }}"
-              loading="lazy">
+            <img src="{{ child.image.url }}" alt="{{ child }}">
           {% endif %}
         </div>
         <div class="category-card__body">

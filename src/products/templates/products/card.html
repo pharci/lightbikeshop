@@ -16,14 +16,13 @@
           {% endif %}
         </div>
 
-
       <div class="swiper product-card__swiper">
         <div class="swiper-wrapper">
           {% if v.images.all %}
             {% for img in v.images.all %}
               <div class="swiper-slide">
                 <img class="product-card__thumbnail"
-                     src="{{ img.image.url }}"
+                     src="{{ img.thumb.url }}"
                      alt="{{ img.alt|default:v.display_name }}"
                      loading="lazy">
               </div>
