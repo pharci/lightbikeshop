@@ -45,6 +45,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
+    hostname: mail.lightbikeshop.ru
     env_file: ops/env/.env.prod
     environment:
       APP_ROLE: web
@@ -58,6 +59,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/web.Dockerfile
+    hostname: mail.lightbikeshop.ru
     env_file: ops/env/.env.prod
     environment:
       APP_ROLE: worker
