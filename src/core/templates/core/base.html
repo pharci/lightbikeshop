@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <title>{% block title %}Light - Магазин лёгких запчастей{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}Магазин запчастей для BMX{% endblock %}">
+  <meta name="description" content="{% block meta_description %}{% endblock %}">
   <link rel="canonical" href="{% block canonical %}{{ request.scheme }}://{{ request.get_host }}{{ request.path }}{% endblock %}">
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -115,6 +115,8 @@
         <a class="navlink" href="{% url 'products:catalog' %}">Каталог</a>
       </div>
     </header>
+
+    <h1 class="seo-h1">Магазин BMX запчастей LightBikeShop</h1>
 
     <!-- Content -->
     <main class="page-wrapper">

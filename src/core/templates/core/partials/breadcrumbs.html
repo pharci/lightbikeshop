@@ -1,15 +1,32 @@
 {% if breadcrumbs %}
-<nav class="container breadcrumbs">
-  <ul class="breadcrumbs__list">
+<nav class="container breadcrumbs"
+     aria-label="breadcrumb"
+     itemscope
+     itemtype="https://schema.org/BreadcrumbList">
+
+  <ol class="breadcrumbs__list">
+
     {% for title, url in breadcrumbs %}
-      <li class="breadcrumbs__item">
-        {% if url %}
-          <a href="{{ url }}" class="breadcrumbs__link">{{ title }}</a>
-        {% else %}
-          <span class="breadcrumbs__current">{{ title }}</span>
-        {% endif %}
-      </li>
+    <li class="breadcrumbs__item {% if forloop.last %}breadcrumbs__item--hidden{% endif %}"
+        itemprop="itemListElement"
+        itemscope
+        itemtype="https://schema.org/ListItem">
+
+      {% if url %}
+        <a href="{{ request.scheme }}://{{ request.get_host }}{{ url }}"
+          class="breadcrumbs__link"
+          itemprop="item">
+          <span itemprop="name">{{ title }}</span>
+        </a>
+      {% else %}
+        <span class="breadcrumbs__current"
+              itemprop="name">{{ title }}</span>
+      {% endif %}
+
+      <meta itemprop="position" content="{{ forloop.counter }}">
+    </li>
     {% endfor %}
-  </ul>
+
+  </ol>
 </nav>
 {% endif %}

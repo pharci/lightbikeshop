@@ -1,7 +1,7 @@
 # core/context_processors.py
 from django.urls import reverse, NoReverseMatch
 from django.apps import apps
-from products.models import Category, Brand
+from products.models import Category, Brand, Variant
 from .models import Page
 from django.core.cache import cache
 from django.utils.timezone import localtime
@@ -80,7 +80,31 @@ def breadcrumbs(request):
 
     if _apply_rules(items, path, rm):
         return {"breadcrumbs": items}
-    
+
+    variant_slug = kw.get("slug")
+
+    if variant_slug:
+        variant = (
+            Variant.objects
+            .select_related("product", "product__category", "product__category__parent")
+            .filter(slug=variant_slug)
+            .first()
+        )
+
+        if variant:
+            category = variant.product.category
+
+            chain = []
+            while category:
+                chain.append(category)
+                category = category.parent
+
+            for cat in reversed(chain):
+                items.append((cat.title, cat.get_absolute_url()))
+
+            items.append((str(variant), None))
+            return {"breadcrumbs": items}
+
     if path.startswith("/legal/"):
         slug = kw.get("slug")
         if not slug:
@@ -106,7 +130,7 @@ def breadcrumbs(request):
         parts = [p for p in cat_path.strip("/").split("/") if p]
         for i, seg in enumerate(parts):
             cat = Category.objects.get(slug=seg)
-            items.append((cat, cat.get_absolute_url()))
+            items.append((cat.title, cat.get_absolute_url()))
         return {"breadcrumbs": items}
 
     return {"breadcrumbs": items}
