@@ -1,0 +1,25 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /login/
+Disallow: /logout/
+Disallow: /profile/
+Disallow: /tg/
+Disallow: /cart/
+Disallow: /orders/
+Disallow: /api/
+Disallow: /ms/
+Disallow: /catalog/search/
+Disallow: /*?*
+Disallow: /*&*
+Disallow: /*page=
+Disallow: /*sort=
+Disallow: /*filter=
+
+Allow: /catalog/
+Allow: /brand/
+Allow: /legal/
+Allow: /static/
+Allow: /media/
+
+Sitemap: https://lightbikeshop.ru/sitemap.xml
+Host: lightbikeshop.ru
