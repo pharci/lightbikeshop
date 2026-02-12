@@ -7,10 +7,13 @@
   <ol class="breadcrumbs__list">
 
     {% for title, url in breadcrumbs %}
-    <li class="breadcrumbs__item {% if forloop.last %}breadcrumbs__item--hidden{% endif %}"
-        itemprop="itemListElement"
-        itemscope
-        itemtype="https://schema.org/ListItem">
+    <li class="breadcrumbs__item
+    {% if breadcrumbs_is_variant and forloop.last %}
+        breadcrumbs__item--hidden
+    {% endif %}"
+    itemprop="itemListElement"
+    itemscope
+    itemtype="https://schema.org/ListItem">
 
       {% if url %}
         <a href="{{ request.scheme }}://{{ request.get_host }}{{ url }}"

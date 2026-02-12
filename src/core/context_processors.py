@@ -79,7 +79,7 @@ def breadcrumbs(request):
     items = [("Главная", _rev("home", "/"))]
 
     if _apply_rules(items, path, rm):
-        return {"breadcrumbs": items}
+        return {"breadcrumbs": items, "breadcrumbs_is_variant": False}
 
     variant_slug = kw.get("slug")
 
@@ -103,7 +103,7 @@ def breadcrumbs(request):
                 items.append((cat.title, cat.get_absolute_url()))
 
             items.append((str(variant), None))
-            return {"breadcrumbs": items}
+            return {"breadcrumbs": items, "breadcrumbs_is_variant": True}
 
     if path.startswith("/legal/"):
         slug = kw.get("slug")
@@ -114,14 +114,14 @@ def breadcrumbs(request):
         title = Page.objects.filter(slug=slug, is_published=True)\
                             .values_list("title", flat=True).first() or "Документ"
         items.append((title, None))
-        return {"breadcrumbs": items}
+        return {"breadcrumbs": items, "breadcrumbs_is_variant": False}
 
     brand_slug = kw.get("brand") or kw.get("brand_slug")
     if brand_slug:
         try:
             b = Brand.objects.only("title", "slug").get(slug=brand_slug)
             items.append((b.title, None))
-            return {"breadcrumbs": items}
+            return {"breadcrumbs": items, "breadcrumbs_is_variant": False}
         except Brand.DoesNotExist:
             pass
 
@@ -131,9 +131,9 @@ def breadcrumbs(request):
         for i, seg in enumerate(parts):
             cat = Category.objects.get(slug=seg)
             items.append((cat.title, cat.get_absolute_url()))
-        return {"breadcrumbs": items}
+        return {"breadcrumbs": items, "breadcrumbs_is_variant": False}
 
-    return {"breadcrumbs": items}
+    return {"breadcrumbs": items, "breadcrumbs_is_variant": False}
 
 def footer_pages(request):
     cols = {i: list(Page.objects.filter(is_published=True, column=i)) for i in (1,2,3,4)}
