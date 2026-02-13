@@ -1,8 +1,9 @@
 {% extends "core/base.html" %}
 {% load static %}
 
-{% block title %}Каталог{% endblock %}
+{% block title %}Каталог товаров{% endblock %}
 {% block meta_description %}Каталог BMX-запчастей: бренды, фильтры, наличие. Доставка по РФ.{% endblock %}
+{% block canonical %}{{ request.scheme }}://{{ request.get_host }}/catalog/{% endblock %}
 
 {% block styles %}
   {{ block.super }}

@@ -1,8 +1,11 @@
 {% extends 'core/base.html' %}
 {% load static shop_extras %}
 
-{% block title %}{% if cat %}{{ cat.name }}{% elif brand %}{{ brand.title }}{% else %}Поиск{% endif %}{% endblock %}
-{% block canonical %}{{ request.scheme }}://{{ request.get_host }}{{ cat.get_absolute_url }}{% endblock %}
+{% block title %}{% if cat %}{{ cat.title }}{% elif brand %}{{ brand.title }}{% else %}Поиск{% endif %}{% endblock %}
+
+{% block meta_description %}{% if cat %}{{ cat.title }} для BMX. Оригинальные комплектующие в наличии. Быстрая доставка по России.{% elif brand %}BMX запчасти {{ brand.title }}: ассортимент, характеристики, наличие на складе. Отправка по России.{% else %}{% endif %}{% endblock %}
+
+{% block canonical %}{% if cat %}{{ request.scheme }}://{{ request.get_host }}{{ cat.get_absolute_url }}{% elif brand %}{{ request.scheme }}://{{ request.get_host }}/brand/{{ brand.slug }}/{% else %}{% endif %}{% endblock %}
 
 {% block styles %}
   {{ block.super }}

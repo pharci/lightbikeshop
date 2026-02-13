@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block title %}{{ variant.display_name }}{% endblock %}
-{% block meta_description %}{{ variant.product.description|default:variant.display_name|striptags|truncatechars:155 }}{% endblock %}
+{% block meta_description %}{{ variant.product.description|safe|default:variant.display_name|striptags|truncatechars:155 }}{% endblock %}
 {% block canonical %}{{ request.scheme }}://{{ request.get_host }}{{ variant.get_absolute_url }}{% endblock %}
 
 {% block styles %}

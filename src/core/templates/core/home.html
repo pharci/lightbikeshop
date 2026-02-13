@@ -2,6 +2,8 @@
 {% load static l10n %}
 
 {% block title %}LightBikeShop - Магазин запчастей для BMX{% endblock %}
+{% block meta_description %}Магазин BMX запчастей LightBikeShop. Рамы, вилки, колёса, покрышки, каретки и комплектующие в наличии. Доставка по России.{% endblock %}
+{% block canonical %}{{ request.scheme }}://{{ request.get_host }}/{% endblock %}
 
 {% block styles %}
   {{ block.super }}
