@@ -47,6 +47,14 @@
 
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@cdek-it/widget@3" charset="utf-8"></script>
 
+  <script type="text/javascript">   
+      var digiScript = document.createElement('script');   
+      digiScript.src = '//aq.dolyame.ru/11112/client.js';  
+      digiScript.defer = true;   
+      digiScript.async = true;   
+      document.head.appendChild(digiScript);   
+  </script>   
+
   {% if request.COOKIES.cookie_consent == 'all' %}
   <noscript>
     <div><img src="https://mc.yandex.ru/watch/94255695" style="position:absolute;left:-9999px;" alt=""></div>
@@ -55,6 +63,14 @@
 </head>
 
 <body>
+  <script type="text/javascript">
+      var digiScript = document.createElement ('script');
+      digiScript.src = '//aq.dolyame.ru/site id/client.js?ts=' + Date.now();
+      digiScript.defer = true;
+      digiScript.async = true;
+      document.body.appendChild (digiScript);
+  </script>
+
   <div class="layout">
 
     <!-- Header -->
