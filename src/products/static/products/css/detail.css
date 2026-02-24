@@ -134,8 +134,7 @@
 /* Compact tweaks on small screens */
 @media (max-width:480px){
   .variant-page__title{font-size:20px;}
-  .price{margin-right: 0.5;}
-  .price-box{flex-direction: column;}
+  .price{margin-right: 0.5;font-size:26px}
 }
 
 /* Optional: skeleton */
