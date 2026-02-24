@@ -91,10 +91,18 @@
 .availability--in .availability__dot::after{background:#28a745;}
 
 /* Price + Controls */
-.variant-page__buy{display:flex; align-items:center; gap:1rem; flex-wrap:nowrap; margin-bottom:12px;}
-.price-box{display:flex; flex-direction:column; align-items:flex-start; flex:0 0 auto;}
+.variant-page__buy{display:flex; gap:1rem; flex-wrap:nowrap; margin-bottom:12px; flex-direction: column; max-width: 500px;}
+.price-box{display:flex; align-items:flex-start; flex:0 0 auto;}
 .price-old{padding-left:3px; line-height:1.1; font-size:16px; color:#9a9a9a; text-decoration:line-through;}
-.price{line-height:1.1; color:#393D46; font-weight:700; font-size:32px; margin:0;}
+.price{    
+    line-height: 1.1;
+    color: #393D46;
+    font-weight: 700;
+    font-size: 32px;
+    margin: auto;
+    margin-right: 1rem;
+    margin-left: 0;
+  }
 .buy__controls{flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:.75rem; margin-top:auto;}
 
 /* Quantity control */
@@ -126,7 +134,7 @@
 /* Compact tweaks on small screens */
 @media (max-width:480px){
   .variant-page__title{font-size:20px;}
-  .price{font-size:22px;}
+  .price{font-size:22px;margin-right: 0;}
 }
 
 /* Optional: skeleton */
