@@ -100,7 +100,7 @@
     font-weight: 700;
     font-size: 32px;
     margin: auto;
-    margin-right: 1rem;
+    margin-right: 0;
     margin-left: 0;
   }
 .buy__controls{flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:.75rem; margin-top:auto;}
