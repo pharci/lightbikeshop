@@ -92,7 +92,7 @@
 
 /* Price + Controls */
 .variant-page__buy{display:flex; gap:.75rem; flex-wrap:nowrap; margin-bottom:12px; flex-direction: column; max-width: 500px;}
-.price-box{display:flex;gap:.75rem}
+.price-box{display:flex;gap:.75rem;justify-content: space-between;}
 .price-old{padding-left:3px; line-height:1.1; font-size:16px; color:#9a9a9a; text-decoration:line-through;}
 .price{    
     line-height: 1.1;
@@ -134,7 +134,7 @@
 /* Compact tweaks on small screens */
 @media (max-width:480px){
   .variant-page__title{font-size:20px;}
-  .price{margin-right: 0.5;font-size:26px}
+  .price{font-size:26px}
 }
 
 /* Optional: skeleton */
