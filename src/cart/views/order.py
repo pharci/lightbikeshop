@@ -3,7 +3,7 @@ import logging
 import requests
 from django.conf import settings
 from django.contrib import messages
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.http import HttpRequest, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -49,6 +49,21 @@ def _attempt_bank_order_id(order):
     return order.order_id if count == 0 else f"{order.order_id}-{count + 1}"
 
 
+def _acquire_order_advisory_lock(order_pk):
+    if connection.vendor != "postgresql":
+        return False
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_lock(%s)", [order_pk])
+    return True
+
+
+def _release_order_advisory_lock(order_pk):
+    if connection.vendor != "postgresql":
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_unlock(%s)", [order_pk])
+
+
 def _recover_attempt(attempt):
     data = check_order(attempt.bank_order_id)
     if not data:
@@ -81,59 +96,72 @@ def _recover_attempt(attempt):
 
 def _get_payment_url(order, request):
     """Never repeat an Init whose outcome has not been reconciled."""
-    with transaction.atomic():
-        order = Order.objects.select_for_update().get(pk=order.pk)
-        attempt = order.payment_attempts.first()
-        if attempt and attempt.state in ("active", "auth"):
-            if attempt.payment_url:
-                return attempt.payment_url
-            raise RuntimeError("Active payment has no recoverable payment URL")
-        if attempt and attempt.state in ("init_pending", "init_unknown"):
-            attempt_id, needs_recovery = attempt.pk, True
-        else:
-            attempt_id, needs_recovery = None, False
-
-    if attempt_id is None:
-        try:
-            attempt = PaymentAttempt.objects.create(order=order, bank_order_id=_attempt_bank_order_id(order))
-            attempt_id = attempt.pk
-        except IntegrityError:
-            attempt = PaymentAttempt.objects.filter(order=order).first()
-            if not attempt:
-                raise
-            attempt_id = attempt.pk
-            needs_recovery = attempt.state in ("init_pending", "init_unknown")
-
-    attempt = PaymentAttempt.objects.get(pk=attempt_id)
-    if needs_recovery:
-        recovery_status = _recover_attempt(attempt)
-        if recovery_status == "recovered":
-            return attempt.payment_url
-        if recovery_status == "finalized":
-            if attempt.payment_url:
-                return attempt.payment_url
-            raise RuntimeError("Payment is already finalized and cannot be reinitialized")
-        if recovery_status == "terminal":
-            with transaction.atomic():
-                order = Order.objects.select_for_update().get(pk=order.pk)
-                attempt = PaymentAttempt.objects.create(order=order, bank_order_id=_attempt_bank_order_id(order))
-                attempt_id, needs_recovery = attempt.pk, False
-        else:
-            PaymentAttempt.objects.filter(pk=attempt.pk, state="init_pending").update(state="init_unknown")
-            raise RuntimeError("Payment Init outcome is still unknown")
-
+    lock_acquired = False
     try:
-        url, payment_id = create_PaymentURL(order, request, attempt.bank_order_id)
-    except Exception:
-        PaymentAttempt.objects.filter(pk=attempt.pk, state="init_pending").update(state="init_unknown")
-        raise
+        lock_acquired = _acquire_order_advisory_lock(order.pk)
 
-    with transaction.atomic():
-        attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt.pk)
-        attempt.payment_url, attempt.payment_id, attempt.state = url, payment_id, "active"
-        attempt.save(update_fields=["payment_url", "payment_id", "state", "updated"])
-        Order.objects.filter(pk=order.pk).update(payment_url=url, payment_id=payment_id)
-    return url
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order.pk)
+            attempt = order.payment_attempts.select_for_update().first()
+
+            if attempt and attempt.state in ("active", "auth"):
+                if attempt.payment_url:
+                    return attempt.payment_url
+                raise RuntimeError("Active payment has no recoverable payment URL")
+
+            if attempt and attempt.state in ("init_pending", "init_unknown"):
+                recovery_candidate = attempt
+            else:
+                recovery_candidate = None
+
+            if not recovery_candidate:
+                attempt = PaymentAttempt.objects.create(order=order, bank_order_id=_attempt_bank_order_id(order))
+                is_new_attempt = True
+            else:
+                attempt = recovery_candidate
+                is_new_attempt = False
+
+            if not is_new_attempt and attempt.state in ("init_pending", "init_unknown"):
+                recovery_status = _recover_attempt(attempt)
+                if recovery_status == "recovered":
+                    return attempt.payment_url
+                if recovery_status == "finalized":
+                    if attempt.payment_url:
+                        return attempt.payment_url
+                    raise RuntimeError("Payment is already finalized and cannot be reinitialized")
+                if recovery_status == "terminal":
+                    attempt = PaymentAttempt.objects.create(order=order, bank_order_id=_attempt_bank_order_id(order))
+                    is_new_attempt = True
+                else:
+                    attempt.state = "init_unknown"
+                    attempt.save(update_fields=["state", "updated"])
+                    raise RuntimeError("Payment Init outcome is still unknown")
+
+        try:
+            url, payment_id = create_PaymentURL(order, request, attempt.bank_order_id)
+        except Exception:
+            with transaction.atomic():
+                if attempt.pk:
+                    PaymentAttempt.objects.filter(pk=attempt.pk, state="init_pending").update(state="init_unknown")
+            raise
+
+        with transaction.atomic():
+            attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt.pk)
+            if attempt.state not in ("init_pending", "init_unknown"):
+                if attempt.payment_url:
+                    return attempt.payment_url
+                raise RuntimeError("Attempt state changed unexpectedly")
+
+            attempt.payment_url = url
+            attempt.payment_id = payment_id
+            attempt.state = "active"
+            attempt.save(update_fields=["payment_url", "payment_id", "state", "updated"])
+            Order.objects.filter(pk=order.pk).update(payment_url=url, payment_id=payment_id)
+
+        return url
+    finally:
+        if lock_acquired:
+            _release_order_advisory_lock(order.pk)
 
 
 @require_GET
