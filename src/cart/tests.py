@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 from django.conf import settings
-from django.db import connection, close_old_connections
+from django.db import connection, connections, close_old_connections
 from django.test import RequestFactory, TestCase, TransactionTestCase, override_settings
 from unittest import skipUnless
 
@@ -89,6 +89,28 @@ class ConcurrentPaymentCallbackTests(TransactionTestCase):
 
     reset_sequences = True
 
+    @classmethod
+    def tearDownClass(cls):
+        connections.close_all()
+        close_old_connections()
+        super().tearDownClass()
+
+    def tearDown(self):
+        connections.close_all()
+        close_old_connections()
+
+    def _invoke_callback(self, body):
+        connections.close_all()
+        close_old_connections()
+        factory = RequestFactory()
+        try:
+            return payment_callback(factory.post(
+                "/api/payments/callback/", data=json.dumps(body), content_type="application/json"
+            )).status_code
+        finally:
+            connections.close_all()
+            close_old_connections()
+
     def test_two_confirmations_emit_one_notification(self):
         order = Order.objects.create(
             user_name="Concurrent Customer", contact_phone="+7 (999) 000-00-02",
@@ -101,18 +123,12 @@ class ConcurrentPaymentCallbackTests(TransactionTestCase):
         }
         body["Token"] = tinkoff_token(body, "secret")
 
-        def invoke():
-            factory = RequestFactory()
-            return payment_callback(factory.post(
-                "/api/payments/callback/", data=json.dumps(body), content_type="application/json"
-            )).status_code
-
         # SQLite serialises writers differently from production PostgreSQL, but
         # this test still starts two independent concurrent callback requests.
         with patch("cart.views.tpay.send_tg_order_status") as tg, patch(
             "cart.views.tpay.send_order_status_changed_email"
         ) as email, ThreadPoolExecutor(max_workers=2) as pool:
-            statuses = list(pool.map(lambda _: invoke(), range(2)))
+            statuses = list(pool.map(lambda _: self._invoke_callback(body), range(2)))
 
         self.assertEqual(statuses, [200, 200])
         order.refresh_from_db()
@@ -217,11 +233,18 @@ class ConcurrentGetPaymentURLTests(TransactionTestCase):
         # Ensure the object is committed to the DB before worker threads use separate connections.
         connection.commit()
 
+    @classmethod
+    def tearDownClass(cls):
+        connections.close_all()
+        close_old_connections()
+        super().tearDownClass()
+
     def tearDown(self):
+        connections.close_all()
         close_old_connections()
 
     def _invoke_get_payment_url(self, barrier):
-        connection.close()
+        connections.close_all()
         close_old_connections()
         order = Order.objects.get(pk=self.order_id)
         request = RequestFactory().post("/cart/checkout/")
@@ -229,7 +252,7 @@ class ConcurrentGetPaymentURLTests(TransactionTestCase):
         try:
             return _get_payment_url(order, request)
         finally:
-            connection.close()
+            connections.close_all()
             close_old_connections()
 
     def test_concurrent_get_payment_url_does_not_create_two_attempts(self):
@@ -237,14 +260,19 @@ class ConcurrentGetPaymentURLTests(TransactionTestCase):
 
         with patch("cart.views.order.create_PaymentURL", return_value=("https://pay.example/1", "payment-init-1")) as init:
             with ThreadPoolExecutor(max_workers=2) as pool:
-                future1 = pool.submit(self._invoke_get_payment_url, barrier)
-                future2 = pool.submit(self._invoke_get_payment_url, barrier)
-                urls = [future1.result(), future2.result()]
+                futures = [pool.submit(self._invoke_get_payment_url, barrier) for _ in range(2)]
+                urls = [future.result() for future in futures]
 
             self.assertEqual(init.call_count, 1)
+            for future in futures:
+                self.assertTrue(future.done())
+                self.assertIsNone(future.exception())
+
+        connections.close_all()
+        close_old_connections()
 
         self.order.refresh_from_db()
         self.assertEqual(urls, ["https://pay.example/1", "https://pay.example/1"])
         self.assertEqual(PaymentAttempt.objects.filter(order=self.order).count(), 1)
         self.assertEqual(PaymentAttempt.objects.count(), 1)
-        self.assertEqual(self.order.paymentattempt_set.count(), 1)
+        self.assertEqual(self.order.payment_attempts.count(), 1)
