@@ -18,11 +18,11 @@ RUN set -eux; \
         curl; \
     rm -rf /var/lib/apt/lists/*
 
-COPY infra/certs/russian_trusted_root_ca.pem \
-     /usr/local/share/ca-certificates/russian_trusted_root_ca.crt
+COPY infra/certs/russian_trusted_root_ca_pem.crt \
+     /usr/local/share/ca-certificates/russian_trusted_root_ca_pem.crt
 
-COPY infra/certs/russian_trusted_sub_ca.pem \
-     /usr/local/share/ca-certificates/russian_trusted_sub_ca.crt
+COPY infra/certs/russian_trusted_sub_ca_pem.crt \
+     /usr/local/share/ca-certificates/russian_trusted_sub_ca_pem.crt
 
 RUN update-ca-certificates
 
