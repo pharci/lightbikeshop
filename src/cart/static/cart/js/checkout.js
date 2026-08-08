@@ -32,40 +32,22 @@ let cdekCities = [];
 
 // ----- Модалка городов -----
 openCityModalBtn.addEventListener('click', async () => {
-  // show modal and expose it to assistive tech before focusing
   cityModal.style.display = 'flex';
   cityModal.setAttribute('aria-hidden', 'false');
 
-  if (!citiesLoaded) {
-    try {
-      const data = await loadCdekCities();
-
-      cityList.innerHTML = '';
-
-      data.forEach(c => {
-        const div = document.createElement('div');
-
-        div.className = 'city-item';
-        div.dataset.city = c.city;
-        div.dataset.cityCode = c.code;
-        div.textContent = c.city;
-
-        cityList.appendChild(div);
-      });
-
-      filterCities('');
-    } catch (e) {
-      // show minimal feedback when cities fail to load
-      cityList.innerHTML = '<div class="muted">Не удалось загрузить список городов</div>';
-      citiesLoaded = false;
-    }
+  try {
+    const data = await loadCdekCities();
+    renderCities(data);
+  } catch (e) {
+    cityList.innerHTML =
+      '<div class="muted">Не удалось загрузить список городов</div>';
   }
 
   citySearch.value = '';
-  filterCities('');
 
-  // focus search after modal is visible
-  try { citySearch.focus(); } catch (e) {}
+  try {
+    citySearch.focus();
+  } catch (e) {}
 });
 
 cityModal.addEventListener('click', (e) => {
@@ -102,6 +84,23 @@ function findCityCode(city) {
   );
 
   return item ? Number(item.code) : null;
+}
+
+function renderCities(cities) {
+  cityList.innerHTML = '';
+
+  cities.forEach(c => {
+    const div = document.createElement('div');
+
+    div.className = 'city-item';
+    div.dataset.city = c.city;
+    div.dataset.cityCode = c.code;
+    div.textContent = c.city;
+
+    cityList.appendChild(div);
+  });
+
+  filterCities(citySearch.value || '');
 }
 
 cityList.addEventListener('click', (e) => {
@@ -218,29 +217,32 @@ function setCity(city, cityCode = null) {
 
 
 async function loadCdekCities() {
-  if (citiesLoaded) return cdekCities;
+  console.log('[PVZ] loadCdekCities start');
+  if (citiesLoaded) {
+    console.log('[PVZ] already loaded, returning cached cdekCities length=', cdekCities && cdekCities.length);
+    console.log('[PVZ] cityList element:', cityList);
+    return cdekCities;
+  }
 
   const response = await fetch('/api/pvz/cities/');
+  console.log('[PVZ] response status:', response.status);
 
   if (!response.ok) {
+    console.log('[PVZ] response not ok, throwing');
     throw new Error('Не удалось загрузить города CDEK');
   }
 
-  cdekCities = await response.json();
+  const data = await response.json();
+  console.log('[PVZ] response:', data);
+
+  cdekCities = data;
+  console.log('[PVZ] cdekCities:', cdekCities && cdekCities.length);
+  console.log('[PVZ] cityList:', cityList);
 
   citiesLoaded = true;
 
   return cdekCities;
 }
-
-function findCityCode(city) {
-  const item = cdekCities.find(
-    c => String(c.city).toLowerCase() === String(city).toLowerCase()
-  );
-
-  return item ? Number(item.code) : null;
-}
-
 
 // ----- Переключение карточек доставки -----
 methodGroup.addEventListener('click', (e) => {
