@@ -9,7 +9,7 @@ from django.test import RequestFactory, TestCase, TransactionTestCase, override_
 from unittest import skipUnless
 
 from cart.models import Order, PaymentAttempt
-from cart.views.order import _get_payment_url
+from cart.views.order import _get_payment_url, _attempt_bank_order_id
 from cart.views.tpay import payment_callback, tinkoff_token
 
 
@@ -160,6 +160,45 @@ class PaymentInitRecoveryTests(TestCase):
         self.assertEqual((attempt.state, attempt.payment_id), ("active", "payment-recovered"))
         self.assertEqual(init.call_count, 1)
 
+    @patch("cart.views.order.create_PaymentURL", return_value=("https://pay.example/recovered", "payment-recovered"))
+    @patch("cart.views.order.check_order", return_value={
+        "Success": True, "PaymentId": "payment-recovered", "PaymentURL": "https://pay.example/recovered"
+    })
+    def test_recovery_finds_existing_payment_and_does_not_init_again(self, check_order, init):
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            bank_order_id=_attempt_bank_order_id(self.order),
+            state="init_pending",
+        )
+
+        url = _get_payment_url(self.order, self.request)
+
+        self.assertEqual(url, "https://pay.example/recovered")
+        self.assertEqual(init.call_count, 0)
+        self.assertEqual(check_order.call_count, 1)
+        self.assertEqual(PaymentAttempt.objects.filter(order=self.order).count(), 1)
+        attempt.refresh_from_db()
+        self.assertEqual(attempt.state, "active")
+        self.assertEqual(attempt.payment_id, "payment-recovered")
+        self.assertEqual(attempt.payment_url, "https://pay.example/recovered")
+
+    @patch("cart.views.order.create_PaymentURL", return_value=("https://pay.example/new-init", "payment-init-2"))
+    @patch("cart.views.order.check_order", return_value={"Success": False, "Status": "REJECTED"})
+    def test_terminal_check_order_allows_new_init(self, check_order, init):
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            bank_order_id=_attempt_bank_order_id(self.order),
+            state="init_pending",
+        )
+
+        url = _get_payment_url(self.order, self.request)
+
+        self.assertEqual(url, "https://pay.example/new-init")
+        self.assertEqual(init.call_count, 1)
+        self.assertEqual(check_order.call_count, 1)
+        self.assertEqual(PaymentAttempt.objects.filter(order=self.order).count(), 2)
+        self.assertEqual(PaymentAttempt.objects.filter(order=self.order, state="active").count(), 1)
+
 
 @override_settings(T_BANK_TERMINAL_KEY="TEST", T_BANK_PASSWORD="secret")
 @skipUnless(connection.vendor == "postgresql", "concurrent init requires PostgreSQL")
@@ -182,6 +221,7 @@ class ConcurrentGetPaymentURLTests(TransactionTestCase):
         close_old_connections()
 
     def _invoke_get_payment_url(self, barrier):
+        connection.close()
         close_old_connections()
         order = Order.objects.get(pk=self.order_id)
         request = RequestFactory().post("/cart/checkout/")
@@ -189,6 +229,7 @@ class ConcurrentGetPaymentURLTests(TransactionTestCase):
         try:
             return _get_payment_url(order, request)
         finally:
+            connection.close()
             close_old_connections()
 
     def test_concurrent_get_payment_url_does_not_create_two_attempts(self):
