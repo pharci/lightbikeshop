@@ -25,7 +25,10 @@ def _safe_cache_key(prefix: str, *parts) -> str:
 
 def _get_token():
     key = _safe_cache_key("cdek_token")
-    cached = cache.get(key)
+    try:
+        cached = cache.get(key)
+    except Exception:
+        cached = None
     if cached:
         return cached["access_token"]
     resp = requests.post(
@@ -41,7 +44,10 @@ def _get_token():
     resp.raise_for_status()
     data = resp.json()
     # запас по времени
-    cache.set(key, data, data.get("expires_in", 3600) - 120)
+    try:
+        cache.set(key, data, data.get("expires_in", 3600) - 120)
+    except Exception:
+        pass
     return data["access_token"]
 
 def _auth_headers():
@@ -177,14 +183,34 @@ def calc_cdek_pvz_price(cart, pvz_code: str, to_city_code: str | None = None) ->
 def get_cities(request):
     """Вернёт список всех городов СДЭК"""
     cache_key = "cdek_all_cities"
-    data = cache.get(cache_key)
+    data = None
+    try:
+        data = cache.get(cache_key)
+    except Exception:
+        # cache backend may be unavailable (redis down); proceed without cache
+        data = None
+
     if not data:
-        r = requests.get(CDEK_CITY_URL, headers=_auth_headers(), timeout=30)
-        r.raise_for_status()
-        items = r.json()
+        try:
+            # Any exception raised here (auth/token failure, network, non-2xx) is
+            # considered an external CDEK service failure — return 502.
+            r = requests.get(CDEK_CITY_URL, headers=_auth_headers(), timeout=30)
+            r.raise_for_status()
+            items = r.json() or []
+        except Exception as exc:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception("CDEK external API unavailable when fetching cities: %s", exc)
+            return JsonResponse({"error": "CDEK_UNAVAILABLE"}, status=502)
+
         # оставляем только нужные поля
-        data = [{"code": i["code"], "city": i["city"], "region": i.get("region")} for i in items]
-        cache.set(cache_key, data, 24*3600)
+        data = [{"code": i.get("code"), "city": i.get("city"), "region": i.get("region")} for i in items]
+        try:
+            cache.set(cache_key, data, 24*3600)
+        except Exception:
+            # cache set errors are non-fatal; treat as cache backend miss
+            pass
+
     return JsonResponse(data, safe=False)
 
 @require_GET

@@ -32,7 +32,9 @@ let cdekCities = [];
 
 // ----- Модалка городов -----
 openCityModalBtn.addEventListener('click', async () => {
+  // show modal and expose it to assistive tech before focusing
   cityModal.style.display = 'flex';
+  cityModal.setAttribute('aria-hidden', 'false');
 
   if (!citiesLoaded) {
     try {
@@ -53,16 +55,35 @@ openCityModalBtn.addEventListener('click', async () => {
 
       filterCities('');
     } catch (e) {
-      return;
+      // show minimal feedback when cities fail to load
+      cityList.innerHTML = '<div class="muted">Не удалось загрузить список городов</div>';
+      citiesLoaded = false;
     }
   }
 
   citySearch.value = '';
   filterCities('');
+
+  // focus search after modal is visible
+  try { citySearch.focus(); } catch (e) {}
 });
 
 cityModal.addEventListener('click', (e) => {
-  if (e.target === cityModal) cityModal.style.display = 'none';
+  if (e.target === cityModal) {
+    // move focus back to opener before hiding to avoid aria-hidden warnings
+    try { openCityModalBtn.focus(); } catch (ex) {}
+    cityModal.setAttribute('aria-hidden', 'true');
+    cityModal.style.display = 'none';
+  }
+});
+
+// close modal on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && cityModal.style.display && cityModal.style.display !== 'none') {
+    try { openCityModalBtn.focus(); } catch (ex) {}
+    cityModal.setAttribute('aria-hidden', 'true');
+    cityModal.style.display = 'none';
+  }
 });
 
 citySearch.addEventListener('input', e => filterCities(e.target.value));
@@ -92,6 +113,9 @@ cityList.addEventListener('click', (e) => {
 
   setCity(city, cityCode);
 
+  // return focus and hide modal accessibly
+  try { openCityModalBtn.focus(); } catch (ex) {}
+  cityModal.setAttribute('aria-hidden', 'true');
   cityModal.style.display = 'none';
 });
 

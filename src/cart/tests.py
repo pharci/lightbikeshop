@@ -11,6 +11,7 @@ from unittest import skipUnless
 from cart.models import Order, PaymentAttempt
 from cart.views.order import _get_payment_url, _attempt_bank_order_id
 from cart.views.tpay import payment_callback, tinkoff_token
+from django.urls import reverse
 
 
 @override_settings(T_BANK_TERMINAL_KEY="TEST", T_BANK_PASSWORD="secret")
@@ -276,3 +277,34 @@ class ConcurrentGetPaymentURLTests(TransactionTestCase):
         self.assertEqual(PaymentAttempt.objects.filter(order=self.order).count(), 1)
         self.assertEqual(PaymentAttempt.objects.count(), 1)
         self.assertEqual(self.order.payment_attempts.count(), 1)
+
+
+class PvzApiTests(TestCase):
+    def test_get_cities_returns_list(self):
+        # mock external CDEK HTTP call
+        with patch('cart.views.cdek._get_token', return_value='fake-token'):
+            with patch('cart.views.cdek.requests.get') as req_get:
+                mock_resp = req_get.return_value
+                mock_resp.raise_for_status.return_value = None
+                mock_resp.json.return_value = [
+                    {'code': '520', 'city': 'TestCity', 'region': 'TestRegion'}
+                ]
+
+                res = self.client.get('/api/pvz/cities/', secure=True, follow=True)
+                self.assertEqual(res.status_code, 200)
+                data = res.json()
+                self.assertIsInstance(data, list)
+                self.assertEqual(data[0]['city'], 'TestCity')
+
+    def test_api_cdek_pvz_returns_points_for_city(self):
+        # patch internal helper to avoid external calls
+        with patch('cart.views.cdek.get_pvz_by_city_code') as gp:
+            gp.return_value = [
+                {'id': '1', 'name': 'PVZ1', 'address': 'Addr', 'lat': 55.0, 'lon': 37.0, 'provider': 'cdek'}
+            ]
+
+            res = self.client.get('/api/pvz/cdek/?city_code=520', secure=True, follow=True)
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertIsInstance(data, list)
+            self.assertEqual(data[0]['provider'], 'cdek')
