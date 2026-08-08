@@ -1,9 +1,10 @@
 import json
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 from django.conf import settings
-from django.db import connection
+from django.db import connection, close_old_connections
 from django.test import RequestFactory, TestCase, TransactionTestCase, override_settings
 from unittest import skipUnless
 
@@ -159,17 +160,50 @@ class PaymentInitRecoveryTests(TestCase):
         self.assertEqual((attempt.state, attempt.payment_id), ("active", "payment-recovered"))
         self.assertEqual(init.call_count, 1)
 
-    @skipUnless(connection.vendor == "postgresql", "concurrent init requires PostgreSQL")
+
+@override_settings(T_BANK_TERMINAL_KEY="TEST", T_BANK_PASSWORD="secret")
+@skipUnless(connection.vendor == "postgresql", "concurrent init requires PostgreSQL")
+class ConcurrentGetPaymentURLTests(TransactionTestCase):
+    reset_sequences = True
+
+    def setUp(self):
+        order = Order.objects.create(
+            user_name="Concurrent Init Customer",
+            contact_phone="+7 (999) 000-00-04",
+            total="123.45"
+        )
+        self.order_id = order.pk
+        self.order = order
+        self.request = RequestFactory().post("/cart/checkout/")
+        # Ensure the object is committed to the DB before worker threads use separate connections.
+        connection.commit()
+
+    def tearDown(self):
+        close_old_connections()
+
+    def _invoke_get_payment_url(self, barrier):
+        close_old_connections()
+        order = Order.objects.get(pk=self.order_id)
+        request = RequestFactory().post("/cart/checkout/")
+        barrier.wait()
+        try:
+            return _get_payment_url(order, request)
+        finally:
+            close_old_connections()
+
     def test_concurrent_get_payment_url_does_not_create_two_attempts(self):
-        order = self.order
-        request = self.request
+        barrier = threading.Barrier(2)
 
-        def invoke():
-            with patch("cart.views.order.create_PaymentURL", return_value=("https://pay.example/1", "payment-init-1")):
-                return _get_payment_url(order, request)
+        with patch("cart.views.order.create_PaymentURL", return_value=("https://pay.example/1", "payment-init-1")) as init:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                future1 = pool.submit(self._invoke_get_payment_url, barrier)
+                future2 = pool.submit(self._invoke_get_payment_url, barrier)
+                urls = [future1.result(), future2.result()]
 
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            urls = list(pool.map(lambda _: invoke(), range(2)))
+            self.assertEqual(init.call_count, 1)
 
+        self.order.refresh_from_db()
         self.assertEqual(urls, ["https://pay.example/1", "https://pay.example/1"])
+        self.assertEqual(PaymentAttempt.objects.filter(order=self.order).count(), 1)
         self.assertEqual(PaymentAttempt.objects.count(), 1)
+        self.assertEqual(self.order.paymentattempt_set.count(), 1)
