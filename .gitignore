@@ -40,3 +40,6 @@ __pypackages__/
 # Node / frontend (если используется)
 node_modules/
 *.map
+
+
+.tmp_pg_test/
