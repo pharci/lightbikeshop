@@ -391,8 +391,10 @@ class Order(models.Model):
 
     payment_type   = models.CharField('Тип оплаты', max_length=20, choices=PAYMENT_CHOICES, default='online')
     payment_url  = models.URLField("Ссылка на оплату", blank=True)
+    payment_id   = models.CharField('T-Bank PaymentId', max_length=128, blank=True, null=True, unique=True)
 
     city = models.CharField('Город', max_length=120, db_index=True, blank=True, default="")
+    delivery_method = models.CharField('Способ получения', max_length=32, blank=True, default="")
     pvz_provider = models.CharField('Провайдер ПВЗ', max_length=32, blank=True)
     pvz_code    = models.CharField('Код ПВЗ', max_length=64, blank=True)
     pvz_address = models.CharField('Адрес ПВЗ', max_length=255, blank=True)
@@ -419,6 +421,37 @@ class Order(models.Model):
     
     def get_absolute_url(self):
         return reverse("cart:order_detail", args=[self.order_id]) + f"?k={self.access_key}"
+
+
+class PaymentAttempt(models.Model):
+    """One T-Bank payment session for an order.
+
+    Keeping attempts separately is required because a bank OrderId is unique
+    per operation: a cancelled payment may be replaced, but an Init with an
+    unknown outcome must never be sent a second time.
+    """
+
+    STATE_CHOICES = (
+        ("init_pending", "Init pending"),
+        ("init_unknown", "Init outcome unknown"),
+        ("active", "Active"),
+        ("auth", "Authorized"),
+        ("paid", "Paid"),
+        ("declined", "Declined"),
+        ("canceled", "Canceled"),
+        ("expired", "Expired"),
+    )
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payment_attempts")
+    bank_order_id = models.CharField(max_length=50, unique=True)
+    payment_id = models.CharField(max_length=128, blank=True, null=True, unique=True)
+    payment_url = models.URLField(blank=True)
+    state = models.CharField(max_length=20, choices=STATE_CHOICES, default="init_pending", db_index=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created",)
 
 
 class OrderItem(models.Model):

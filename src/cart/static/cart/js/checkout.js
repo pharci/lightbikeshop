@@ -1,6 +1,7 @@
 (function() {
 // DOM
 const cityInput = document.getElementById('city');
+const cityCodeInput = document.getElementById('city_code');
 const cityCaption = document.getElementById('city-caption');
 
 const openCityModalBtn = document.getElementById('open-city-modal');
@@ -25,29 +26,37 @@ const changePvzBtn =
 
 // Состояние карты
 let map, clusterShop, clusterCdek, lastCity = '';
+let currentCityCode = null;
 let citiesLoaded = false;
+let cdekCities = [];
 
 // ----- Модалка городов -----
-openCityModalBtn.addEventListener('click', () => {
+openCityModalBtn.addEventListener('click', async () => {
   cityModal.style.display = 'flex';
+
   if (!citiesLoaded) {
-    // AJAX подгрузка городов (кэшируй на сервере)
-    fetch('/api/pvz/cities/')
-        .then(r => r.json())
-        .then(data => {
-          cityList.innerHTML = '';
-          data.forEach(c => {
-            const div = document.createElement('div');
-            div.className = 'city-item';
-            div.dataset.city = c.city;
-            div.textContent = c.city;
-            cityList.appendChild(div);
-          });
-          citiesLoaded = true;
-          filterCities('');
-        })
-        .catch(() => {});
+    try {
+      const data = await loadCdekCities();
+
+      cityList.innerHTML = '';
+
+      data.forEach(c => {
+        const div = document.createElement('div');
+
+        div.className = 'city-item';
+        div.dataset.city = c.city;
+        div.dataset.cityCode = c.code;
+        div.textContent = c.city;
+
+        cityList.appendChild(div);
+      });
+
+      filterCities('');
+    } catch (e) {
+      return;
+    }
   }
+
   citySearch.value = '';
   filterCities('');
 });
@@ -66,63 +75,148 @@ function filterCities(q) {
   });
 }
 
+function findCityCode(city) {
+  const item = cdekCities.find(
+    c => String(c.city).toLowerCase() === String(city).toLowerCase()
+  );
+
+  return item ? Number(item.code) : null;
+}
+
 cityList.addEventListener('click', (e) => {
   const item = e.target.closest('.city-item');
   if (!item) return;
+
   const city = item.dataset.city;
-  setCity(city);
+  const cityCode = item.dataset.cityCode;
+
+  setCity(city, cityCode);
+
   cityModal.style.display = 'none';
-  resetPvzSelection();
-  if (!panelPvz.hidden) ensureMap();
 });
 
-function setCity(city) {
+function setCity(city, cityCode = null) {
   cityInput.value = city;
   cityCaption.textContent = 'г. ' + city;
-  try {
-    localStorage.setItem('city', city);
-  } catch (e) {
+
+  currentCityCode =
+    cityCode !== null
+      ? Number(cityCode)
+      : findCityCode(city);
+
+  if (cityCodeInput) {
+    cityCodeInput.value = currentCityCode !== null ? String(currentCityCode) : '';
   }
 
-  // сброс выбранного ПВЗ и пересоздание карты
+  try {
+    localStorage.setItem('city', JSON.stringify({
+      name: city,
+      code: currentCityCode
+    }));
+  } catch (e) {}
+
   resetPvzSelection();
-  if (!panelPvz.hidden) ensureMap();
+
+  if (!panelPvz.hidden) {
+    ensureMap();
+  }
 }
 
 // ----- Автоподстановка города (геолокация) -----
-(function initCity() {
-  // 1) уже проставлено в hidden?
+(async function initCity() {
+  try {
+    await loadCdekCities();
+  } catch (e) {
+  }
+
   const serverVal = (cityInput.value || '').trim();
+
   if (serverVal) {
-    setCity(serverVal);
+    const code = findCityCode(serverVal);
+    setCity(serverVal, code);
     return;
   }
 
-  // 2) сохранённое в localStorage
-  const saved = (localStorage.getItem('city') || '').trim();
+  const saved = localStorage.getItem('city');
+
   if (saved) {
-    setCity(saved);
-    return;
+    try {
+      const data = JSON.parse(saved);
+
+      if (data.name) {
+        const code = findCityCode(data.name);
+
+        currentCityCode = code;
+        setCity(data.name, code);
+        return;
+      }
+    } catch (e) {}
   }
 
-  // 3) дефолт из разметки
   const fallback =
       (openCityModalBtn.dataset.defaultCity || '').trim() || 'Москва';
 
-  // 4) пробуем гео, при отказе → fallback
   if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-      fetch(`/api/whereami/?lat=${lat}&lon=${lon}`)
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+
+        fetch(`/api/whereami/?lat=${lat}&lon=${lon}`)
           .then(r => r.json())
-          .then(data => setCity((data && data.city) ? data.city : fallback))
-          .catch(() => setCity(fallback));
-    }, () => setCity(fallback), {timeout: 5000, maximumAge: 300000});
+          .then(data => {
+            const city =
+              (data && data.city) ? data.city : fallback;
+
+            const code = findCityCode(city);
+
+            setCity(city, code);
+          })
+          .catch(() => {
+            const code = findCityCode(fallback);
+            setCity(fallback, code);
+          });
+      },
+      () => {
+        const code = findCityCode(fallback);
+        setCity(fallback, code);
+      },
+      {
+        timeout: 5000,
+        maximumAge: 300000
+      }
+    );
   } else {
-    setCity(fallback);
+    const code = findCityCode(fallback);
+    setCity(fallback, code);
   }
 })();
+
+
+async function loadCdekCities() {
+  if (citiesLoaded) return cdekCities;
+
+  const response = await fetch('/api/pvz/cities/');
+
+  if (!response.ok) {
+    throw new Error('Не удалось загрузить города CDEK');
+  }
+
+  cdekCities = await response.json();
+
+  citiesLoaded = true;
+
+  return cdekCities;
+}
+
+function findCityCode(city) {
+  const item = cdekCities.find(
+    c => String(c.city).toLowerCase() === String(city).toLowerCase()
+  );
+
+  return item ? Number(item.code) : null;
+}
+
 
 // ----- Переключение карточек доставки -----
 methodGroup.addEventListener('click', (e) => {
@@ -142,7 +236,7 @@ methodGroup.addEventListener('click', (e) => {
   panelCourier.hidden = tgt !== 'panel-courier';
 
   if (tgt === 'panel-pvz') {
-    deliveryMethod.value = 'pvz';
+    deliveryMethod.value = 'pickup_pvz';
     pvzCode.required = true;
     if (addressLine) addressLine.required = false;
     // если ещё не выбрано ПВЗ — раскрываем карту
@@ -326,29 +420,33 @@ function formatMoney(n) {
 
 
 function loadPoints(city) {
-  // Наши ПВЗ
-  fetch(`/api/pvz/shop/`)
-      .then(r => r.json())
-      .then(points => {
-        clusterShop.removeAll();
-        const placemarks =
-            points.filter(v => isFinite(v.lat) && isFinite(v.lon))
-                .map(p => createPlacemark(p, 'islands#blueIcon'));
-        clusterShop.add(placemarks);
-      })
-      .catch(() => {});
+  fetch(`/api/pvz/shop/?city=${encodeURIComponent(city)}`)
+    .then(r => r.json())
+    .then(points => {
+      clusterShop.removeAll();
 
-  // СДЭК ПВЗ
-  fetch(`/api/pvz/cdek/?city=${encodeURIComponent(city)}`)
-      .then(r => r.json())
-      .then(points => {
-        clusterCdek.removeAll();
-        const placemarks =
-            points.filter(v => isFinite(v.lat) && isFinite(v.lon))
-                .map(p => createPlacemark(p, 'islands#redIcon'));
-        clusterCdek.add(placemarks);
-      })
-      .catch(() => {});
+      const placemarks =
+        points.filter(v => isFinite(v.lat) && isFinite(v.lon))
+          .map(p => createPlacemark(p, 'islands#blueIcon'));
+
+      clusterShop.add(placemarks);
+    })
+    .catch(() => {});
+
+  if (!currentCityCode) return;
+
+  fetch(`/api/pvz/cdek/?city_code=${encodeURIComponent(currentCityCode)}`)
+    .then(r => r.json())
+    .then(points => {
+      clusterCdek.removeAll();
+
+      const placemarks =
+        points.filter(v => isFinite(v.lat) && isFinite(v.lon))
+          .map(p => createPlacemark(p, 'islands#redIcon'));
+
+      clusterCdek.add(placemarks);
+    })
+    .catch(() => {});
 }
 
 // ----- Утилиты -----

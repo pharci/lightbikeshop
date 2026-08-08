@@ -8,6 +8,7 @@ PHONE_RE = re.compile(r'^(?:\+7|8)?\D?(\d{3})\D?(\d{3})\D?(\d{2})\D?(\d{2})$')
 class CheckoutForm(forms.Form):
     payment_type   = forms.CharField(initial="online", widget=forms.HiddenInput)
     city           = forms.CharField()
+    city_code      = forms.CharField(required=False)
     delivery_group = forms.ChoiceField(choices=DELIVERY_GROUP_CHOICES, required=False)
     delivery_method= forms.CharField(required=False)
     pvz_provider   = forms.CharField(required=False)
@@ -50,6 +51,7 @@ class CheckoutForm(forms.Form):
         # Определение способа доставки
         dg = s("delivery_group") or None
         dm = s("delivery_method") or None
+        city_code = s("city_code") or ""
         pvz_provider, pvz_code, pvz_address = s("pvz_provider"), s("pvz_code"), s("pvz_address")
 
         # Автовывод группы по методу/ПВЗ
@@ -69,6 +71,7 @@ class CheckoutForm(forms.Form):
             cd.update(
                 delivery_group="pvz",
                 delivery_method="pickup_pvz",
+                city_code=city_code,
                 pvz_provider=pvz_provider,
                 pvz_code=pvz_code,
                 pvz_address=pvz_address,
@@ -78,6 +81,7 @@ class CheckoutForm(forms.Form):
             cd.update(
                 delivery_group="pickup",
                 delivery_method="pickup_store",
+                city_code="",
                 pvz_provider="",
                 pvz_code="",
                 pvz_address="",

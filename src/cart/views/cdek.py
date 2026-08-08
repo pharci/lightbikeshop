@@ -47,50 +47,47 @@ def _get_token():
 def _auth_headers():
     return {"Authorization": f"Bearer {_get_token()}"}
 
-def get_city_code(city: str):
-    key = _safe_cache_key("cdek_city", city)
-    code = cache.get(key)
-    if code:
-        return code
-    r = requests.get(
-        CDEK_CITY_URL,
-        params={"city": city, "country_codes": "RU"},
-        headers=_auth_headers(),
-        timeout=20,
-    )
-    r.raise_for_status()
-    items = r.json()
-    if not items:
-        return None
-    code = items[0]["code"]
-    cache.set(key, code, 24 * 3600)
-    return code
-
-def get_pvz(city: str):
-    code = get_city_code(city)
-    if not code:
-        return []
-    r = requests.get(
-        CDEK_PVZ_URL,
-        params={"city_code": code, "type": "PVZ", "is_handout": "true", "active": "true"},
-        headers=_auth_headers(),
-        timeout=20,
-    )
-    r.raise_for_status()
+def get_pvz_by_city_code(city_code: int):
     out = []
-    for p in r.json():
-        loc = p.get("location") or {}
-        if "latitude" not in loc or "longitude" not in loc:
-            continue
-        out.append({
-            "id": p.get("code"),
-            "name": p.get("name") or "СДЭК ПВЗ",
-            "address": loc.get("address") or "",
-            "lat": loc.get("latitude"),
-            "lon": loc.get("longitude"),
-            "city_code": loc.get("city_code"),
-            "provider": "cdek",
-        })
+    page = 0
+    while True:
+        r = requests.get(
+            CDEK_PVZ_URL,
+            params={
+                "city_code": city_code,
+                "type": "PVZ",
+                "is_handout": "true",
+                "active": "true",
+                "size": 1000,
+                "page": page,
+            },
+            headers=_auth_headers(),
+            timeout=20,
+        )
+        r.raise_for_status()
+
+        items = r.json() or []
+        if not items:
+            break
+
+        for p in items:
+            loc = p.get("location") or {}
+            if "latitude" not in loc or "longitude" not in loc:
+                continue
+            out.append({
+                "id": p.get("code"),
+                "name": p.get("name") or "СДЭК ПВЗ",
+                "address": loc.get("address") or "",
+                "lat": loc.get("latitude"),
+                "lon": loc.get("longitude"),
+                "city_code": loc.get("city_code"),
+                "provider": "cdek",
+            })
+
+        if len(items) < 1000:
+            break
+        page += 1
+
     return out
 
 
@@ -133,28 +130,43 @@ def calc_cdek_pvz_price(cart, pvz_code: str, to_city_code: str | None = None) ->
     meta = {}
     try:
         w = int(cart.get_total_weight() or 0)
-        if not to_city_code:
-            pvz = get_pvz_by_code(pvz_code) or {}
-            loc = pvz.get("location") or {}
-            to_city_code = loc.get("city_code")
-        if not to_city_code:
+        # Bind the quote to the selected CDEK pickup point, rather than a city
+        # code controlled by the browser.
+        pvz = get_pvz_by_code(pvz_code) or {}
+        loc = pvz.get("location") or {}
+        pvz_city_code = loc.get("city_code")
+        if not pvz_city_code:
             return price, {"error": "CITY_CODE_NOT_FOUND"}
+        try:
+            to_code = int(pvz_city_code)
+        except (TypeError, ValueError):
+            return price, {"error": "INVALID_CITY_CODE"}
+        try:
+            if to_city_code and int(to_city_code) != to_code:
+                return price, {"error": "PVZ_CITY_MISMATCH"}
+        except (TypeError, ValueError):
+            return price, {"error": "INVALID_CITY_CODE"}
+
         data = calc_price(
             from_code=int(settings.CDEK_SENDER_CODE),
-            to_code=int(to_city_code),
+            to_code=to_code,
             weight=w,
             tariff_code=136,  # склад-склад
         )
-        
-        price = D(str(data.get("total_sum") or "0")) + D(100)
+
+        if "total_sum" not in data:
+            return price, {"error": "MALFORMED_RESPONSE"}
+        price = D(str(data["total_sum"])) + D(100)
         meta = {
             "tariff_code": 136,
             "period_min": data.get("period_min"),
             "period_max": data.get("period_max"),
-            "to_city_code": to_city_code,
+            "to_city_code": to_code,
         }
         return price, meta
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.exception("CDEK price calculation failed for pvz_code=%s city_code=%s", pvz_code, to_city_code)
         return D("0.00"), {"error": "UNEXPECTED", "detail": str(e)}
 
 
@@ -187,8 +199,17 @@ def api_shop_pvz(request):
 
 @require_GET
 def api_cdek_pvz(request):
-    city = request.GET.get("city", "").strip()
-    data = get_pvz(city) if city else []
+    city_code = request.GET.get("city_code", "").strip()
+
+    if not city_code:
+        return JsonResponse([], safe=False)
+
+    try:
+        city_code = int(city_code)
+    except ValueError:
+        return JsonResponse([], safe=False)
+
+    data = get_pvz_by_city_code(city_code)
     return JsonResponse(data, safe=False)
 
 
@@ -199,6 +220,13 @@ def api_cdek_price(request):
     cart = get_cart(request)
 
     price, meta = calc_cdek_pvz_price(cart, pvz_code, to_city_code)
+
+    if meta.get("error"):
+        return JsonResponse({
+            "ok": False,
+            "error": meta["error"],
+        }, status=400)
+
     if meta.get("error") == "CITY_CODE_NOT_FOUND":
         return JsonResponse({"ok": False, "error": "CITY_CODE_NOT_FOUND"}, status=400)
     return JsonResponse({
