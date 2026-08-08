@@ -287,7 +287,7 @@ class PvzApiTests(TestCase):
                 mock_resp = req_get.return_value
                 mock_resp.raise_for_status.return_value = None
                 mock_resp.json.return_value = [
-                    {'code': '520', 'city': 'TestCity', 'region': 'TestRegion'}
+                    {'code': '520', 'city': 'TestCity', 'region': 'MO'}
                 ]
 
                 res = self.client.get('/api/pvz/cities/', secure=True, follow=True)
@@ -295,6 +295,10 @@ class PvzApiTests(TestCase):
                 data = res.json()
                 self.assertIsInstance(data, list)
                 self.assertEqual(data[0]['city'], 'TestCity')
+
+                # ensure the module's requests.get was called (mock applied correctly)
+                self.assertTrue(req_get.called)
+                req_get.assert_called()
 
     def test_api_cdek_pvz_returns_points_for_city(self):
         # patch internal helper to avoid external calls
@@ -308,3 +312,7 @@ class PvzApiTests(TestCase):
             data = res.json()
             self.assertIsInstance(data, list)
             self.assertEqual(data[0]['provider'], 'cdek')
+
+            # ensure the helper was called
+            self.assertTrue(gp.called)
+            gp.assert_called_once_with(520)
