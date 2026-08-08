@@ -217,30 +217,19 @@ function setCity(city, cityCode = null) {
 
 
 async function loadCdekCities() {
-  console.log('[PVZ] loadCdekCities start');
   if (citiesLoaded) {
-    console.log('[PVZ] already loaded, returning cached cdekCities length=', cdekCities && cdekCities.length);
-    console.log('[PVZ] cityList element:', cityList);
     return cdekCities;
   }
 
   const response = await fetch('/api/pvz/cities/');
-  console.log('[PVZ] response status:', response.status);
 
   if (!response.ok) {
-    console.log('[PVZ] response not ok, throwing');
     throw new Error('Не удалось загрузить города CDEK');
   }
 
   const data = await response.json();
-  console.log('[PVZ] response:', data);
-
   cdekCities = data;
-  console.log('[PVZ] cdekCities:', cdekCities && cdekCities.length);
-  console.log('[PVZ] cityList:', cityList);
-
   citiesLoaded = true;
-
   return cdekCities;
 }
 
