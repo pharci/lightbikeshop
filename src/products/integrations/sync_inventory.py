@@ -1,17 +1,13 @@
-import os, time, requests, sys
+import time
 from typing import Iterator, Dict, Any
 from django.db import transaction
 from products.models import Variant
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
+from core.moysklad import _get_session
 
-S = requests.Session()
-S.headers.update({
-    "Authorization": f"Bearer {settings.MOYSKLAD_TOKEN}",
-    "Accept-Encoding": "gzip",
-    "User-Agent": "DjangoSync/1.0",
-})
+S = _get_session()
 S.hooks["response"] = [lambda r,*a,**k: print(
     f"{r.request.method} {r.request.url} -> {r.status_code} {r.elapsed.total_seconds()*1000:.0f}ms", flush=True
 )]

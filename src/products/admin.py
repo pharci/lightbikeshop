@@ -10,7 +10,7 @@ from django.db.models import Prefetch
 
 from .models import *
 
-from products.integrations.ms import get, save_variant_images, HEADERS
+from products.integrations.ms import get, save_variant_images
 
 
 # ---------- helpers ----------
@@ -196,7 +196,7 @@ class ProductAdmin(ColumnToggleModelAdmin):
                     with transaction.atomic():
                         url = f"{settings.MOYSKLAD_BASE}/entity/variant/{variant.id}"
                         data = get(url, params={"expand": "images"})
-                        save_variant_images(variant, data.get("images") or {}, HEADERS)
+                        save_variant_images(variant, data.get("images") or {})
                         updated += 1
                 except Exception as e:
                     errors += 1

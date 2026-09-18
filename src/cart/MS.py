@@ -1,16 +1,11 @@
 import uuid, datetime as dt
 from decimal import Decimal
-import requests
 from django.conf import settings
 from .order_utils import as_kop
 from requests.exceptions import HTTPError
+from core.moysklad import _get_session
 
 BASE = settings.MOYSKLAD_BASE
-HDRS = {
-    "Authorization": f"Bearer {settings.MOYSKLAD_TOKEN}",
-    "Accept-Encoding": "gzip",
-    "User-Agent": "DjangoShop/1.0",
-}
 
 def _meta(entity: str, _id: str) -> dict:
     return {"meta": {
@@ -20,7 +15,7 @@ def _meta(entity: str, _id: str) -> dict:
     }}
 
 def _get(url, params=None):
-    r = requests.get(url, headers=HDRS, params=params, timeout=30)
+    r = _get_session().get(url, params=params, timeout=30)
     if r.status_code >= 400:
         try: print("MS GET ERROR:", r.text[:2000])
         except: pass
@@ -28,7 +23,7 @@ def _get(url, params=None):
     return r.json()
 
 def _post(url, json):
-    r = requests.post(url, headers=HDRS, json=json, timeout=60)
+    r = _get_session().post(url, json=json, timeout=60)
     if r.status_code >= 400:
         try: print("MS ERROR:", r.text[:2000])
         except: pass
@@ -152,7 +147,7 @@ def set_ms_order_state_by_uuid(order_uuid: str | uuid.UUID, state_uuid: str | uu
         },
         "reserve": True
     }
-    r = requests.put(f"{BASE}/entity/customerorder/{ou}", headers=HDRS, json=body, timeout=30)
+    r = _get_session().put(f"{BASE}/entity/customerorder/{ou}", json=body, timeout=30)
     if r.status_code >= 400:
         try: print("MS ERROR:", r.text[:2000])
         except: pass

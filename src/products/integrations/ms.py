@@ -1,5 +1,4 @@
 import time
-import requests
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
 from django.core.files.base import ContentFile
@@ -13,13 +12,9 @@ from products.models import (
 
 from products.integrations.ozon import get_sku_by_offer_id
 from products.integrations.wb import wb_get_nm_id
+from core.moysklad import _get_session
 
 # ====== НАСТРОЙКИ ======
-HEADERS = {
-    "Authorization": f"Bearer {settings.MOYSKLAD_TOKEN}",
-    "Accept-Encoding": "gzip",
-    "User-Agent": "DjangoSync/1.0",
-}
 PAGE_LIMIT = 100                 # expand работает только при limit<=100
 SLEEP_BETWEEN_REQUESTS = 0.1     # чуть бережём API
 # =======================
@@ -33,7 +28,7 @@ ATTR_TYPE_MAP = {
 }
 
 def get(url, params=None):
-    r = requests.get(url, headers=HEADERS, params=params, timeout=60)
+    r = _get_session().get(url, params=params, timeout=60)
     if r.status_code >= 400:
         try: print("ERROR BODY:", r.text[:1000])
         except Exception: pass
@@ -88,7 +83,7 @@ def pick_prices(sale_prices):
         elif name == "старая цена": old_price = val
     return price, old_price
 
-def save_variant_images(variant, images_obj: dict, headers: dict):
+def save_variant_images(variant, images_obj: dict):
     rows = (images_obj or {}).get("rows") or []
 
     with transaction.atomic():
@@ -102,7 +97,7 @@ def save_variant_images(variant, images_obj: dict, headers: dict):
             download_href = img.get("meta", {}).get("downloadHref")
             if not download_href:
                 continue
-            r = requests.get(download_href, headers=headers, timeout=30)
+            r = _get_session().get(download_href, timeout=30)
             if r.ok and r.content:
                 filename = f"{variant.id}_{sort_index}.jpg"
                 Image.objects.create(
@@ -158,5 +153,5 @@ def import_all_variants():
                 price=price,old_price=old
             )
             created+=1
-            save_variant_images(variant,v.get("images"),HEADERS)
+            save_variant_images(variant, v.get("images"))
     return f"Variants: created={created}"
