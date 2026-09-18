@@ -24,7 +24,7 @@ COPY --from=build /tmp/nginx-${NGINX_VERSION}/objs/ngx_http_brotli_filter_module
 COPY --from=build /tmp/nginx-${NGINX_VERSION}/objs/ngx_http_brotli_static_module.so  /etc/nginx/modules/
 RUN mkdir -p /var/www/static /var/www/media /var/www/certbot/.well-known/acme-challenge
 COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY infra/nginx/nginx.local.conf /etc/nginx/nginx.local.conf
+COPY infra/nginx/nginx.dev.conf /etc/nginx/nginx.dev.conf
 COPY infra/nginx/nginx.prod.conf /etc/nginx/nginx.prod.conf
 EXPOSE 80 443
 CMD ["nginx","-g","daemon off;"]
