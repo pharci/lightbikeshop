@@ -8,7 +8,7 @@ from django.core.cache import cache
 
 S = requests.Session()
 S.headers.update({
-    "Authorization": f"Bearer {settings.MOYSKLAD_TOKEN_ADMIN}",
+    "Authorization": f"Bearer {settings.MOYSKLAD_TOKEN}",
     "Accept-Encoding": "gzip",
     "User-Agent": "DjangoSync/1.0",
 })

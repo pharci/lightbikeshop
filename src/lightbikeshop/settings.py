@@ -233,8 +233,6 @@ DADATA_TOKEN = env_str("DADATA_TOKEN", "")
 # Мой склад
 # ──────────────────────────────────────────────────────────────────────────────
 
-MOYSKLAD_TOKEN = env_str("MOYSKLAD_TOKEN", "")
-MOYSKLAD_TOKEN_ADMIN = env_str("MOYSKLAD_TOKEN_ADMIN", "")
 MOYSKLAD_BASE = env_str("MOYSKLAD_BASE", "")
 MOYSKLAD_URL = env_str("MOYSKLAD_URL", "")
 MOYSKLAD_ORGANIZATION_ID = env_str("MOYSKLAD_ORGANIZATION_ID", "")
