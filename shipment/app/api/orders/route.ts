@@ -1,6 +1,9 @@
 import { getConfirmedOzonIds } from "@/lib/database";
 import { NextResponse } from "next/server";
 import { getApiCredentials } from "@/lib/api-credentials";
+import { getMoySkladCustomerOrder } from "@/lib/moysklad";
+import { externalJson } from "@/lib/http";
+import { collectCursorPages } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -62,10 +65,6 @@ const showDate = (value?: string) =>
     : "—";
 const wbHeaders = (token: string) => ({ Authorization: token });
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const msHeaders = (token: string) => ({
-  Authorization: `Bearer ${token}`,
-  Accept: "application/json;charset=utf-8",
-});
 const isMoySkladReadyState = (state: string) =>
   state.includes("собран") || state.includes("доставк");
 async function wbJson<T>(
@@ -73,20 +72,15 @@ async function wbJson<T>(
   token: string,
   init?: RequestInit,
 ): Promise<T> {
-  let lastStatus = 0;
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const response = await fetch(url, {
+  return externalJson<T>(
+    url,
+    {
       ...init,
       headers: { ...wbHeaders(token), ...(init?.headers ?? {}) },
-      cache: "no-store",
-    });
-    if (response.ok) return response.json() as Promise<T>;
-    lastStatus = response.status;
-    if (response.status !== 429 && response.status < 500) break;
-    const retryAfter = Number(response.headers.get("retry-after") ?? 0);
-    await sleep(Math.max(retryAfter * 1000, 450 * (attempt + 1)));
-  }
-  throw new Error(`WB вернул ошибку ${lastStatus}`);
+    },
+    "WB",
+    { retryable: true },
+  );
 }
 function mapWbOrder(
   order: WbOrder,
@@ -220,26 +214,25 @@ async function getWbNew(token: string) {
   return orders.map((order) => mapWbOrder(order, "Новый", details));
 }
 async function filterAssembledWbOrders(orders: ApiOrder[], token: string) {
-  const checks = await Promise.all(
-    orders.map(async (order) => {
-      const response = await fetch(
-        `https://api.moysklad.ru/api/remap/1.2/entity/customerorder?limit=2&expand=state&filter=${encodeURIComponent(`name=WB${order.id}`)}`,
-        { headers: msHeaders(token) },
-      );
-      if (!response.ok)
-        throw new Error(
-          `МойСклад не вернул заказ WB${order.id}: ${response.status}`,
-        );
-      const data = (await response.json()) as {
-        rows?: Array<{ name?: string; state?: { name?: string } }>;
-      };
+  const checks = [] as Array<{
+    order: ApiOrder;
+    assembled: boolean;
+    registered: boolean;
+    error?: string;
+  }>;
+  for (const order of orders) {
+    try {
+      const data = await getMoySkladCustomerOrder(order.id, token);
       const msOrder = (data.rows ?? []).find(
         (row) => row.name === `WB${order.id}`,
       );
-      if (!msOrder) return { order, assembled: false, registered: false };
-      const state = msOrder?.state?.name?.toLocaleLowerCase("ru-RU") ?? "";
+      if (!msOrder) {
+        checks.push({ order, assembled: false, registered: false });
+        continue;
+      }
+      const state = msOrder.state?.name?.toLocaleLowerCase("ru-RU") ?? "";
       const ready = isMoySkladReadyState(state);
-      return {
+      checks.push({
         order: {
           ...order,
           status: ready
@@ -248,12 +241,20 @@ async function filterAssembledWbOrders(orders: ApiOrder[], token: string) {
         },
         assembled: ready,
         registered: true,
-      };
-    }),
-  );
+      });
+    } catch (error) {
+      checks.push({
+        order,
+        assembled: false,
+        registered: false,
+        error: error instanceof Error ? error.message : "Ошибка проверки МойСклад",
+      });
+    }
+  }
   return {
     ready: checks.filter((item) => item.registered && item.assembled).map((item) => item.order),
     waiting: checks.filter((item) => item.registered && !item.assembled).map((item) => item.order),
+    errors: checks.filter((item) => item.error).map((item) => item.error),
   };
 }
 async function getWbSupplyOrderIds(token: string, supplyId: string) {
@@ -477,39 +478,47 @@ type OzonPosting = {
 async function ozonList(clientId: string, apiKey: string, statuses: string[]) {
   const now = new Date();
   const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const response = await fetch(
-    "https://api-seller.ozon.ru/v4/posting/fbs/list",
-    {
-      method: "POST",
-      headers: {
-        "Client-Id": clientId,
-        "Api-Key": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        sort_dir: "ASC",
-        filter: { since: since.toISOString(), to: now.toISOString(), statuses },
-        limit: 100,
-        cursor: "",
-        with: {
-          analytics_data: true,
-          barcodes: false,
-          financial_data: false,
-          legal_info: false,
-          translit: true,
+  return collectCursorPages(
+    async (cursor) => {
+      const data = await externalJson<{ postings?: OzonPosting[]; cursor?: string }>(
+      "https://api-seller.ozon.ru/v4/posting/fbs/list",
+      {
+        method: "POST",
+        headers: {
+          "Client-Id": clientId,
+          "Api-Key": apiKey,
+          "Content-Type": "application/json",
         },
-      }),
+        body: JSON.stringify({
+          sort_dir: "ASC",
+          filter: { since: since.toISOString(), to: now.toISOString(), statuses },
+          limit: 100,
+          cursor,
+          with: {
+            analytics_data: true,
+            barcodes: false,
+            financial_data: false,
+            legal_info: false,
+            translit: true,
+          },
+        }),
+      },
+      "Ozon",
+      { retryable: true },
+      );
+      return { items: data.postings ?? [], cursor: data.cursor };
     },
+    (posting) => posting.posting_number,
   );
-  if (!response.ok) throw new Error(`Ozon вернул ошибку ${response.status}`);
-  const data = (await response.json()) as { postings?: OzonPosting[] };
-  return data.postings ?? [];
 }
 async function getOzonImages(clientId: string, apiKey: string, offerIds: string[]) {
   const result = new Map<string, string>();
   if (!offerIds.length) return result;
   try {
-    const response = await fetch("https://api-seller.ozon.ru/v3/product/info/list", {
+    const data = await externalJson<{
+      items?: Array<{ offer_id?: string; primary_image?: string; images?: string[] }>;
+      result?: { items?: Array<{ offer_id?: string; primary_image?: string; images?: string[] }> };
+    }>("https://api-seller.ozon.ru/v3/product/info/list", {
       method: "POST",
       headers: {
         "Client-Id": clientId,
@@ -517,12 +526,7 @@ async function getOzonImages(clientId: string, apiKey: string, offerIds: string[
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ offer_id: [...new Set(offerIds)].slice(0, 1000) }),
-    });
-    if (!response.ok) return result;
-    const data = (await response.json()) as {
-      items?: Array<{ offer_id?: string; primary_image?: string; images?: string[] }>;
-      result?: { items?: Array<{ offer_id?: string; primary_image?: string; images?: string[] }> };
-    };
+    }, "Ozon", { retryable: true });
     for (const item of data.items ?? data.result?.items ?? []) {
       const image = item.primary_image || item.images?.[0];
       if (item.offer_id && image) result.set(item.offer_id, image);
@@ -658,6 +662,9 @@ export async function GET(request: Request) {
           );
           result.orders.push(...filtered.ready, ...filtered.waiting);
           result.waitingWbAssembly = filtered.waiting.length;
+          if (filtered.errors.length) {
+            result.errors.moysklad = `Не удалось проверить заказы WB: ${filtered.errors.join("; ")}`;
+          }
         })
         .catch((error) => {
           result.errors.wb =

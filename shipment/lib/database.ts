@@ -1,8 +1,12 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { randomUUID } from "node:crypto";
 
-const defaultPath = resolve(process.cwd(), "data", "shipment.sqlite");
+const defaultPath =
+  process.env.NODE_ENV === "production"
+    ? "/data/shipment.sqlite"
+    : resolve(process.cwd(), "data", "shipment.sqlite");
 const databasePath = process.env.SHIPMENT_DB_PATH || defaultPath;
 
 let database: DatabaseSync | undefined;
@@ -31,9 +35,57 @@ function getConnection() {
 
     CREATE INDEX IF NOT EXISTS idx_orders_marketplace_status
       ON orders (marketplace, status);
+
+    CREATE TABLE IF NOT EXISTS operation_locks (
+      operation_key TEXT PRIMARY KEY,
+      owner TEXT NOT NULL,
+      acquired_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL
+    );
   `);
 
   return database;
+}
+
+export type OperationLock = { operationKey: string; owner: string };
+
+export function acquireOperationLock(
+  marketplace: string,
+  externalIds: Array<string | number>,
+  ttlMs = 30 * 60 * 1000,
+): OperationLock | null {
+  const operationKey = `${marketplace}:${[...new Set(externalIds.map(String))].sort().join(",")}`;
+  const owner = randomUUID();
+  const now = Date.now();
+  const db = getConnection();
+
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("DELETE FROM operation_locks WHERE expires_at <= ?").run(now);
+    const result = db
+      .prepare(
+        `INSERT INTO operation_locks
+          (operation_key, owner, acquired_at, expires_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(operation_key) DO NOTHING`,
+      )
+      .run(operationKey, owner, now, now + ttlMs);
+    db.exec("COMMIT");
+    return Number(result.changes) === 1 ? { operationKey, owner } : null;
+  } catch (error) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {}
+    throw error;
+  }
+}
+
+export function releaseOperationLock(lock: OperationLock) {
+  getConnection()
+    .prepare(
+      "DELETE FROM operation_locks WHERE operation_key = ? AND owner = ?",
+    )
+    .run(lock.operationKey, lock.owner);
 }
 
 export function getConfirmedOzonIds() {

@@ -1,6 +1,16 @@
-import { getConfirmedOzonIds, saveConfirmedOzonIds } from "@/lib/database";
+import {
+  acquireOperationLock,
+  getConfirmedOzonIds,
+  releaseOperationLock,
+  saveConfirmedOzonIds,
+} from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
 import { getApiCredentials } from "@/lib/api-credentials";
+import { getMoySkladCustomerOrder } from "@/lib/moysklad";
+import { rejectCrossSiteRequest } from "@/lib/security";
+import { externalJson } from "@/lib/http";
+import { collectCursorPages } from "@/lib/pagination";
+import { confirmThenGetLabels } from "@/lib/ozon";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,10 +36,6 @@ const ozonHeaders = (clientId: string, apiKey: string) => ({
   "Api-Key": apiKey,
   "Content-Type": "application/json",
 });
-const msHeaders = (token: string) => ({
-  Authorization: `Bearer ${token}`,
-  Accept: "application/json;charset=utf-8",
-});
 const isMoySkladReadyState = (state: string) =>
   state.includes("собран") || state.includes("доставк");
 const binaryToBase64 = (value: string) => {
@@ -44,26 +50,13 @@ const binaryToBase64 = (value: string) => {
   }
   return btoa(result);
 };
-async function jsonCall(url: string, init: RequestInit, label: string) {
-  const response = await fetch(url, { ...init, cache: "no-store" });
-  const text = await response.text();
-  let data: Record<string, unknown> = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = { message: text };
-  }
-  if (!response.ok) {
-    const message = data.message
-      ? String(data.message)
-      : data.error
-        ? typeof data.error === "string"
-          ? data.error
-          : JSON.stringify(data.error)
-        : `${label}: ошибка ${response.status}`;
-    throw new Error(message);
-  }
-  return data;
+async function jsonCall<T extends Record<string, unknown> = Record<string, unknown>>(
+  url: string,
+  init: RequestInit,
+  label: string,
+  retryable = false,
+) {
+  return externalJson<T>(url, init, label, { retryable });
 }
 
 async function wbNew(token: string) {
@@ -71,6 +64,7 @@ async function wbNew(token: string) {
     "https://marketplace-api.wildberries.ru/api/v3/orders/new",
     { headers: { Authorization: token } },
     "WB",
+    true,
   );
   return (data.orders ?? []) as WbOrder[];
 }
@@ -79,6 +73,7 @@ async function wbOpenSupplyOrders(token: string) {
     "https://marketplace-api.wildberries.ru/api/v3/supplies?limit=1000&next=0",
     { headers: { Authorization: token } },
     "WB",
+    true,
   );
   const supplies = (data.supplies ?? []) as Array<{ id?: string; done?: boolean }>;
   const result: Array<{ supplyId: string; orderIds: number[] }> = [];
@@ -89,6 +84,7 @@ async function wbOpenSupplyOrders(token: string) {
         `https://marketplace-api.wildberries.ru/api/marketplace/v3/supplies/${encodeURIComponent(String(supply.id))}/order-ids`,
         { headers: { Authorization: token } },
         "WB",
+        true,
       );
       orderIds = ((response.orderIds ?? response.orders ?? []) as Array<number | string>)
         .map(Number)
@@ -99,6 +95,7 @@ async function wbOpenSupplyOrders(token: string) {
         `https://marketplace-api.wildberries.ru/api/v3/supplies/${encodeURIComponent(String(supply.id))}/orders`,
         { headers: { Authorization: token } },
         "WB",
+        true,
       );
       orderIds = ((orders.orders ?? []) as WbOrder[]).map((order) => order.id);
     } catch {}
@@ -107,17 +104,7 @@ async function wbOpenSupplyOrders(token: string) {
   return result;
 }
 async function isAssembledInMoySklad(orderId: number, token: string) {
-  const response = await fetch(
-    `https://api.moysklad.ru/api/remap/1.2/entity/customerorder?limit=2&expand=state&filter=${encodeURIComponent(`name=WB${orderId}`)}`,
-    { headers: msHeaders(token) },
-  );
-  if (!response.ok)
-    throw new Error(
-      `МойСклад не вернул заказ WB${orderId}: ${response.status}`,
-    );
-  const data = (await response.json()) as {
-    rows?: Array<{ name?: string; state?: { name?: string } }>;
-  };
+  const data = await getMoySkladCustomerOrder(orderId, token);
   const order = (data.rows ?? []).find((row) => row.name === `WB${orderId}`);
   const state = order?.state?.name?.toLocaleLowerCase("ru-RU") ?? "";
   return isMoySkladReadyState(state);
@@ -133,6 +120,7 @@ async function wbOrderStickers(token: string, ids: number[]) {
         body: JSON.stringify({ orders: part }),
       },
       "WB",
+      true,
     );
     for (const item of (data.stickers ?? []) as Array<{
       orderId?: number;
@@ -150,6 +138,23 @@ async function wbOrderStickers(token: string, ids: number[]) {
 }
 
 async function formWb(
+  token: string,
+  msToken: string,
+  requested: string[],
+  requestedBoxCount: number,
+) {
+  const lock = acquireOperationLock("wb", requested);
+  if (!lock) {
+    throw new Error("Формирование этой поставки WB уже выполняется");
+  }
+  try {
+    return await performWbForm(token, msToken, requested, requestedBoxCount);
+  } finally {
+    releaseOperationLock(lock);
+  }
+}
+
+async function performWbForm(
   token: string,
   msToken: string,
   requested: string[],
@@ -179,12 +184,27 @@ async function formWb(
   if (!selected.length && requestedSet.size) {
     throw new Error("WB не вернул заказы для формирования поставки");
   }
-  const checks = await Promise.all(
-    selected.map(async (order) => ({
-      order,
-      assembled: await isAssembledInMoySklad(order.id, msToken),
-    })),
-  );
+  const checks: Array<{ order: WbOrder; assembled: boolean; error?: string }> = [];
+  for (const order of selected) {
+    try {
+      checks.push({
+        order,
+        assembled: await isAssembledInMoySklad(order.id, msToken),
+      });
+    } catch (error) {
+      checks.push({
+        order,
+        assembled: false,
+        error: error instanceof Error ? error.message : "Ошибка проверки МойСклад",
+      });
+    }
+  }
+  const failedChecks = checks.filter((item) => item.error);
+  if (failedChecks.length) {
+    throw new Error(
+      `Не удалось проверить заказы WB в МойСклад: ${failedChecks.map((item) => item.error).join("; ")}`,
+    );
+  }
   const assembled = checks
     .filter((item) => item.assembled)
     .map((item) => item.order);
@@ -370,32 +390,41 @@ async function formWb(
 async function ozonReady(clientId: string, apiKey: string) {
   const now = new Date(),
     since = new Date(now.getTime() - 30 * 86400000);
-  const data = await jsonCall(
-    "https://api-seller.ozon.ru/v4/posting/fbs/list",
-    {
-      method: "POST",
-      headers: ozonHeaders(clientId, apiKey),
-      body: JSON.stringify({
-        sort_dir: "ASC",
-        filter: {
-          since: since.toISOString(),
-          to: now.toISOString(),
-          statuses: ["awaiting_deliver"],
-        },
-        limit: 100,
-        cursor: "",
-        with: {
-          analytics_data: true,
-          barcodes: true,
-          financial_data: false,
-          legal_info: false,
-          translit: true,
-        },
-      }),
+  return collectCursorPages(
+    async (cursor) => {
+      const data = await jsonCall(
+      "https://api-seller.ozon.ru/v4/posting/fbs/list",
+      {
+        method: "POST",
+        headers: ozonHeaders(clientId, apiKey),
+        body: JSON.stringify({
+          sort_dir: "ASC",
+          filter: {
+            since: since.toISOString(),
+            to: now.toISOString(),
+            statuses: ["awaiting_deliver"],
+          },
+          limit: 100,
+          cursor,
+          with: {
+            analytics_data: true,
+            barcodes: true,
+            financial_data: false,
+            legal_info: false,
+            translit: true,
+          },
+        }),
+      },
+      "Ozon",
+      true,
+      );
+      return {
+        items: (data.postings ?? []) as OzonPosting[],
+        cursor: typeof data.cursor === "string" ? data.cursor : undefined,
+      };
     },
-    "Ozon",
+    (posting) => posting.posting_number,
   );
-  return (data.postings ?? []) as OzonPosting[];
 }
 async function ozonLabels(clientId: string, apiKey: string, ids: string[]) {
   const files: FileResult[] = [];
@@ -408,6 +437,7 @@ async function ozonLabels(clientId: string, apiKey: string, ids: string[]) {
         body: JSON.stringify({ posting_number: part }),
       },
       "Ozon",
+      true,
     );
     const content = String(data.file_content ?? "");
     if (content)
@@ -478,6 +508,7 @@ async function findOzonCarriage(
         "https://api-seller.ozon.ru/v2/carriage/delivery/list",
         { method: "POST", headers, body: JSON.stringify(body) },
         "Ozon",
+        true,
       );
       const id = findCarriageId(data, deliveryMethodId);
       if (id) return id;
@@ -521,6 +552,22 @@ async function createOzonCarriage(
 }
 
 async function formOzon(clientId: string, apiKey: string, requested: string[]) {
+  const lock = acquireOperationLock("ozon", requested);
+  if (!lock) {
+    throw new Error("Формирование этой поставки Ozon уже выполняется");
+  }
+  try {
+    return await performOzonForm(clientId, apiKey, requested);
+  } finally {
+    releaseOperationLock(lock);
+  }
+}
+
+async function performOzonForm(
+  clientId: string,
+  apiKey: string,
+  requested: string[],
+) {
   const confirmedIds = getConfirmedOzonIds();
   const live = await ozonReady(clientId, apiKey),
     requestedSet = new Set(requested),
@@ -594,8 +641,14 @@ async function formOzon(clientId: string, apiKey: string, requested: string[]) {
       }
       if (!confirmed) throw new Error("Ozon не подтвердил отгрузку");
 
-      const labels = await ozonLabels(clientId, apiKey, ids);
-      saveConfirmedOzonIds(ids);
+      const labelResult = await confirmThenGetLabels(
+        () => saveConfirmedOzonIds(ids),
+        () => ozonLabels(clientId, apiKey, ids),
+      );
+      const labels = labelResult.labels ?? [];
+      const labelsError = labelResult.error
+        ? `Отгрузка подтверждена, но labels получить не удалось: ${labelResult.error}`
+        : undefined;
       shipments.push({
         id: String(id),
         deliveryMethodId,
@@ -603,6 +656,7 @@ async function formOzon(clientId: string, apiKey: string, requested: string[]) {
         labels,
         status: "confirmed",
         orderIds: ids,
+        error: labelsError,
       });
     } catch (error) {
       shipments.push({
@@ -620,8 +674,8 @@ async function formOzon(clientId: string, apiKey: string, requested: string[]) {
 }
 
 export async function POST(request: NextRequest) {
-  if (request.headers.get("sec-fetch-site") === "cross-site")
-    return NextResponse.json({ error: "Запрос отклонён" }, { status: 403 });
+  const csrfResponse = rejectCrossSiteRequest(request);
+  if (csrfResponse) return csrfResponse;
   try {
     const body = (await request.json()) as {
       confirmation?: string;

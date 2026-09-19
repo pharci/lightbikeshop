@@ -1,10 +1,13 @@
 import { saveConfirmedOzonIds } from "@/lib/database";
 import { NextRequest, NextResponse } from "next/server";
+import { rejectCrossSiteRequest } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const csrfResponse = rejectCrossSiteRequest(request);
+  if (csrfResponse) return csrfResponse;
   try {
     const body = (await request.json()) as {
       confirmation?: string;

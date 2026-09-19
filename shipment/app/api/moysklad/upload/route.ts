@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
 import { getApiCredentials } from "@/lib/api-credentials";
+import { rejectCrossSiteRequest } from "@/lib/security";
+import { externalFetch, externalJson } from "@/lib/http";
 
 type Input = {
   confirmation?: string;
@@ -47,9 +49,10 @@ async function makePdf(images: string[]) {
 }
 
 async function wbOrderIds(supplyId: string, token: string) {
-  const response = await fetch(
+  const response = await externalFetch(
     `https://marketplace-api.wildberries.ru/api/marketplace/v3/supplies/${encodeURIComponent(supplyId)}/order-ids`,
     { headers: { Authorization: token } },
+    { retryable: true },
   );
   if (!response.ok)
     throw new Error(`WB не вернул состав поставки: ${response.status}`);
@@ -58,12 +61,12 @@ async function wbOrderIds(supplyId: string, token: string) {
 }
 
 async function findMsOrder(orderId: string, token: string) {
-  const response = await fetch(
+  const data = await externalJson<{ rows?: MsOrder[] }>(
     `https://api.moysklad.ru/api/remap/1.2/entity/customerorder?limit=2&filter=${encodeURIComponent(`name=WB${orderId}`)}`,
     { headers: msHeaders(token) },
+    "МойСклад",
+    { retryable: true },
   );
-  if (!response.ok) throw new Error(`Поиск WB${orderId}: ${response.status}`);
-  const data = (await response.json()) as { rows?: MsOrder[] };
   return (data.rows ?? []).find((row) => row.name === `WB${orderId}`);
 }
 
@@ -74,7 +77,11 @@ async function attach(
   token: string,
 ) {
   const url = `https://api.moysklad.ru/api/remap/1.2/entity/customerorder/${encodeURIComponent(order.id ?? "")}/files`;
-  const existing = await fetch(url, { headers: msHeaders(token) });
+  const existing = await externalFetch(
+    url,
+    { headers: msHeaders(token) },
+    { retryable: true },
+  );
   if (!existing.ok)
     throw new Error(
       `${order.name}: не удалось проверить файлы (${existing.status})`,
@@ -97,6 +104,8 @@ async function attach(
 }
 
 export async function POST(request: Request) {
+  const csrfResponse = rejectCrossSiteRequest(request);
+  if (csrfResponse) return csrfResponse;
   const { moyskladToken: msToken, wbToken } = getApiCredentials();
   if (!msToken || !wbToken)
     return NextResponse.json(
