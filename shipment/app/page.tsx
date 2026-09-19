@@ -467,6 +467,44 @@ export default function Home() {
               <AlertDialogTrigger asChild>
                 <Button
                   size="lg"
+                  className="h-14 rounded-xl bg-[#7c3aed] px-7 text-base font-bold hover:bg-violet-500"
+                  disabled={loading || Boolean(forming) || !wbOrders.length}
+                >
+                  {forming === "wb" ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : (
+                    <PackageCheck />
+                  )}
+                  {forming === "wb"
+                    ? "Формируем WB…"
+                    : `Сформировать WB · ${wbOrders.length}`}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Сформировать поставку WB?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    В поставку попадёт {wbOrders.length} заказов WB со статусом
+                    «Собран в МойСклад». Будет создано 1 грузоместо.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-[#7c3aed]"
+                    onClick={() => void formShipments("wb")}
+                  >
+                    Да, сформировать WB
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="lg"
                   className="h-14 rounded-xl bg-[#1267f2] px-7 text-base font-bold hover:bg-blue-500"
                   disabled={loading || Boolean(forming) || !ozonReady.length}
                 >
