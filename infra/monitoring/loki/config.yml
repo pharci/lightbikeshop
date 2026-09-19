@@ -31,3 +31,9 @@ schema_config:
 
 analytics:
   reporting_enabled: false
+
+frontend_worker:
+  frontend_address: 127.0.0.1:9096
+
+query_scheduler:
+  use_scheduler_ring: false
