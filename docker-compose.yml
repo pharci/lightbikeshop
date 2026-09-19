@@ -2,22 +2,30 @@ volumes:
   pg_data:
     external: true
     name: app_pg_data
+
   static:
     external: true
     name: app_static
+
   media:
     external: true
     name: app_media
+
   redis_data:
     external: true
     name: app_redis_data
+
   grafana_data:
+
   loki_data:
+
+  shipment_data:
+    name: app_shipment_data
 
 services:
   db:
     image: postgres:16-alpine
-    env_file: ops/env/.env.prod
+    env_file: .env
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
@@ -27,9 +35,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
   redis:
     image: redis:7-alpine
-    env_file: ops/env/.env.prod
+    env_file: .env
     command: >
       sh -lc 'exec redis-server
       --appendonly yes
@@ -41,63 +50,157 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  prepare:
+    build:
+      context: .
+      dockerfile: deploy/docker/web.Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        python manage.py migrate --noinput
+        python manage.py collectstatic --noinput --clear
+    volumes:
+      - static:/app/staticfiles
+    restart: "no"
+
   web:
     build:
       context: .
-      dockerfile: infra/docker/web.Dockerfile
-    hostname: mail.lightbikeshop.ru
-    env_file: ops/env/.env.prod
-    environment:
-      APP_ROLE: web
-    depends_on: [db, redis]
-    ports: []
+      dockerfile: deploy/docker/web.Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      prepare:
+        condition: service_completed_successfully
     volumes:
       - static:/app/staticfiles
       - media:/app/media
+    restart: unless-stopped
+    command:
+      - gunicorn
+      - lightbikeshop.wsgi:application
+      - --bind
+      - 0.0.0.0:8000
+      - --workers
+      - ${GUNICORN_WORKERS:-2}
+      - --threads
+      - ${GUNICORN_THREADS:-2}
+      - --timeout
+      - ${GUNICORN_TIMEOUT:-60}
+      - --access-logfile
+      - "-"
+      - --error-logfile
+      - "-"
+      - --log-level
+      - ${GUNICORN_LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',8000)); s.close()"]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
   worker:
     build:
       context: .
-      dockerfile: infra/docker/web.Dockerfile
-    hostname: mail.lightbikeshop.ru
-    env_file: ops/env/.env.prod
-    environment:
-      APP_ROLE: worker
-    depends_on: [db, redis]
+      dockerfile: deploy/docker/web.Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      prepare:
+        condition: service_completed_successfully
     volumes:
       - media:/app/media
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - lightbikeshop
+      - worker
+      - -l
+      - INFO
+
   beat:
     build:
       context: .
-      dockerfile: infra/docker/web.Dockerfile
-    env_file: ops/env/.env.prod
-    environment:
-      APP_ROLE: beat
-    depends_on: [db, redis]
+      dockerfile: deploy/docker/web.Dockerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      prepare:
+        condition: service_completed_successfully
     volumes:
       - media:/app/media
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - lightbikeshop
+      - beat
+      - -l
+      - INFO
+
+  shipment:
+    build:
+      context: ./shipment
+    env_file:
+      - .env
+    volumes:
+      - shipment_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const net=require('net'); const s=net.createConnection(3000,'127.0.0.1'); s.on('connect',()=>{s.end();process.exit(0)}); s.on('error',()=>process.exit(1));",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+
   nginx:
     build:
       context: .
-      dockerfile: infra/nginx/nginx.Dockerfile
+      dockerfile: deploy/docker/nginx.Dockerfile
     image: nginx:1.27-alpine
-    depends_on: [web]
+    depends_on:
+      web:
+        condition: service_healthy
+      shipment:
+        condition: service_healthy
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infra/certbot:/var/www/certbot:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - static:/var/www/static:ro
       - media:/var/www/media:ro
+
   loki:
     image: grafana/loki:3.7.0
     restart: unless-stopped
     command: -config.file=/etc/loki/config.yml
     volumes:
       - loki_data:/loki
-      - ./infra/monitoring/loki/config.yml:/etc/loki/config.yml:ro
+      - ./deploy/monitoring/loki/config.yml:/etc/loki/config.yml:ro
+
   alloy:
     image: grafana/alloy:v1.19.2
     restart: unless-stopped
@@ -107,16 +210,17 @@ services:
       - --storage.path=/var/lib/alloy/data
       - /etc/alloy/config.alloy
     volumes:
-      - ./infra/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./deploy/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - loki
+
   grafana:
     image: grafana/grafana:13.2.2
     restart: unless-stopped
     depends_on:
       - loki
-    env_file: ops/env/.env.prod
+    env_file: .env
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./infra/monitoring/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./deploy/monitoring/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro

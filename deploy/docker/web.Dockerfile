@@ -19,26 +19,32 @@ RUN set -eux; \
         curl; \
     rm -rf /var/lib/apt/lists/*
 
-COPY infra/certs/russian_trusted_root_ca_pem.crt \
+COPY deploy/certs/russian_trusted_root_ca_pem.crt \
      /usr/local/share/ca-certificates/russian_trusted_root_ca_pem.crt
 
-COPY infra/certs/russian_trusted_sub_ca_pem.crt \
+COPY deploy/certs/russian_trusted_sub_ca_pem.crt \
      /usr/local/share/ca-certificates/russian_trusted_sub_ca_pem.crt
 
 RUN update-ca-certificates
 
-COPY pyproject.toml poetry.lock* /app/
+COPY src/pyproject.toml src/poetry.lock /app/
 
 RUN pip install --no-cache-dir -U pip "poetry>=1.7" && \
     poetry config virtualenvs.create false && \
-    poetry install --only main --no-interaction --no-ansi
+    poetry install --only main --no-root --no-interaction --no-ansi
 
 COPY src/ /app/
-COPY infra/docker/launcher.py /launcher.py
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=3s --retries=5 \
     CMD python -c "import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',8000)); s.close()"
 
-CMD ["python", "/launcher.py"]
+CMD ["gunicorn", "lightbikeshop.wsgi:application", \
+     "--bind", "0.0.0.0:8000", \
+     "--workers", "2", \
+     "--threads", "2", \
+     "--timeout", "60", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "--log-level", "info"]
