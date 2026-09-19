@@ -34,7 +34,6 @@ media/
 *.bak
 
 # Poetry / pip
-poetry.lock
 __pypackages__/
 
 # Node / frontend (если используется)
