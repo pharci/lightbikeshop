@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/sonner";
 import {
   AlertDialog,
@@ -97,6 +98,7 @@ export default function Home() {
   const [formation, setFormation] = useState<FormationResult>();
   const [uploadingSupply, setUploadingSupply] = useState<string>();
   const [confirmedOzon, setConfirmedOzon] = useState<Order[]>([]);
+  const [wbBoxCount, setWbBoxCount] = useState(1);
 
   const loadData = useCallback(async (showToast = false) => {
     setLoading(true);
@@ -487,14 +489,41 @@ export default function Home() {
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     В поставку попадёт {wbOrders.length} заказов WB со статусом
-                    «Собран в МойСклад». Будет создано 1 грузоместо.
+                    «Собран в МойСклад».
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                <div className="space-y-2">
+                  <label htmlFor="wb-box-count" className="text-sm font-semibold">
+                    Количество грузомест
+                  </label>
+                  <Input
+                    id="wb-box-count"
+                    type="number"
+                    min={1}
+                    max={Math.max(1, wbOrders.length)}
+                    step={1}
+                    value={wbBoxCount}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setWbBoxCount(
+                        Number.isFinite(value)
+                          ? Math.min(
+                              Math.max(1, Math.trunc(value)),
+                              Math.max(1, wbOrders.length),
+                            )
+                          : 1,
+                      );
+                    }}
+                  />
+                  <p className="text-sm text-slate-500">
+                    От 1 до {wbOrders.length} грузомест.
+                  </p>
+                </div>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Отмена</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-[#7c3aed]"
-                    onClick={() => void formShipments("wb")}
+                    onClick={() => void formShipments("wb", wbBoxCount)}
                   >
                     Да, сформировать WB
                   </AlertDialogAction>
