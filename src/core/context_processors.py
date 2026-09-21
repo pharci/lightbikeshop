@@ -13,15 +13,15 @@ def _rev(name, fallback="/"):
         return fallback
 
 BREADCRUMB_RULES = [
-    ("prefix", "/catalog/",  "Каталог",  ("catalog", "list")),
-    ("prefix", "/brands/",   "Бренды",   ("brands", "list")),
+    ("prefix", "/catalog/",  "Каталог",  ("products", "catalog")),
+    ("prefix", "/brands/",   "Бренды",   ("products", "brands")),
     ("exact",  "/cart/",     "Корзина",  None),
     ("exact",  "/faq/",      "FAQ",      None),
     ("exact",  "/login/",    "Вход",      None),
     ("exact",  "/register/", "Регистрация", None),
     ("exact",  "/profile/",  "Профиль",      None),
     ("route",  ("cart","checkout"), "Оформление заказа", None),
-    ("route",  ("catalog","search"), "Поиск", None),
+    ("route",  ("products","search"), "Поиск", None),
 ]
 
 def _parent_link(kind, key, route):
