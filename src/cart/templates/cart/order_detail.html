@@ -131,7 +131,7 @@
             {% for it in order.items.all %}
               <article class="cart-item">
                 <a class="cart-item__image" href="{{ it.variant.get_absolute_url }}">
-                  {% with img=it.variant.images.first %}{% if img and img.image %}<img src="{{ img.image.url }}" alt="">{% else %}<img src="{% static 'img/placeholder.png' %}" alt="">{% endif %}{% endwith %}
+                  {% with img=it.variant.images.first %}{% if img and img.image %}<img src="{{ img.image.url }}" alt="">{% else %}<img src="{% static 'core/icons/none.jpg' %}" alt="">{% endif %}{% endwith %}
                 </a>
                 <div>
                   <a class="cart-item__title-link" href="{{ it.variant.get_absolute_url }}"><h3 class="cart-item__title">{{ it.variant.display_name }}</h3></a>
