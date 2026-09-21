@@ -269,7 +269,7 @@ CDEK_SENDER_CODE = os.environ["CDEK_SENDER_CODE"]
 # ──────────────────────────────────────────────────────────────────────────────
 # Security headers & cookies (адекватные дефолты)
 # ──────────────────────────────────────────────────────────────────────────────
-SECURE_CROSS_ORIGIN_OPENER_POLICY = env_str("SECURE_COOP", "*")
+SECURE_CROSS_ORIGIN_OPENER_POLICY = env_str("SECURE_COOP", "unsafe-none")
 
 val = env_str("SECURE_PROXY_SSL_HEADER", "")
 if val:
