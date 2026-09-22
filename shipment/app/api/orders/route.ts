@@ -51,6 +51,10 @@ type SupplyCard = {
   qrDataUrl?: string;
   boxStickers: Array<{ barcode: string; dataUrl: string }>;
 };
+const isCanceledWbStatus = (status?: string) =>
+  ["cancel", "cancelled", "canceled", "отмен"].some((value) =>
+    (status ?? "").toLocaleLowerCase("ru-RU").includes(value),
+  );
 
 const showDate = (value?: string) =>
   value
@@ -276,6 +280,32 @@ async function getWbSupplyOrderIds(token: string, supplyId: string) {
     return [];
   }
 }
+async function getWbCanceledOrderIds(token: string, orderIds: string[]) {
+  const canceled = new Set<string>();
+  for (let index = 0; index < orderIds.length; index += 1000) {
+    const ids = orderIds.slice(index, index + 1000).map(Number);
+    if (!ids.length) continue;
+    try {
+      const data = await wbJson<{
+        orders?: Array<{
+          id: number;
+          supplierStatus?: string;
+          wbStatus?: string;
+        }>;
+      }>("https://marketplace-api.wildberries.ru/api/v3/orders/status", token, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orders: ids }),
+      });
+      for (const order of data.orders ?? []) {
+        if (isCanceledWbStatus(order.supplierStatus) || isCanceledWbStatus(order.wbStatus)) {
+          canceled.add(String(order.id));
+        }
+      }
+    } catch {}
+  }
+  return canceled;
+}
 async function getWbHistory(token: string) {
   const to = Math.floor(Date.now() / 1000);
   const from = to - 30 * 24 * 60 * 60;
@@ -358,7 +388,9 @@ async function getWbSupplies(
   const cards: SupplyCard[] = [];
   for (const supply of visible) {
       if (cards.length) await sleep(180);
-      const orderIds = await getWbSupplyOrderIds(token, supply.id);
+      const allOrderIds = await getWbSupplyOrderIds(token, supply.id);
+      const canceledOrderIds = await getWbCanceledOrderIds(token, allOrderIds);
+      const orderIds = allOrderIds.filter((orderId) => !canceledOrderIds.has(orderId));
       const orderCount = orderIds.length;
       let processed = Boolean(supply.scanDt);
       if (!processed && orderIds.length) {
@@ -475,6 +507,8 @@ type OzonPosting = {
   products?: Array<{ name?: string; offer_id?: string; quantity?: number }>;
   delivery_method?: { id?: number; warehouse_id?: number };
 };
+const isCanceledOzonStatus = (status?: string) =>
+  (status ?? "").toLocaleLowerCase("ru-RU").startsWith("cancel");
 async function ozonList(clientId: string, apiKey: string, statuses: string[]) {
   const now = new Date();
   const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -565,7 +599,9 @@ async function getOzonOrders(clientId: string, apiKey: string) {
   return postings.map((p) =>
     mapOzon(
       p,
-      confirmed.has(p.posting_number)
+      isCanceledOzonStatus(p.status)
+        ? "Отменён"
+        : confirmed.has(p.posting_number)
         ? "Подтверждённая отгрузка"
         : p.status === "awaiting_deliver"
           ? "Готов к отгрузке"
@@ -606,7 +642,9 @@ async function getOzonHistory(clientId: string, apiKey: string) {
   return postings.map((p) =>
     mapOzon(
       p,
-      confirmed.has(p.posting_number)
+      isCanceledOzonStatus(p.status)
+        ? "Отменён"
+        : confirmed.has(p.posting_number)
         ? "Подтверждённая отгрузка"
         : labels[p.status ?? ""] || p.status || "Неизвестно",
       images,

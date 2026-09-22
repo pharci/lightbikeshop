@@ -38,6 +38,10 @@ const ozonHeaders = (clientId: string, apiKey: string) => ({
 });
 const isMoySkladReadyState = (state: string) =>
   state.includes("собран") || state.includes("доставк");
+const isCanceledWbStatus = (status?: string) =>
+  ["cancel", "cancelled", "canceled", "отмен"].some((value) =>
+    (status ?? "").toLocaleLowerCase("ru-RU").includes(value),
+  );
 const binaryToBase64 = (value: string) => {
   let result = "";
   for (let index = 0; index < value.length; index += 8192) {
@@ -99,7 +103,33 @@ async function wbOpenSupplyOrders(token: string) {
       );
       orderIds = ((orders.orders ?? []) as WbOrder[]).map((order) => order.id);
     } catch {}
-    if (orderIds.length) result.push({ supplyId: String(supply.id), orderIds });
+    if (orderIds.length) {
+      try {
+        const statuses = await jsonCall<{
+          orders?: Array<{
+            id: number;
+            supplierStatus?: string;
+            wbStatus?: string;
+          }>;
+        }>(
+          "https://marketplace-api.wildberries.ru/api/v3/orders/status",
+          { method: "POST", headers: wbHeaders(token), body: JSON.stringify({ orders: orderIds }) },
+          "WB",
+          true,
+        );
+        const canceled = new Set(
+          (statuses.orders ?? [])
+            .filter(
+              (order) =>
+                isCanceledWbStatus(order.supplierStatus) ||
+                isCanceledWbStatus(order.wbStatus),
+            )
+            .map((order) => order.id),
+        );
+        orderIds = orderIds.filter((orderId) => !canceled.has(orderId));
+      } catch {}
+      if (orderIds.length) result.push({ supplyId: String(supply.id), orderIds });
+    }
   }
   return result;
 }

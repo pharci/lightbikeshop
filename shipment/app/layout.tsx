@@ -5,8 +5,8 @@ export const metadata: Metadata = {
   title: "Склад заказов — WB и Ozon",
   description: "Заказы, резервы, остатки и этикетки Wildberries и Ozon в одном окне.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: "/shipment/favicon.svg",
+    shortcut: "/shipment/favicon.svg",
   },
 };
 
