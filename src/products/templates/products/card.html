@@ -8,6 +8,11 @@
     <div class="product-card__image-wrapper">
 
         <div class="product-card__badges">
+          {% if v.is_preorder %}
+            <span class="product-badge product-badge--preorder">ПОД ЗАКАЗ</span>
+          {% elif v.preorder_variant_id %}
+            <span class="product-badge product-badge--preorder">ДЕШЕВЛЕ ПОД ЗАКАЗ</span>
+          {% endif %}
           {% if v.new %}
             <span class="product-badge product-badge--new" title="NEW">NEW</span>
           {% endif %}
@@ -42,11 +47,21 @@
 
     <div class="product-card__content">
         <div class="product-card__availability">
-          {% if v.inventory %}
+          {% if v.is_preorder %}
+            <div class="status status--preorder">
+              <span class="status__line">
+                <i class="status__dot"></i>
+                <span class="status__text">Под заказ</span>
+              </span>
+              <span class="status__pickup">Доставка {{ v.preorder_days_min }}–{{ v.preorder_days_max }} дней</span>
+            </div>
+          {% elif v.inventory %}
             <div class="status status--in">
-              <i class="status__dot"></i>
-              <span class="status__text">В наличии</span>
-              <span class="status__qty">{{ v.inventory }} <span class="availability__unit">шт.</span></span>
+              <span class="status__line">
+                <i class="status__dot"></i>
+                <span class="status__text">В наличии · {{ v.inventory }} {{ v.sales_unit_label }}</span>
+              </span>
+              <span class="status__pickup">Забрать сегодня</span>
             </div>
           {% else %}
             <div class="status status--out">

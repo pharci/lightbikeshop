@@ -127,6 +127,15 @@
         </div>
       </div>
 
+      {% if user.is_staff %}
+        <nav class="staff-toolbar" aria-label="Инструменты администратора">
+          <a href="{% url 'admin:index' %}"><i data-lucide="layout-dashboard"></i><span>Админка</span></a>
+          <a href="{% url 'core:taobao_parser' %}"><i data-lucide="scan-search"></i><span>Парсер</span></a>
+          <a href="http://127.0.0.1:3000" target="_blank" rel="noopener"><i data-lucide="package-check"></i><span>Shipment</span></a>
+          <a href="http://127.0.0.1:3001" target="_blank" rel="noopener"><i data-lucide="chart-no-axes-combined"></i><span>Grafana</span></a>
+        </nav>
+      {% endif %}
+
       <div class="header__nav">
         <a class="navlink" href="{% url 'products:catalog' %}">Каталог</a>
       </div>
@@ -176,7 +185,7 @@
         </div>
 
         <div class="footer__bottom">
-          <p class="footer__copy">© 2025 <a href="/" class="footer__brand">Lightbikeshop.ru</a> — магазин запчастей для BMX</p>
+          <p class="footer__copy">© {% now "Y" %} <a href="/" class="footer__brand">Lightbikeshop.ru</a> — магазин запчастей для BMX</p>
         </div>
       </div>
 
@@ -249,7 +258,7 @@
         </details>
 
         <div class="f-copy">
-          <p class="footer__copy">© 2025 <a href="/" class="footer__brand">Lightbikeshop.ru</a></p>
+          <p class="footer__copy">© {% now "Y" %} <a href="/" class="footer__brand">Lightbikeshop.ru</a></p>
         </div>
       </div>
 

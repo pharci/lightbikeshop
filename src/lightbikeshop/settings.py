@@ -50,6 +50,9 @@ if not DEBUG and not SECRET_KEY:
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", [])
 INTERNAL_IPS = ["127.0.0.1"]
+TAOBAO_IMPORT_TOKEN = env_str("TAOBAO_IMPORT_TOKEN", "")
+YANDEX_COURIER_PRICE = env_int("YANDEX_COURIER_PRICE", 990)
+YANDEX_MAPS_API_KEY = env_str("YANDEX_MAPS_API_KEY", "")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Apps
@@ -109,6 +112,7 @@ TEMPLATES = [
                 "admin_panel.context_processors.dashboard",
                 "core.context_processors.breadcrumbs",
                 "core.context_processors.footer_pages",
+                "core.context_processors.integration_public_keys",
                 "cart.context_processors.cartCount",
             ],
         },
@@ -337,15 +341,16 @@ CELERY_BEAT_SCHEDULE = {
         "task": "products.tasks.update_inventory_minutely",
         "schedule": 60.0,  # раз в минуту
     },
+    "taobao-parser-every-minute": {
+        "task": "products.tasks.sync_taobao_parser_minutely",
+        "schedule": 60.0,
+    },
 }
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/1")
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": REDIS_URL,
-        "TIMEOUT": None,
-        "KEY_PREFIX": "lbs",
-    }
-}
+CACHE_BACKEND = env_str("CACHE_BACKEND", "redis")
+if CACHE_BACKEND == "locmem":
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "lightbikeshop-local"}}
+else:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": REDIS_URL, "TIMEOUT": None, "KEY_PREFIX": "lbs"}}

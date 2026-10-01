@@ -4,11 +4,17 @@ from django.urls import reverse
 from decimal import Decimal
 
 from django.contrib import admin
+from django.contrib import messages
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404
+from django.urls import path
 from django.utils.html import format_html
+from django.utils import timezone
+from cart.views.order import _get_payment_url
 
 from .models import (
     Cart, CartItem,
-    Order, OrderItem,
+    Order, OrderItem, PreorderPurchase,
     PickupPoint,
     PromoCode,
 )
@@ -52,29 +58,167 @@ class OrderItemInline(admin.TabularInline):
     raw_id_fields = ("variant",)
 
 
+def sync_preorder_status(order):
+    items = list(order.items.filter(variant__fulfillment_type="preorder"))
+    if not items:
+        return
+    statuses = {item.procurement_status for item in items}
+    if statuses == {OrderItem.ProcurementStatus.COMPLETED}:
+        status = "delivered"
+    elif all(item.procurement_status in {OrderItem.ProcurementStatus.CDEK_TRANSIT, OrderItem.ProcurementStatus.COMPLETED} for item in items):
+        status = "preorder_cdek_transit"
+    elif all(item.procurement_status in {OrderItem.ProcurementStatus.AT_MIGHTBE, OrderItem.ProcurementStatus.CDEK_TRANSIT, OrderItem.ProcurementStatus.COMPLETED} for item in items):
+        status = "preorder_arrived"
+    elif all(item.procurement_status != OrderItem.ProcurementStatus.WAITING for item in items):
+        status = "preorder_in_transit"
+    else:
+        status = "preorder_ordered"
+    Order.objects.filter(pk=order.pk).update(status=status)
+
+
+@admin.register(PreorderPurchase)
+class PreorderPurchaseAdmin(admin.ModelAdmin):
+    list_display = ("variant", "supplier_badge", "quantity", "order_link", "payment_badge", "customer", "procurement_status", "purchased_at", "eta")
+    list_filter = ("supplier", "procurement_status", "order__status")
+    search_fields = ("variant__product__base_name", "variant__product__brand__title", "order__order_id", "order__user_name")
+    list_select_related = ("variant", "variant__product", "variant__product__brand", "variant__product__category", "order")
+    readonly_fields = ("order", "variant", "price", "quantity", "amount", "purchased_at", "expected_delivery_from", "expected_delivery_to")
+    fields = ("supplier", "procurement_status", "order", "variant", "quantity", "price", "amount", "purchased_at", "expected_delivery_from", "expected_delivery_to")
+    actions = ("mark_purchased", "mark_at_mightbe", "mark_cdek_transit", "mark_completed")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(
+            order__kind=Order.Kind.PREORDER,
+            order__status__in=(
+                "pending_confirmation", "preorder_confirmed", "paid",
+                "preorder_ordered", "preorder_in_transit", "preorder_arrived",
+                "preorder_cdek_transit", "delivered",
+            ),
+            variant__fulfillment_type="preorder",
+        )
+
+    @admin.display(description="Поставщик", ordering="supplier")
+    def supplier_badge(self, obj):
+        colors = {"touch": "#2563eb", "evo": "#7c3aed", "other": "#6b7280"}
+        return format_html('<b style="color:{}">{}</b>', colors.get(obj.supplier, "#6b7280"), obj.get_supplier_display())
+
+    @admin.display(description="Заказ")
+    def order_link(self, obj):
+        url = reverse("admin:cart_order_change", args=[admin_quote(obj.order_id)])
+        return format_html('<a href="{}">#{}</a>', url, obj.order.order_id)
+
+    @admin.display(description="Клиент")
+    def customer(self, obj):
+        return f"{obj.order.user_name} · {obj.order.contact_phone}"
+
+    @admin.display(description="Оплата", ordering="order__status")
+    def payment_badge(self, obj):
+        paid_statuses = {
+            "paid", "preorder_ordered", "preorder_in_transit",
+            "preorder_arrived", "preorder_cdek_transit", "delivered",
+        }
+        if obj.order.status in paid_statuses:
+            return format_html(
+                '<strong style="padding:4px 8px;border-radius:999px;background:#dcfce7;color:#166534">Оплачен</strong>'
+            )
+        return format_html(
+            '<strong style="padding:4px 8px;border-radius:999px;background:#fef3c7;color:#92400e">Ожидает оплаты</strong>'
+        )
+
+    @admin.display(description="Ожидаемая доставка")
+    def eta(self, obj):
+        if not obj.expected_delivery_from:
+            return "—"
+        return f"{obj.expected_delivery_from:%d.%m.%Y} – {obj.expected_delivery_to:%d.%m.%Y}"
+
+    def _set_status(self, request, queryset, status, label):
+        orders = set()
+        count = 0
+        skipped = 0
+        for item in queryset:
+            if status == OrderItem.ProcurementStatus.PURCHASED:
+                if item.order.status in {"pending_confirmation", "preorder_confirmed"}:
+                    skipped += 1
+                    continue
+                item.mark_purchased()
+            else:
+                item.procurement_status = status
+                item.save(update_fields=["supplier", "procurement_status"])
+            orders.add(item.order)
+            count += 1
+        for order in orders:
+            sync_preorder_status(order)
+        self.message_user(request, f"{label}: {count}")
+        if skipped:
+            self.message_user(request, f"Пропущено неоплаченных позиций: {skipped}", level=messages.WARNING)
+
+    @admin.action(description="Заказал у поставщика")
+    def mark_purchased(self, request, queryset):
+        self._set_status(request, queryset, OrderItem.ProcurementStatus.PURCHASED, "Выкуплено")
+
+    @admin.action(description="Приехал на склад MightBe")
+    def mark_at_mightbe(self, request, queryset):
+        self._set_status(request, queryset, OrderItem.ProcurementStatus.AT_MIGHTBE, "Приехало на MightBe")
+
+    @admin.action(description="Передан в СДЭК — едет по России")
+    def mark_cdek_transit(self, request, queryset):
+        self._set_status(request, queryset, OrderItem.ProcurementStatus.CDEK_TRANSIT, "Передано в СДЭК")
+
+    @admin.action(description="Доставлен клиенту")
+    def mark_completed(self, request, queryset):
+        self._set_status(request, queryset, OrderItem.ProcurementStatus.COMPLETED, "Доставлено")
+
+
 @admin.register(Order)
 class OrderAdmin(ColumnToggleModelAdmin):
     """
     Заказы: превью, визитка, статус, деньги, промо, дата.
     """
     list_display = (
-        "image_preview", "identity", "storefront_link", "ms_order_id", "status_badge",
+        "image_preview", "identity", "kind", "storefront_link", "ms_order_id", "status_badge",
         "money_summary", "promo_badge", "date_ordered",
     )
     default_selected_columns = list(list_display)
     list_display_links = ("image_preview",)
-    list_filter = ("status", "payment_type", "date_ordered")
+    list_filter = ("kind", "status", "payment_type", "date_ordered")
     search_fields = ("order_id", "user_name", "contact_phone", "user__email")
     ordering = ("-date_ordered",)
     date_hierarchy = "date_ordered"
     inlines = [OrderItemInline]
+    actions = ("confirm_preorders_and_create_payment",)
+
+    @admin.action(description="Подтвердить под заказ и создать ссылку оплаты")
+    def confirm_preorders_and_create_payment(self, request, queryset):
+        created = errors = 0
+        for order in queryset.filter(kind=Order.Kind.PREORDER, ms_order_id__isnull=True):
+            try:
+                order.admin_confirmed_at = timezone.now()
+                order.status = "preorder_confirmed"
+                order.save(update_fields=["admin_confirmed_at", "status"])
+                _get_payment_url(order, request)
+                created += 1
+            except Exception:
+                order.status = "pending_confirmation"
+                order.admin_confirmed_at = None
+                order.save(update_fields=["admin_confirmed_at", "status"])
+                errors += 1
+        if created:
+            self.message_user(request, f"Подтверждено заказных товаров: {created}")
+        if errors:
+            self.message_user(request, f"Не удалось создать ссылку для {errors} заказов", level="error")
 
     # readonly: промокод по-прежнему read-only (если нужно редактировать — убери)
-    readonly_fields = ("date_ordered", "promo_code")
+    readonly_fields = ("status_controls", "date_ordered", "promo_code")
 
     fieldsets = (
         ("Основное", {
-            "fields": ("ms_order_id", "user", "status", "user_name", "contact_phone", "email", "order_notes")
+            "fields": ("kind", "status_controls", "status", "admin_confirmed_at", "ms_order_id", "user", "user_name", "contact_phone", "email", "order_notes")
         }),
         ("Суммы и оплата", {
             "fields": ("subtotal", "discount_total", "shipping_total", "total", "payment_type", "payment_url")
@@ -89,6 +233,68 @@ class OrderAdmin(ColumnToggleModelAdmin):
             "fields": ("date_ordered",),
         }),
     )
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if "status" in form.base_fields:
+            kind = obj.kind if obj else request.POST.get("kind", Order.Kind.STOCK)
+            form.base_fields["status"].choices = (
+                Order.PREORDER_STATUS_CHOICES
+                if kind == Order.Kind.PREORDER
+                else Order.STOCK_STATUS_CHOICES
+            )
+        return form
+
+    def get_urls(self):
+        custom = [
+            path(
+                "<path:object_id>/set-status/<str:status>/",
+                self.admin_site.admin_view(self.set_status_view),
+                name="cart_order_set_status",
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def set_status_view(self, request, object_id, status):
+        order = get_object_or_404(Order, pk=object_id)
+        allowed = dict(order.allowed_status_choices())
+        if request.method != "POST" or status not in allowed:
+            self.message_user(request, "Этот статус не подходит для типа заказа.", level=messages.ERROR)
+        else:
+            order.status = status
+            update_fields = ["status", "updated"]
+            if order.kind == Order.Kind.PREORDER and status == "preorder_confirmed":
+                order.admin_confirmed_at = timezone.now()
+                update_fields.append("admin_confirmed_at")
+            order.save(update_fields=update_fields)
+            self.message_user(request, f"Статус изменён: {allowed[status]}.", level=messages.SUCCESS)
+        return HttpResponseRedirect(reverse("admin:cart_order_change", args=[admin_quote(order.pk)]))
+
+    @admin.display(description="Быстрая смена статуса")
+    def status_controls(self, obj):
+        if not obj or not obj.pk:
+            return "Сначала сохраните заказ"
+        buttons = []
+        for value, label in obj.allowed_status_choices():
+            url = reverse("admin:cart_order_set_status", args=[admin_quote(obj.pk), value])
+            active = value == obj.status
+            buttons.append(format_html(
+                '<button type="submit" formaction="{}" formmethod="post" {} '
+                'style="margin:0 6px 7px 0;padding:7px 11px;border-radius:8px;'
+                'border:1px solid {};background:{};color:{};cursor:{};font-weight:600">{}</button>',
+                url,
+                "disabled" if active else "",
+                "#2563eb" if active else "#d1d5db",
+                "#2563eb" if active else "#fff",
+                "#fff" if active else "#111827",
+                "default" if active else "pointer",
+                label,
+            ))
+        return format_html(
+            '<div style="max-width:900px"><div style="margin-bottom:8px;color:#6b7280">'
+            'Доступны только статусы для типа «{}». Кнопка меняет статус сразу.</div>{}</div>',
+            obj.get_kind_display(), format_html("".join(str(button) for button in buttons)),
+        )
 
     # ===== Виртуальные колонки =====
     @admin.display(description="Итого / состав", ordering="total")

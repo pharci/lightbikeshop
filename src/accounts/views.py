@@ -1,6 +1,7 @@
 import time, hmac, hashlib, urllib.parse, re
 
 from django.conf import settings
+from core.integrations import integration_value
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import login, logout
@@ -34,7 +35,7 @@ def _norm_email(s: str) -> str:
 @ensure_csrf_cookie
 def login_view(request):
     if request.method == "GET":
-        return render(request, "accounts/login.html", {"RECAPTCHA_SITE_KEY": settings.RECAPTCHA_SITE_KEY})
+        return render(request, "accounts/login.html", {"RECAPTCHA_SITE_KEY": integration_value("RECAPTCHA_SITE_KEY")})
     return redirect("accounts:login")
 
 @require_POST
@@ -154,7 +155,7 @@ def tg_auth(request):
     if request.method != "GET":
         return HttpResponseBadRequest("Method not allowed")
 
-    token = settings.TELEGRAM_BOT_TOKEN
+    token = integration_value("TELEGRAM_BOT_TOKEN")
     if not token:
         return HttpResponseBadRequest("Telegram bot token not configured")
 

@@ -1,9 +1,10 @@
-(function($) {
-const $wrap = $('#buyControls');
-if (!$wrap.length) return;
+document.querySelectorAll('.buy__controls[data-variant-id]').forEach((node) => {
+(function($, node) {
+const $wrap = $(node);
 
 const vid = String($wrap.data('variant-id') || '').trim();
 const cartUrl = String($wrap.data('cart-url') || '/cart/');
+const addLabel = String($wrap.data('add-label') || '').trim();
 
 function htmlAddButton(disabled = false, label = 'В корзину') {  // NEW
   const dis = disabled ? 'disabled aria-disabled="true"' : '';
@@ -11,10 +12,10 @@ function htmlAddButton(disabled = false, label = 'В корзину') {  // NEW
   return `<button class="${cls} js-add" type="button" ${dis}>${label}</button>`;
 }
 
-function htmlInCart(count, stock) {
+function htmlInCart(count, stock, preorder = false) {
   const disMinus = count <= 0 ? 'disabled' : '';
   const disPlus =
-      (typeof stock === 'number' && count >= stock) ? 'disabled' : '';
+      (!preorder && typeof stock === 'number' && count >= stock) ? 'disabled' : '';
   return `
       <a class="btn" href="${cartUrl}">В корзине</a>
       <div class="qty" aria-live="polite">
@@ -30,8 +31,8 @@ function htmlInCart(count, stock) {
 function renderAdd(disabled = false, label = 'В корзину') {  // NEW
   $wrap.html(htmlAddButton(disabled, label));
 }
-function renderInCart(c, stock) {
-  $wrap.html(htmlInCart(c, stock));
+function renderInCart(c, stock, preorder = false) {
+  $wrap.html(htmlInCart(c, stock, preorder));
 }
 function syncHeaderCounter(n) {
   if (n !== undefined) $('.cart-count-text').text(n);
@@ -46,12 +47,12 @@ function init() {
             (res.stock_count !== undefined) ? +res.stock_count : undefined;
 
         // NEW: если товара нет — показываем выключенную кнопку
-        if (typeof stock === 'number' && stock <= 0) {
+        if (!res.is_preorder && typeof stock === 'number' && stock <= 0) {
           renderAdd(true, 'Нет в наличии');
           return;
         }
 
-        count > 0 ? renderInCart(count, stock) : renderAdd();
+        count > 0 ? renderInCart(count, stock, res.is_preorder) : renderAdd(false, addLabel || (res.is_preorder ? 'Добавить предзаказ' : 'В корзину'));
       })
       .fail(() => renderAdd());
 }
@@ -70,14 +71,14 @@ function change(action) {
       if (count <= 0)
         renderAdd(true, 'Нет в наличии');
       else
-        renderInCart(count, stock);
+        renderInCart(count, stock, res.is_preorder);
       return;
     }
 
     if (count <= 0)
-      renderAdd();
+      renderAdd(false, addLabel || (res.is_preorder ? 'Добавить предзаказ' : 'В корзину'));
     else
-      renderInCart(count, stock);
+      renderInCart(count, stock, res.is_preorder);
   });
 }
 
@@ -93,7 +94,8 @@ $wrap
     .on('click', '.js-dec', () => change('remove'));
 
 init();
-})(jQuery);
+})(jQuery, node);
+});
 
 
 

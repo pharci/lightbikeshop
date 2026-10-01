@@ -84,6 +84,7 @@ class FilterParams:
     price_min: Optional[float]
     price_max: Optional[float]
     in_stock: bool
+    availability: str
     brand_slugs: List[str]
     attr_params: Dict[str, str]
 
@@ -94,10 +95,13 @@ def parse_params(request) -> FilterParams:
     price_min = _parse_decimal(request.GET.get("price_min"))
     price_max = _parse_decimal(request.GET.get("price_max"))
     in_stock = request.GET.get("in_stock") == "1"
+    availability = (request.GET.get("availability") or ("stock" if in_stock else "")).strip()
+    if availability not in ("", "stock", "preorder"):
+        availability = ""
     brands_raw = (request.GET.get("brands") or "").strip()
     brand_slugs = [s for s in brands_raw.split(",") if s] if brands_raw else []
     attr_params = {k: v for k, v in request.GET.items() if k.startswith("a_")}
-    return FilterParams(q, page, sort, price_min, price_max, in_stock, brand_slugs, attr_params)
+    return FilterParams(q, page, sort, price_min, price_max, in_stock, availability, brand_slugs, attr_params)
 
 def get_cat_brand_by_path(category_path: Optional[str], brand_slug: Optional[str]) -> Tuple[Optional[Category], Optional[Brand]]:
     cat = None
@@ -117,7 +121,8 @@ def base_qs() -> QuerySet:
     return (
         Variant.objects
         .filter(is_active=True)
-        .select_related("product", "product__brand", "product__category")
+        .exclude(stock_offer__isnull=False)
+        .select_related("product", "product__brand", "product__category", "preorder_variant")
         .prefetch_related(
             "images",
             Prefetch(
@@ -146,8 +151,13 @@ def apply_scope(qs: QuerySet, cat: Optional[Category], br: Optional[Brand], para
         qs = qs.filter(product__brand=br)
     if params.q:
         qs = apply_text_search(qs, params.q)
-    if params.in_stock:
-        qs = qs.filter(has_stock=1)
+    if params.availability == "stock":
+        qs = qs.filter(fulfillment_type=Variant.FulfillmentType.STOCK, inventory__gt=0)
+    elif params.availability == "preorder":
+        qs = qs.filter(
+            Q(fulfillment_type=Variant.FulfillmentType.PREORDER)
+            | Q(preorder_variant__isnull=False)
+        )
     if params.price_min is not None:
         qs = qs.filter(price__gte=params.price_min)
     if params.price_max is not None:
@@ -216,7 +226,7 @@ def _params_without_brands(p: FilterParams) -> FilterParams:
     return FilterParams(
         q=p.q, page=p.page, sort=p.sort,
         price_min=p.price_min, price_max=p.price_max,
-        in_stock=p.in_stock, brand_slugs=[],  # ключевая строка
+        in_stock=p.in_stock, availability=p.availability, brand_slugs=[],  # ключевая строка
         attr_params=p.attr_params
     )
 
@@ -277,6 +287,7 @@ def selected_dict(request, params: FilterParams) -> dict:
         "q": params.q,
         "sort": params.sort,
         "in_stock": params.in_stock,
+        "availability": params.availability,
         "price_min": request.GET.get("price_min") or "",
         "price_max": request.GET.get("price_max") or "",
         "brands": params.brand_slugs,

@@ -82,6 +82,58 @@ class PaymentCallbackTests(TestCase):
         rejected.refresh_from_db()
         self.assertEqual(rejected.status, "declined")
 
+    @patch("cart.views.tpay.send_order_status_changed_email")
+    @patch("cart.views.tpay.send_tg_order_status")
+    def test_confirmed_preorder_callback_marks_paid(self, tg, email):
+        self.order.kind = Order.Kind.PREORDER
+        self.order.status = "preorder_confirmed"
+        self.order.save(update_fields=["kind", "status"])
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            bank_order_id=self.order.order_id,
+            payment_id="payment-1",
+            state="active",
+        )
+
+        self.assertEqual(self.callback().status_code, 200)
+        self.order.refresh_from_db()
+        attempt.refresh_from_db()
+        self.assertEqual(self.order.status, "paid")
+        self.assertEqual(attempt.state, "paid")
+        self.assertEqual(tg.call_count, 1)
+        self.assertEqual(email.call_count, 1)
+
+    def test_declined_preorder_remains_retryable(self):
+        self.order.kind = Order.Kind.PREORDER
+        self.order.status = "preorder_confirmed"
+        self.order.save(update_fields=["kind", "status"])
+        attempt = PaymentAttempt.objects.create(
+            order=self.order,
+            bank_order_id=self.order.order_id,
+            payment_id="payment-1",
+            state="active",
+        )
+
+        self.assertEqual(self.callback(Success=False, Status="REJECTED").status_code, 200)
+        self.order.refresh_from_db()
+        attempt.refresh_from_db()
+        self.assertEqual(self.order.status, "preorder_confirmed")
+        self.assertEqual(attempt.state, "declined")
+
+    @patch("cart.views.order._get_payment_url", return_value="https://pay.example/retry")
+    def test_order_owner_can_retry_preorder_payment(self, get_payment_url):
+        self.order.kind = Order.Kind.PREORDER
+        self.order.status = "preorder_confirmed"
+        self.order.save(update_fields=["kind", "status"])
+
+        response = self.client.post(
+            reverse("cart:retry_payment", args=[self.order.order_id]),
+            {"k": self.order.access_key},
+        )
+
+        self.assertRedirects(response, "https://pay.example/retry", fetch_redirect_response=False)
+        get_payment_url.assert_called_once()
+
 
 @override_settings(T_BANK_TERMINAL_KEY="TEST", T_BANK_PASSWORD="secret")
 @skipUnless(connection.vendor == "postgresql", "row-lock concurrency requires PostgreSQL")

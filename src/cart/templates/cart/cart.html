@@ -1,6 +1,6 @@
 {% extends "core/base.html" %}{% load static %}
 {% block title %}Корзина{% endblock %}
-{% block styles %}{{ block.super }}<link rel="stylesheet" href="{% static 'cart/css/style.css' %}">{% endblock %}
+{% block styles %}{{ block.super }}<link rel="stylesheet" href="{% static 'cart/css/style.css' %}?v=20260925-2">{% endblock %}
 {% block content %}
 <div class="container">
   <div class="page-grid">
@@ -58,7 +58,17 @@
       {% endfor %}
     </aside>
   </div>
-  <template id="tpl-cart-empty"><div class="cart-empty"><div class="cart-empty__title">В корзине пусто</div><div class="cart-empty__text">Добавьте товары, чтобы оформить заказ.</div></div></template>
+  <template id="tpl-cart-empty">
+    <div class="cart-empty">
+      <span class="cart-empty__icon" aria-hidden="true"><i data-lucide="shopping-bag"></i></span>
+      <div class="cart-empty__title">В корзине пока пусто</div>
+      <div class="cart-empty__text">Посмотрите запчасти в наличии или товары под заказ.</div>
+      <div class="cart-empty__actions">
+        <a class="btn" href="{% url 'products:catalog' %}">Перейти в каталог</a>
+        <a class="btn btn--secondary" href="{% url 'products:category' category_path='bmx' %}?fulfillment=preorder">Товары под заказ</a>
+      </div>
+    </div>
+  </template>
 </div>
 {% endblock %}
-{% block scripts %}{{ block.super }}<script src="{% static 'cart/js/cart.js' %}"></script>{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'cart/js/cart.js' %}?v=20260925-2"></script>{% endblock %}

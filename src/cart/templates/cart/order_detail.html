@@ -8,7 +8,7 @@
       <div class="confirm__card">
         {% with st=order.status %}
           <div class="confirm__icon confirm__icon--{{ st|default:'created' }}">
-            {% if st == "created" %}⌛{% elif st == "paid" %}✔{% elif st == "assembled" %}🧩{% elif st == "shipped" %}🚚{% elif st == "delivered" %}📦{% else %}ℹ{% endif %}
+            {% if st == "created" or st == "pending_confirmation" or st == "preorder_confirmed" %}⌛{% elif st == "paid" %}✔{% elif st == "preorder_ordered" %}🛒{% elif st == "preorder_in_transit" %}✈{% elif st == "preorder_arrived" %}🏭{% elif st == "preorder_cdek_transit" %}🚚{% elif st == "assembled" %}🧩{% elif st == "shipped" %}🚚{% elif st == "delivered" %}📦{% else %}ℹ{% endif %}
           </div>
         {% endwith %}
         <h1 class="section__title">Заказ {{ order.order_id }}</h1>
@@ -17,8 +17,11 @@
         <div class="confirm__order">
           от {{ order.date_ordered|date:"d.m.Y H:i" }} • статус:
           <span class="status-badge status-badge--{{ order.status }}">
+            {% if order.kind == "preorder" %}
+              {{ order.get_status_display }}
+            {% else %}
             {% with st=order.status %}
-              {% if order.pvz_provider == "Самовывоз" %}
+              {% if order.delivery_method == "pickup_store" %}
                 {% if st == "created" %}создан
                 {% elif st == "paid" %}оплачен
                 {% elif st == "assembled" %}готов к выдаче
@@ -33,17 +36,33 @@
                 {% else %}{{ order.get_status_display|default:st }}{% endif %}
               {% endif %}
             {% endwith %}
+            {% endif %}
           </span>
         </div>
 
         <div class="confirm__actions">
           <a href="https://t.me/light_bikeshop" class="btn">Помощь</a>
         </div>
+        {% if order.preorder_eta %}
+          <div style="margin-top:14px;padding:10px 14px;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-weight:600">
+            Ориентировочная доставка: {{ order.preorder_eta.0|date:"d.m.Y" }}–{{ order.preorder_eta.1|date:"d.m.Y" }}
+          </div>
+        {% endif %}
       </div>
 
       {# Шаги: разная дорожка для самовывоза и доставки #}
       <section class="island">
-        {% if order.pvz_provider == "Самовывоз" %}
+        {% if order.kind == "preorder" %}
+          <ol class="steps" style="grid-template-columns:repeat(7,1fr);">
+            <li class="steps__item {% if order.status == 'pending_confirmation' %}is-active{% elif order.status != 'canceled' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Проверка</span></li>
+            <li class="steps__item {% if order.status == 'preorder_confirmed' %}is-active{% elif order.status in 'paid preorder_ordered preorder_in_transit preorder_arrived preorder_cdek_transit delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Подтверждён</span></li>
+            <li class="steps__item {% if order.status == 'paid' %}is-active{% elif order.status in 'preorder_ordered preorder_in_transit preorder_arrived preorder_cdek_transit delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Оплачен</span></li>
+            <li class="steps__item {% if order.status == 'preorder_ordered' %}is-active{% elif order.status in 'preorder_in_transit preorder_arrived preorder_cdek_transit delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">Выкуп</span></li>
+            <li class="steps__item {% if order.status == 'preorder_in_transit' %}is-active{% elif order.status in 'preorder_arrived preorder_cdek_transit delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">До MightBe</span></li>
+            <li class="steps__item {% if order.status == 'preorder_arrived' %}is-active{% elif order.status in 'preorder_cdek_transit delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">MightBe</span></li>
+            <li class="steps__item {% if order.status == 'preorder_cdek_transit' %}is-active{% elif order.status == 'delivered' %}is-done{% endif %}"><span class="steps__dot"></span><span class="steps__label">СДЭК</span></li>
+          </ol>
+        {% elif order.delivery_method == "pickup_store" %}
           <ol class="steps" style="grid-template-columns:repeat(4,1fr);">
             <li class="steps__item {% if order.status == 'created' %}is-active{% elif order.status in 'paid assembled delivered' %}is-done{% endif %}">
               <span class="steps__dot"></span><span class="steps__label">Новый</span>
@@ -84,8 +103,10 @@
         <h3 class="island__title">Доставка</h3>
         <div class="order-summary__row"><span class="muted">Город:</span><span>{{ order.city }}</span></div>
 
-        {% if order.pvz_provider == "Самовывоз" %}
+        {% if order.delivery_method == "pickup_store" %}
           <div class="order-summary__row"><span class="muted">Тип:</span><span>Самовывоз</span></div>
+        {% elif order.delivery_method == "yandex_courier" %}
+          <div class="order-summary__row"><span class="muted">Тип:</span><span>Курьер Яндекса</span></div>
         {% else %}
           <div class="order-summary__row"><span class="muted">Тип:</span><span>ПВЗ ({{ order.pvz_provider }})</span></div>
         {% endif %}
@@ -135,7 +156,13 @@
                 </a>
                 <div>
                   <a class="cart-item__title-link" href="{{ it.variant.get_absolute_url }}"><h3 class="cart-item__title">{{ it.variant.display_name }}</h3></a>
-                  <div class="cart-item__meta"><span class="meta-chip">Кол-во: {{ it.quantity }}</span></div>
+                  <div class="cart-item__meta">
+                    <span class="meta-chip">Кол-во: {{ it.quantity }} {{ it.variant.sales_unit_label }}</span>
+                    {% if it.variant.is_preorder %}
+                      <span class="meta-chip">{{ it.get_procurement_status_display }}</span>
+                      {% if it.expected_delivery_from %}<span class="meta-chip">Ожидаем {{ it.expected_delivery_from|date:"d.m" }}–{{ it.expected_delivery_to|date:"d.m.Y" }}</span>{% endif %}
+                    {% endif %}
+                  </div>
                 </div>
                 <div class="cart-item__controls"><div class="cart-item__price">{{ it.price|floatformat:2 }} ₽</div></div>
               </article>
@@ -174,10 +201,19 @@
         <div>{{ order.total|floatformat:2 }} ₽</div>
       </div>
 
-      {% if order.status == "created" %}
-        <a href="{{ order.payment_url }}" class="btn btn--primary order-summary__btn">
-          Оплатить онлайн
-        </a>
+      {% if order.kind == "preorder" and order.status == "pending_confirmation" %}
+        <p class="summary__fineprint">Под заказ ожидает подтверждения администратора. Срок доставки 30–45 дней. После подтверждения здесь появится ссылка на оплату.</p>
+      {% elif order.status == "preorder_confirmed" %}
+        <form method="post" action="{% url 'cart:retry_payment' order.order_id %}">
+          {% csrf_token %}<input type="hidden" name="k" value="{{ order.access_key }}">
+          <button type="submit" class="btn btn--primary order-summary__btn">Оплатить подтверждённый под заказ</button>
+        </form>
+        <p class="summary__fineprint">Срок доставки после оплаты — 30–45 дней.</p>
+      {% elif order.status == "created" %}
+        <form method="post" action="{% url 'cart:retry_payment' order.order_id %}">
+          {% csrf_token %}<input type="hidden" name="k" value="{{ order.access_key }}">
+          <button type="submit" class="btn btn--primary order-summary__btn">Оплатить онлайн</button>
+        </form>
         <p class="summary__fineprint">Оплата пройдёт на защищённой странице T-Bank.</p>
       {% elif order.status == "paid" %}
         <p class="summary__fineprint">Оплата подтверждена.</p>

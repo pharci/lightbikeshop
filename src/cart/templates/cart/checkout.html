@@ -23,14 +23,6 @@
             </span>
           </label>
 
-          <label class="delivery-card delivery-card--disabled">
-            <input type="radio" id="pay_cash" value="cash" disabled>
-            <span>
-              <div class="delivery-card__title">При получении</div>
-              <div class="delivery-card__desc">Недоступно</div>
-            </span>
-          </label>
-
           <input type="hidden" name="payment_type" value="online">
         </div>
       </section>
@@ -46,26 +38,35 @@
         </div>
         <input type="hidden" id="city" name="city" value="">
         <input type="hidden" id="city_code" name="city_code" value="">
+        <input type="hidden" id="city_region" name="city_region" value="">
 
         <div class="delivery-cards" role="radiogroup" id="method-group">
-          <label class="delivery-card" data-target="panel-pvz">
-            <input type="radio" name="delivery_group" value="pvz" id="dg_pvz">
+          <label class="delivery-card delivery-card--active" data-target="panel-pvz" data-provider-mode="shop">
+            <input type="radio" name="delivery_group" value="pickup" id="dg_pickup" checked>
             <span>
-              <div class="delivery-card__title">Самовывоз из пункта выдачи</div>
-              <div class="delivery-card__desc">Наши ПВЗ + СДЭК</div>
+              <div class="delivery-card__title">Самовывоз из наших ПВЗ</div>
+              <div class="delivery-card__desc">MightBe, Москва · бесплатно</div>
             </span>
           </label>
 
-          <label class="delivery-card delivery-card--disabled" data-target="panel-courier">
-            <input type="radio" name="delivery_group" value="courier" id="dg_courier">
+          <label class="delivery-card" data-target="panel-pvz" data-provider-mode="cdek">
+            <input type="radio" name="delivery_group" value="pvz" id="dg_cdek">
             <span>
-              <div class="delivery-card__title">Курьером до двери</div>
-              <div class="delivery-card__desc">Укажите адрес</div>
+              <div class="delivery-card__title">Доставка СДЭК</div>
+              <div class="delivery-card__desc">До удобного пункта выдачи</div>
+            </span>
+          </label>
+
+          <label class="delivery-card{% if cart.has_preorder_items %} delivery-card--disabled{% endif %}" data-target="panel-courier" id="yandex-courier-card" data-preorder-blocked="{{ cart.has_preorder_items|yesno:'1,0' }}">
+            <input type="radio" name="delivery_group" value="courier" id="dg_courier" {% if cart.has_preorder_items %}disabled{% endif %}>
+            <span>
+              <div class="delivery-card__title">Курьер Яндекса сегодня</div>
+              <div class="delivery-card__desc">{% if cart.has_preorder_items %}Недоступно для заказных товаров{% else %}Москва и МО · {{ yandex_courier_price|default:"990" }} ₽{% endif %}</div>
             </span>
           </label>
         </div>
 
-        <div id="panel-pvz" class="delivery-panel" hidden>
+        <div id="panel-pvz" class="delivery-panel">
           <div id="pvz-map-wrap" class="collapsible">
             <div id="pvz-map" class="pvz-map"></div>
           </div>
@@ -118,6 +119,20 @@
     </form>
 
     <aside class="order-summary">
+      <div class="checkout-products">
+        <h3 class="checkout-products__title">Ваш заказ</h3>
+        {% for it in cart.get_items %}
+          <div class="checkout-product">
+            {% if it.variant.main_image_url %}<img src="{{ it.variant.main_image_url }}" alt="">{% endif %}
+            <div class="checkout-product__info">
+              <strong>{{ it.variant.name }}</strong>
+              <span>{{ it.quantity }} {{ it.variant.sales_unit }} · {{ it.product_total_price|floatformat:2 }} ₽</span>
+              {% if it.variant.is_preorder %}<em>Под заказ · 30–45 дней</em>{% else %}<em>В наличии</em>{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <hr class="order-summary__hr">
       <div class="order-summary__row">
         <span>{{ cart.get_total_items }} товаров на сумму</span>
         <div class="filler-underline"></div>
@@ -198,6 +213,6 @@
 
 {% block scripts %}
 {{ block.super }}
-<script src="https://api-maps.yandex.ru/2.1/?apikey=63876536-64aa-404d-a856-644148115027&lang=ru_RU"></script>
-<script src="{% static 'cart/js/checkout.js' %}"></script>
+<script src="https://api-maps.yandex.ru/2.1/?apikey={{ YANDEX_MAPS_API_KEY|urlencode }}&lang=ru_RU"></script>
+<script src="{% static 'cart/js/checkout.js' %}?v=20260924-3"></script>
 {% endblock %}

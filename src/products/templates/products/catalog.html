@@ -31,7 +31,11 @@
       {% for brand in brands %}
         <a href="{{ brand.get_absolute_url }}" class="brand-card">
           <div class="brand-card__logo">
-            <img src="{{ brand.image.url }}" alt="{{ brand.title }}">
+            {% if brand.image %}
+              <img src="{{ brand.image.url }}" alt="{{ brand.title }}">
+            {% else %}
+              <span class="brand-card__fallback">{{ brand.title }}</span>
+            {% endif %}
           </div>
           <div class="brand-card__title">{{ brand.title }}</div>
         </a>

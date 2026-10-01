@@ -1,6 +1,7 @@
 import uuid, datetime as dt
 from decimal import Decimal
 from django.conf import settings
+from core.integrations import integration_value
 from .order_utils import as_kop
 from requests.exceptions import HTTPError
 from core.moysklad import _get_session
@@ -103,9 +104,9 @@ def build_ms_order_payload(order) -> dict:
         "name": f"LBS-{order.order_id}",
         "moment": order.date_ordered.strftime("%Y-%m-%d %H:%M:%S"),
         "agent": agent_meta,
-        "organization": _meta("organization", settings.MOYSKLAD_ORGANIZATION_ID),
-        "store": _meta("store", settings.MOYSKLAD_STORE_ID),
-        "salesChannel": _meta("saleschannel", settings.MOYSKLAD_SALESCHANNEL_ID),
+        "organization": _meta("organization", integration_value("MOYSKLAD_ORGANIZATION_ID")),
+        "store": _meta("store", integration_value("MOYSKLAD_STORE_ID")),
+        "salesChannel": _meta("saleschannel", integration_value("MOYSKLAD_SALESCHANNEL_ID")),
         "positions": positions,
         "vatIncluded": True,
         "applicable": True,

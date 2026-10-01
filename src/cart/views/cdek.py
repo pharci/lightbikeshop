@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from cart.models import PickupPoint
 from cart.views.cart import get_cart
+from core.integrations import integration_value
 from decimal import Decimal as D
 
 CDEK_AUTH_URL = "https://api.cdek.ru/v2/oauth/token"
@@ -34,7 +35,7 @@ def _get_token():
     resp = requests.post(
         CDEK_AUTH_URL,
         data={"grant_type": "client_credentials"},
-        auth=(settings.CDEK_ID, settings.CDEK_SECRET),
+        auth=(integration_value("CDEK_ID"), integration_value("CDEK_SECRET")),
         headers={
             "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "application/json",
@@ -154,7 +155,7 @@ def calc_cdek_pvz_price(cart, pvz_code: str, to_city_code: str | None = None) ->
             return price, {"error": "INVALID_CITY_CODE"}
 
         data = calc_price(
-            from_code=int(settings.CDEK_SENDER_CODE),
+            from_code=int(integration_value("CDEK_SENDER_CODE")),
             to_code=to_code,
             weight=w,
             tariff_code=136,  # склад-склад
@@ -216,11 +217,14 @@ def get_cities(request):
 @require_GET
 def api_shop_pvz(request):
     city = request.GET.get("city", "").strip()
-    qs = PickupPoint.objects.filter(is_active=True)
+    # Temporary imported CDEK points belong only to the CDEK delivery mode.
+    # The own-pickup map must contain only real MightBe locations.
+    qs = PickupPoint.objects.filter(is_active=True).exclude(code__startswith="TEMP-CDEK-")
     if city:
         qs = qs.filter(city__iexact=city)
     data = [{"id": f"{p.code}", "name": p.title, "address": p.address,
-             "lat": float(p.lat), "lon": float(p.lon), "provider": "Самовывоз"} for p in qs]
+             "lat": float(p.lat), "lon": float(p.lon),
+             "provider": "cdek-temp" if p.code.startswith("TEMP-CDEK-") else "MightBe"} for p in qs]
     return JsonResponse(data, safe=False)
 
 @require_GET

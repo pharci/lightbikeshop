@@ -7,7 +7,7 @@
 
 {% block styles %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'products/css/card.css' %}">
+  <link rel="stylesheet" href="{% static 'products/css/card.css' %}?v=20260925-1">
   <link rel="stylesheet" href="{% static 'core/css/home.css' %}">
 {% endblock %}
 
@@ -48,7 +48,11 @@
             <div class="swiper-slide brandswiper__slide">
               <a href="{{ brand.get_absolute_url }}" class="brand-card">
                 <div class="brand-card__logo">
-                  <img src="{{ brand.image.url }}" alt="{{ brand.title }}">
+                  {% if brand.image %}
+                    <img src="{{ brand.image.url }}" alt="{{ brand.title }}">
+                  {% else %}
+                    <span class="brand-card__fallback">{{ brand.title }}</span>
+                  {% endif %}
                 </div>
                 <div class="brand-card__title">{{ brand.title }}</div>
               </a>
@@ -63,7 +67,7 @@
   {% include "products/partials/variants_slider.html" with variants=variants_new title="Новые товары" swiper_class="variantsSwiperNew" %}
 
   {# ---------- Где получить заказ ---------- #}
-  <section class="section">
+  <section class="section" id="pickup-points">
     <div class="section__header"><h2 class="section__title">Где получить заказ?</h2></div>
 
     <div class="pickup">

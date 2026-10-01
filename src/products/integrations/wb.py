@@ -1,12 +1,13 @@
 import requests
 from django.conf import settings
+from core.integrations import integration_value
 
 
 def wb_get_nm_id(vendor_code: str) -> int | None:
     r = requests.post(
         f"{settings.WB_API_URL}/content/v2/get/cards/list",
         headers={
-            "Authorization": settings.WB_API_KEY,
+            "Authorization": integration_value("WB_API_KEY"),
             "Content-Type": "application/json",
         },
         json={

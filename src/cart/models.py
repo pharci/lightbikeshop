@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64, secrets
 
+from datetime import timedelta
 from decimal import Decimal
 from django.urls import reverse
 
@@ -105,6 +106,9 @@ class Cart(models.Model):
     def get_total_items(self) -> int:
         return sum(item.quantity for item in self.items.all())
 
+    def has_preorder_items(self) -> bool:
+        return self.items.filter(variant__fulfillment_type=Variant.FulfillmentType.PREORDER).exists()
+
     # --- данные для фронта ---
     def get_items(self):
         rows = (self.items
@@ -127,6 +131,10 @@ class Cart(models.Model):
                     "imageURL": img_url,
                     "main_image_url": getattr(v, "main_image_url", lambda: img_url)(),
                     "inventory": v.inventory,
+                    "fulfillment_type": v.fulfillment_type,
+                    "is_preorder": v.is_preorder,
+                    "delivery_label": f"{v.preorder_days_min}–{v.preorder_days_max} дней" if v.is_preorder else "",
+                    "sales_unit": v.sales_unit_label,
                     "slug": v.slug or "",
                     "price": unit_price,
                     "product_url": v.get_absolute_url(),
@@ -274,6 +282,12 @@ class SessionCart:
     def get_total_items(self) -> int:
         return sum(int(q) for q in self.cart.values())
 
+    def has_preorder_items(self) -> bool:
+        return Variant.objects.filter(
+            id__in=self.cart.keys(),
+            fulfillment_type=Variant.FulfillmentType.PREORDER,
+        ).exists()
+
     # --- данные для фронта ---
     def get_items(self):
         ids = list(self.cart.keys())
@@ -298,6 +312,10 @@ class SessionCart:
                     "imageURL": img_url,
                     "main_image_url": getattr(v, "main_image_url", lambda: img_url)(),
                     "inventory": v.inventory,
+                    "fulfillment_type": v.fulfillment_type,
+                    "is_preorder": v.is_preorder,
+                    "delivery_label": f"{v.preorder_days_min}–{v.preorder_days_max} дней" if v.is_preorder else "",
+                    "sales_unit": v.sales_unit_label,
                     "slug": v.slug or "",
                     "price": unit_price,
                     "product_url": v.get_absolute_url(),
@@ -346,6 +364,10 @@ def gen_access_key():
 
 
 class Order(models.Model):
+    class Kind(models.TextChoices):
+        STOCK = "stock", "Товары в наличии"
+        PREORDER = "preorder", "Под заказ"
+
     STATUS_CHOICES = (
         ('created', 'Новый'),
         ('confirmed', 'Подтвержден'),
@@ -359,6 +381,28 @@ class Order(models.Model):
         ('paid', 'Оплачен'),
         ('declined', 'Отклонен'),
         ('partial_return', 'Частичный возврат'),
+        ('pending_confirmation', 'Ожидает подтверждения заказа'),
+        ('preorder_confirmed', 'Под заказ подтверждён, ожидает оплаты'),
+        ('preorder_ordered', 'Выкупается у поставщика'),
+        ('preorder_in_transit', 'В пути до склада MightBe'),
+        ('preorder_arrived', 'Прибыл на склад MightBe'),
+        ('preorder_cdek_transit', 'Едет по России СДЭКом'),
+    )
+    STOCK_STATUS_CHOICES = tuple(
+        choice for choice in STATUS_CHOICES
+        if choice[0] in {
+            "created", "confirmed", "auth", "paid", "assembled", "pickup",
+            "shipped", "delivered", "returned", "canceled", "declined",
+            "partial_return",
+        }
+    )
+    PREORDER_STATUS_CHOICES = tuple(
+        choice for choice in STATUS_CHOICES
+        if choice[0] in {
+            "pending_confirmation", "preorder_confirmed", "paid",
+            "preorder_ordered", "preorder_in_transit", "preorder_arrived", "preorder_cdek_transit",
+            "assembled", "pickup", "shipped", "delivered", "canceled",
+        }
     )
     PAYMENT_CHOICES = (('online', 'Онлайн'),)  # только онлайн
 
@@ -372,6 +416,8 @@ class Order(models.Model):
     ms_order_id = models.UUIDField(
         "ID Мой склад", unique=True, null=True, blank=True
     )
+    kind = models.CharField("Тип заказа", max_length=16, choices=Kind.choices, default=Kind.STOCK, db_index=True)
+    admin_confirmed_at = models.DateTimeField("Под заказ подтверждён", null=True, blank=True)
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Пользователь")
     
@@ -415,9 +461,23 @@ class Order(models.Model):
     def __str__(self):
         return f'Заказ {self.order_id}'
 
+    def allowed_status_choices(self):
+        if self.kind == self.Kind.PREORDER:
+            return self.PREORDER_STATUS_CHOICES
+        return self.STOCK_STATUS_CHOICES
+
     def get_total_count(self) -> int:
         agg = self.items.aggregate(total=Sum('quantity'))
         return int(agg['total'] or 0)
+
+    @property
+    def preorder_eta(self):
+        dated = list(self.items.exclude(expected_delivery_from=None).values_list(
+            "expected_delivery_from", "expected_delivery_to"
+        ))
+        if not dated:
+            return None
+        return min(row[0] for row in dated), max(row[1] for row in dated)
     
     def get_absolute_url(self):
         return reverse("cart:order_detail", args=[self.order_id]) + f"?k={self.access_key}"
@@ -455,11 +515,28 @@ class PaymentAttempt(models.Model):
 
 
 class OrderItem(models.Model):
+    class Supplier(models.TextChoices):
+        TOUCH = "touch", "TouchBMX"
+        EVO = "evo", "EVO"
+        OTHER = "other", "Другой"
+
+    class ProcurementStatus(models.TextChoices):
+        WAITING = "waiting", "Нужно заказать"
+        PURCHASED = "purchased", "Выкуплен, в пути до MightBe"
+        AT_MIGHTBE = "at_mightbe", "Приехал на склад MightBe"
+        CDEK_TRANSIT = "cdek_transit", "Едет по России СДЭКом"
+        COMPLETED = "completed", "Доставлен"
+
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items', verbose_name="Заказ")
     variant = models.ForeignKey(Variant, on_delete=models.PROTECT, related_name='order_items', verbose_name="Вариант")
     price = models.DecimalField('Цена за единицу (snapshot)', max_digits=12, decimal_places=2)
     quantity = models.PositiveIntegerField('Количество', default=1)
     amount = models.DecimalField('Сумма позиции', max_digits=12, decimal_places=2)
+    supplier = models.CharField("Поставщик", max_length=16, choices=Supplier.choices, blank=True, db_index=True)
+    procurement_status = models.CharField("Статус закупки", max_length=24, choices=ProcurementStatus.choices, default=ProcurementStatus.WAITING, db_index=True)
+    purchased_at = models.DateTimeField("Дата выкупа", null=True, blank=True)
+    expected_delivery_from = models.DateField("Ожидаем с", null=True, blank=True)
+    expected_delivery_to = models.DateField("Ожидаем до", null=True, blank=True)
 
     class Meta:
         verbose_name = 'Товар заказа'
@@ -468,9 +545,40 @@ class OrderItem(models.Model):
     def __str__(self):
         return f'{self.variant} × {self.quantity}'
 
+    def detect_supplier(self):
+        store = (
+            self.variant.taobao_imports.order_by("-updated_at")
+            .values_list("store", flat=True).first() or ""
+        ).lower()
+        if "touch" in store or "тач" in store:
+            return self.Supplier.TOUCH
+        if "evo" in store or "эво" in store:
+            return self.Supplier.EVO
+        return self.Supplier.OTHER
+
+    def save(self, *args, **kwargs):
+        if not self.supplier and self.variant_id:
+            self.supplier = self.detect_supplier()
+        super().save(*args, **kwargs)
+
+    def mark_purchased(self, when=None):
+        when = when or timezone.now()
+        self.procurement_status = self.ProcurementStatus.PURCHASED
+        self.purchased_at = when
+        self.expected_delivery_from = when.date() + timedelta(days=self.variant.preorder_days_min)
+        self.expected_delivery_to = when.date() + timedelta(days=self.variant.preorder_days_max)
+        self.save(update_fields=["supplier", "procurement_status", "purchased_at", "expected_delivery_from", "expected_delivery_to"])
+
     @property
     def line_total(self) -> Decimal:
         return Decimal(self.price) * self.quantity
+
+
+class PreorderPurchase(OrderItem):
+    class Meta:
+        proxy = True
+        verbose_name = "Закупка заказа"
+        verbose_name_plural = "Закупки заказных товаров"
 
 
 class PickupPoint(models.Model):

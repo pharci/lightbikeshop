@@ -4,8 +4,10 @@ from django.conf import settings
 from django.contrib.sites.shortcuts import get_current_site
 from django.urls import reverse
 from django.utils.html import escape
+from core.integrations import integration_value
 
-TG_API = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}"
+def _tg_api():
+    return f"https://api.telegram.org/bot{integration_value('TELEGRAM_BOT_TOKEN')}"
 
 RECIPIENTS = [787640915, 483918282, 5627367620, 793106587]  # я, Андрей, менеджер, Алина
 
@@ -27,7 +29,7 @@ def _send_tg(chat_id: int, text: str, reply_markup: dict | None = None):
 
         # 1) JSON
         try:
-            resp = requests.post(f"{TG_API}/sendMessage", json=payload, timeout=20)
+            resp = requests.post(f"{_tg_api()}/sendMessage", json=payload, timeout=20)
             last_resp = resp
             if resp.status_code != 200:
                 print("TG POST JSON status:", resp.status_code, resp.text)
@@ -37,7 +39,7 @@ def _send_tg(chat_id: int, text: str, reply_markup: dict | None = None):
                 print("TG JSON error:", data)
                 # 2) Фолбэк: form-encoded без parse_mode
                 payload.pop("parse_mode", None)
-                resp = requests.post(f"{TG_API}/sendMessage", data=payload, timeout=20)
+                resp = requests.post(f"{_tg_api()}/sendMessage", data=payload, timeout=20)
                 last_resp = resp
                 if resp.status_code != 200:
                     print("TG POST FORM status:", resp.status_code, resp.text)

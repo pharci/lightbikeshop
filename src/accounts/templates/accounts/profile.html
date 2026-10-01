@@ -5,11 +5,24 @@
 
 {% block styles %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'accounts/css/profile.css' %}">
+  <link rel="stylesheet" href="{% static 'accounts/css/profile.css' %}?v=20260924-2">
 {% endblock %}
 
 {% block content %}
 <div class="container profile">
+
+  {% for message in messages %}
+    {% if "split-order" in message.tags %}
+      <div class="split-order-notice" role="status">
+        <div class="split-order-notice__icon"><i data-lucide="split"></i></div>
+        <div>
+          <strong>Заказ разделён на два</strong>
+          <p>{{ message }}</p>
+          <span>Товары в наличии и под заказ могут оплачиваться и доставляться в разное время.</span>
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
 
   <div id="confirmationOverlay" class="overlay">
     <div class="overlay__content">
@@ -91,7 +104,7 @@
                   {% elif order.status == 'shipped' %}badge--danger
                   {% elif order.status == 'delivered' %}badge--ok
                   {% else %}badge--muted{% endif %}">
-                  {% if order.pvz_provider == 'Самовывоз' %}
+                  {% if order.delivery_method == 'pickup_store' %}
                     {% if order.status == 'created' %}Создан
                     {% elif order.status == 'paid' %}Оплачен
                     {% elif order.status == 'assembled' %}Готов к выдаче
@@ -112,7 +125,7 @@
 
               <div class="order__meta">
                 <div class="order__row"><span class="order__label">Дата оформления</span><span class="order__value">{{ order.date_ordered|date:"d.n.Y, H:i" }}</span></div>
-                {% if order.pvz_provider == 'Самовывоз' %}
+                {% if order.delivery_method == 'pickup_store' %}
                   <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">Самовывоз</span></div>
                 {% else %}
                   <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">{% if order.pvz_code %}ПВЗ ({{ order.pvz_provider }}){% else %}Доставка{% endif %}</span></div>
@@ -155,7 +168,11 @@
                   <a href="{{ order.get_absolute_url }}" class="btn">Подробнее</a>
                   <a href="https://t.me/light_bikeshop" class="btn">Помощь</a>
                   {% if order.status == 'created' %}
-                    <a href="{{ order.payment_url }}" class="btn btn--primary">Оплатить</a>
+                    {% if order.payment_url %}
+                      <a href="{{ order.payment_url }}" class="btn btn--primary">Оплатить</a>
+                    {% else %}
+                      <a href="{{ order.get_absolute_url }}" class="btn btn--primary">Оплатить</a>
+                    {% endif %}
                     <button class="btn btn--danger cancel_order" data-order-id="{{ order.order_id }}">Отменить</button>
                   {% endif %}
                 </div>
@@ -173,7 +190,7 @@
                 <h3 class="order__title"><a href="{{ order.get_absolute_url }}">Заказ № {{ order.order_id }}</a></h3>
 
                 <span class="badge {% if order.status == 'delivered' %}badge--ok{% else %}badge--danger{% endif %}">
-                  {% if order.pvz_provider == 'Самовывоз' %}
+                  {% if order.delivery_method == 'pickup_store' %}
                     {% if order.status == 'delivered' %}Завершён
                     {% elif order.status == 'canceled' %}Отменён
                     {% else %}{{ order.get_status_display }}{% endif %}
@@ -187,7 +204,7 @@
 
               <div class="order__meta">
                 <div class="order__row"><span class="order__label">Дата оформления</span><span class="order__value">{{ order.date_ordered|date:"d.n.Y, H:i" }}</span></div>
-                {% if order.pvz_provider == 'Самовывоз' %}
+                {% if order.delivery_method == 'pickup_store' %}
                   <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">Самовывоз</span></div>
                 {% else %}
                   <div class="order__row"><span class="order__label">Метод получения</span><span class="order__value">{% if order.pvz_code %}ПВЗ ({{ order.pvz_provider }}){% else %}Доставка{% endif %}</span></div>

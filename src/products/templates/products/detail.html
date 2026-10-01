@@ -7,8 +7,8 @@
 
 {% block styles %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'products/css/card.css' %}">
-  <link rel="stylesheet" href="{% static 'products/css/detail.css' %}">
+  <link rel="stylesheet" href="{% static 'products/css/card.css' %}?v=20260925-1">
+  <link rel="stylesheet" href="{% static 'products/css/detail.css' %}?v=20260925-1">
 {% endblock %}
 
 {% block content %}
@@ -82,11 +82,22 @@
           </h1>
         </div>
 
-        {% if variant.inventory %}
+        {% if variant.is_preorder %}
+          <div class="availability availability--preorder">
+            <span class="availability__icon availability__icon--preorder" aria-hidden="true">⌛</span>
+            <span class="availability__content">
+              <strong class="availability__title availability__title--preorder">Под заказ</strong>
+              <span class="availability__pickup availability__pickup--preorder">Доставка {{ variant.preorder_days_min }}–{{ variant.preorder_days_max }} дней</span>
+            </span>
+          </div>
+        {% elif variant.inventory %}
           <div class="availability availability--in">
-            <i class="availability__dot"></i>
-            <span class="availability__text">В наличии</span>
-            <span class="availability__qty">{{ variant.inventory }} <span class="availability__unit">шт.</span></span>
+            <span class="availability__icon" aria-hidden="true">✓</span>
+            <span class="availability__content">
+              <strong class="availability__title">Забрать сегодня</strong>
+              <span class="availability__pickup">Самовывоз · <a class="availability__pickup-link" href="/#pickup-points" title="Адрес и график склада MightBe">MightBe</a></span>
+            </span>
+            <span class="availability__qty">{{ variant.inventory }} {{ variant.sales_unit_label }} в наличии</span>
           </div>
         {% else %}
           <div class="availability availability--out">
@@ -119,7 +130,9 @@
         {% endif %}
 
         {# Цена + управление покупкой (ID = id варианта) #}
-        <div class="variant-page__buy">
+        <div class="purchase-options{% if preorder_variant %} purchase-options--split{% endif %}">
+        <div class="variant-page__buy purchase-option">
+          {% if preorder_variant %}<div class="purchase-option__title">Забрать сразу</div>{% endif %}
           <div class="price-box">
             {% if variant.old_price %}
               <div class="price-old">{{ variant.old_price|floatformat:"0" }} ₽</div>
@@ -128,10 +141,34 @@
           </div>
 
           <div class="buy__controls"
-              id="buyControls"
               data-variant-id="{{ variant.id }}"
               data-cart-url="{% url 'cart:cart' %}">
           </div>
+        </div>
+
+        {% if preorder_variant %}
+        <div class="variant-page__buy purchase-option purchase-option--preorder">
+          <div class="purchase-option__title">Подождать и купить дешевле</div>
+          <div class="purchase-option__delivery">Под заказ · {{ preorder_variant.preorder_days_min }}–{{ preorder_variant.preorder_days_max }} дней</div>
+          <div class="price-box">
+            <div class="price">{{ preorder_variant.price|floatformat:"0" }} ₽</div>
+            {% if variant.preorder_saving %}
+              <div class="purchase-option__saving">Экономия {{ variant.preorder_saving|floatformat:"0" }} ₽</div>
+            {% endif %}
+          </div>
+          <div class="buy__controls"
+              data-variant-id="{{ preorder_variant.id }}"
+              data-cart-url="{% url 'cart:cart' %}"
+              data-add-label="Заказать по под заказу">
+          </div>
+        </div>
+        {% endif %}
+        </div>
+
+        <div class="purchase-benefits" aria-label="Условия покупки">
+          <div><i data-lucide="credit-card" aria-hidden="true"></i><span><strong>Безопасная оплата</strong><small>Картой онлайн после подтверждения</small></span></div>
+          <div><i data-lucide="truck" aria-hidden="true"></i><span><strong>Доставка по России</strong><small>Самовывоз, СДЭК или курьер</small></span></div>
+          <div><i data-lucide="rotate-ccw" aria-hidden="true"></i><span><strong>Возврат 14 дней</strong><small>По правилам дистанционной торговли</small></span></div>
         </div>
 
         {% if variant.ozon_article or variant.wb_article %}

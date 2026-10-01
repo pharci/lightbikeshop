@@ -52,6 +52,7 @@ def variant_edit(request: HttpRequest) -> JsonResponse:
             "success": True,
             "count": int(cart.get_variant_count(v) or 0),
             "stock_count": getattr(v, "inventory", None),
+            "is_preorder": v.is_preorder,
             "product_total_price": cart.get_variant_total_price(v) or 0,
             "cart_total_price": cart.get_cart_total_price() or 0,
             "cart_total_count": cart.get_total_items() or 0,
@@ -65,12 +66,13 @@ def variant_edit(request: HttpRequest) -> JsonResponse:
             v = get_variant(True)
             current = int(cart.get_variant_count(v) or 0)
             stock = getattr(v, "inventory", None)
-            if stock is not None and current >= int(stock):
+            if not v.is_preorder and stock is not None and current >= int(stock):
                 return JsonResponse({
                     "success": False,
                     "error": "out_of_stock",
                     "count": current,
                     "stock_count": int(stock),
+                    "is_preorder": v.is_preorder,
                     "product_total_price": cart.get_variant_total_price(v) or 0,
                     "cart_total_price": cart.get_cart_total_price() or 0,
                     "cart_total_count": cart.get_total_items() or 0,
@@ -96,6 +98,7 @@ def variant_edit(request: HttpRequest) -> JsonResponse:
         "success": True,
         "count": new_count,
         "stock_count": getattr(v, "inventory", None),
+        "is_preorder": v.is_preorder,
         "product_total_price": cart.get_variant_total_price(v) or 0,
         "cart_total_price": cart.get_cart_total_price() or 0,
         "cart_total_count": cart.get_total_items() or 0,

@@ -1,5 +1,5 @@
 from django.db.models import Prefetch
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 
 from .models import Category, Brand
 
@@ -42,6 +42,13 @@ def list(request, category_path=None, brand=None):
 
 def detail(request, category_path, slug):
     variant = get_variant_or_404(slug)
+    # Связанная предзаказная позиция не имеет отдельной витрины.
+    try:
+        stock_offer = variant.stock_offer
+    except Variant.stock_offer.RelatedObjectDoesNotExist:
+        stock_offer = None
+    if stock_offer:
+        return redirect(stock_offer.get_absolute_url())
     siblings = get_sibling_variants_qs(variant.product_id)
 
     attrs, attr_ids = variant_attributes(variant)
@@ -52,12 +59,16 @@ def detail(request, category_path, slug):
 
     return render(request, "products/detail.html", {
         "variant": variant,
+        "preorder_variant": variant.preorder_variant,
         "rows": rows,
         "related_variants": related_variants,
     })
 
 
 def catalog(request):
+    root = Category.objects.filter(slug="bmx", parent__isnull=True).first()
+    if root:
+        return redirect(root.get_absolute_url())
     roots = (
         Category.objects.filter(parent__isnull=True)
         .order_by("title_plural")

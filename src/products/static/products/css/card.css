@@ -22,19 +22,31 @@
 .product-badge{color:black; font-size:.7rem; font-weight:bold; padding:.1rem .4rem; border-radius:6px;}
 .product-badge--sale{color:#fff; background:red;}
 .product-badge--new{color:#fff; background:#28a745;}
+.product-badge--preorder{color:#fff;background:#7c3aed;}
 
 .product-card__content{display:flex; flex-direction:column; flex:1; margin-top:.5rem;}
 
 /* Fallback statuses */
-.status{display:inline-flex; align-items:center; gap:.3rem; font-size:14px; font-weight:500; color:var(--text); border-radius:8px;}
-.status__qty{font-weight:600; color:var(--text); font-size:14px}
+.product-card__availability{min-height:48px}
+.status{display:flex;flex-direction:column;align-items:flex-start;gap:2px;font-size:13px;font-weight:500;color:var(--text);border-radius:8px;min-width:0}
+.status--in{width:100%;padding:7px 9px;background:#f0fdf4;border:1px solid #bbf7d0;gap:1px}
+.status__line{display:flex;align-items:center;gap:6px;min-width:0;color:#166534}
+.status__text{font-size:12px;font-weight:700;white-space:nowrap}
+.status__qty{margin-left:auto;font-weight:600;color:#64748b;font-size:12px;white-space:nowrap}
+.status__pickup{padding-left:14px;color:#3f6f50;font-size:11px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.status__pickup-link{color:#166534;font-weight:700;text-decoration:underline;text-decoration-color:#86b996;text-underline-offset:2px}
+.status__pickup-link:hover{color:#0f5132;text-decoration-color:currentColor}
 
 /* сама точка */
-.status__dot{margin-top:1px; width:8px; height:8px; border-radius:50%; display:inline-block; position:relative;}
+.status__dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;display:inline-block;position:relative;}
 .status--out .status__dot{background:#dc3545;}
 .status--out .status__dot::after{background:#dc3545;}
 .status--in .status__dot{background:#28a745;}
 .status--in .status__dot::after{background:#28a745;}
+.status--preorder{width:100%;padding:7px 9px;background:#f5f3ff;border:1px solid #ddd6fe;gap:1px;color:#6d28d9}
+.status--preorder .status__line{color:#6d28d9}
+.status--preorder .status__pickup{color:#7357a6}
+.status--preorder .status__dot{background:#8b5cf6;}
 
 /* Фиксированная высота названия для выравнивания карточек */
 .product-card__title{

@@ -1,3 +1,5 @@
+import re
+
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
@@ -158,6 +160,14 @@ class Product(models.Model):
 
 
 class Variant(models.Model):
+    class FulfillmentType(models.TextChoices):
+        STOCK = "stock", "В наличии"
+        PREORDER = "preorder", "Под заказ"
+
+    class SalesUnit(models.TextChoices):
+        PIECE = "piece", "Штука"
+        PAIR = "pair", "Пара"
+
     id  = models.UUIDField(primary_key=True, default=uuid.uuid4)
     product   = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
     seller_article = models.CharField('Артикул продавца', max_length=64, null=True, blank=True)
@@ -169,6 +179,20 @@ class Variant(models.Model):
     slug = models.SlugField('Ссылка', max_length=200, unique=True, editable=False, db_index=True)
 
     inventory = models.PositiveIntegerField('В наличии:', default=0)
+    fulfillment_type = models.CharField("Тип продажи", max_length=16, choices=FulfillmentType.choices, default=FulfillmentType.STOCK, db_index=True)
+    preorder_days_min = models.PositiveSmallIntegerField("Срок заказа от, дней", default=30)
+    preorder_days_max = models.PositiveSmallIntegerField("Срок заказа до, дней", default=45)
+    sales_unit = models.CharField("Единица продажи", max_length=8, choices=SalesUnit.choices, default=SalesUnit.PIECE)
+    preorder_variant = models.OneToOneField(
+        "self",
+        verbose_name="Вариант для заказа",
+        related_name="stock_offer",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        limit_choices_to={"fulfillment_type": FulfillmentType.PREORDER},
+        help_text="Более дешёвая позиция, которую можно заказать с ожиданием.",
+    )
     new = models.BooleanField('Бейджик NEW', default=True)
     rec = models.BooleanField('Показывать на главной', default=False)
     is_active = models.BooleanField('Активный', default=True, db_index=True)
@@ -189,11 +213,25 @@ class Variant(models.Model):
         self.slug = slug
         super().save(*args, **kwargs)
 
+    def clean(self):
+        super().clean()
+        if self.preorder_variant_id:
+            if self.preorder_variant_id == self.pk:
+                raise ValidationError({"preorder_variant": "Нельзя связать товар с самим собой."})
+            if self.fulfillment_type != self.FulfillmentType.STOCK:
+                raise ValidationError({"preorder_variant": "Под заказ можно привязать только к товару из наличия."})
+            if self.preorder_variant.fulfillment_type != self.FulfillmentType.PREORDER:
+                raise ValidationError({"preorder_variant": "Выберите товар с типом «Под заказ»."})
+
     @property
     def discount_percent(self):
         if self.old_price and self.old_price > 0 and self.price < self.old_price:
             return int(round(100 - (self.price / self.old_price * 100)))
         return 0
+
+    @property
+    def is_preorder(self):
+        return self.fulfillment_type == self.FulfillmentType.PREORDER
 
     class Meta:
         verbose_name = 'Вариант'
@@ -223,22 +261,37 @@ class Variant(models.Model):
             elif a.value_type == 'number':
                 s = str(val.value_number).rstrip('0').rstrip('.')
                 parts.append(s)
-            else:
-                parts.append('Да' if val.value_bool else 'Нет')
+            # Булевы характеристики полезны в таблице, но «Да/Нет» в названии
+            # карточки выглядит как мусор и не помогает выбрать вариант.
 
         return ' '.join([p for p in parts if p])
 
     def display_name(self):
         p = self.product
         category = (getattr(p.category, 'title_singular', None)) if p.category else ''
+        if p.category and p.category.title == "Втулки" and any(x in (p.base_name or "").lower() for x in ("хабсет", "набор втулок", "комплект втулок")):
+            category = "Хабсет"
         brand    = getattr(p.brand, 'title', '').strip() if p.brand_id else ''
         base     = (p.base_name or '').strip()
+        if brand:
+            # Бренд выводится отдельно, поэтому убираем его повторы из начала модели.
+            base = re.sub(rf"^(?:{re.escape(brand)}(?:[\s\-:]+|$))+", "", base, flags=re.I).strip()
         tail     = self.variant_label().strip()
 
         head = ' '.join(s for s in (category, brand, base) if s)
         if tail:
             return f'{head} {tail}'.strip()
         return head or self.id
+
+    @property
+    def sales_unit_label(self):
+        return "пара" if self.sales_unit == self.SalesUnit.PAIR else "шт."
+
+    @property
+    def preorder_saving(self):
+        if not self.preorder_variant_id:
+            return 0
+        return max(self.price - self.preorder_variant.price, 0)
 
     def main_image_url(self):
         img = self.images.first()
@@ -259,13 +312,27 @@ class Variant(models.Model):
                 "slug": self.slug,
             },
         )
-    
+
     @cached_property
     def merged_attribute_values(self):
         prod = {av.attribute_id: av for av in self.product.attribute_values.all()}
         var  = {av.attribute_id: av for av in self.attribute_values.all()}
         prod.update(var)  # вариант перекрывает товар
         return sorted(prod.values(), key=lambda av: (av.attribute.name or "", av.attribute_id))
+
+
+class StockVariant(Variant):
+    class Meta:
+        proxy = True
+        verbose_name = "Товар в наличии"
+        verbose_name_plural = "Товары в наличии"
+
+
+class PreorderVariant(Variant):
+    class Meta:
+        proxy = True
+        verbose_name = "Товар по под заказу"
+        verbose_name_plural = "Товары по под заказу"
 
 
 class Image(models.Model):
@@ -409,3 +476,40 @@ class CopurchaseVariantStat(models.Model):
                                    name="ordered_pair_variant"),
         ]
         indexes = [models.Index(fields=["variant_min"]), models.Index(fields=["variant_max"])]
+
+
+class TaobaoImportItem(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Ожидает проверки"
+        IMPORTED = "imported", "Импортирован"
+        REJECTED = "rejected", "Отклонён"
+
+    source_key = models.CharField("Ключ Taobao", max_length=255, unique=True)
+    store = models.CharField("Магазин", max_length=100)
+    external_id = models.CharField("ID / SKU Taobao", max_length=200)
+    title_original = models.TextField("Исходное название")
+    title_ru = models.TextField("Название на русском", blank=True)
+    description_ru = models.TextField("Описание", blank=True)
+    category_name = models.CharField("Категория", max_length=100, blank=True)
+    brand_name = models.CharField("Бренд", max_length=100, blank=True)
+    variant_name = models.TextField("Вариант", blank=True)
+    price_cny = models.DecimalField("Цена CNY", max_digits=12, decimal_places=2, null=True, blank=True)
+    price_rub = models.DecimalField("Цена ₽", max_digits=12, decimal_places=2, null=True, blank=True)
+    available = models.BooleanField("В наличии", default=True)
+    image_url = models.URLField("Фото", max_length=1000, blank=True)
+    product_url = models.URLField("Карточка Taobao", max_length=1000, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    product = models.ForeignKey(Product, null=True, blank=True, on_delete=models.SET_NULL, related_name="taobao_imports")
+    variant = models.ForeignKey(Variant, null=True, blank=True, on_delete=models.SET_NULL, related_name="taobao_imports")
+    raw = models.JSONField(default=dict, blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at",)
+        verbose_name = "Черновик Taobao"
+        verbose_name_plural = "Черновики Taobao"
+        indexes = [models.Index(fields=["status", "store", "updated_at"])]
+
+    def __str__(self):
+        return self.title_ru or self.title_original

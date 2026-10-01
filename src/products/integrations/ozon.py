@@ -1,10 +1,11 @@
 import requests
 from django.conf import settings
+from core.integrations import integration_value
 
 def get_sku_by_offer_id(offer_id: str) -> int | None:
     headers = {
-        "Client-Id": str(settings.OZON_CLIENT_ID),
-        "Api-Key": settings.OZON_API_KEY,
+        "Client-Id": str(integration_value("OZON_CLIENT_ID")),
+        "Api-Key": integration_value("OZON_API_KEY"),
         "Content-Type": "application/json",
     }
     body = {"offer_id": [offer_id]}

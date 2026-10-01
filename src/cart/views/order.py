@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.db import IntegrityError, connection, transaction
 from django.http import HttpRequest, JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import never_cache
@@ -21,6 +22,7 @@ from .tpay import check_order, create_PaymentURL
 from .cart import get_cart
 from .cdek import calc_cdek_pvz_price
 from accounts.email import send_order_created_email, send_order_status_changed_email
+from core.integrations import integration_value
 
 logger = logging.getLogger(__name__)
 PENDING_ORDER_SESSION_KEY = "pending_checkout_order"
@@ -175,7 +177,7 @@ def whereami(request: HttpRequest) -> JsonResponse:
     try:
         resp = requests.post(
             "https://suggestions.dadata.ru/suggestions/api/4_1/rs/geolocate/address",
-            headers={"Authorization": f"Token {settings.DADATA_TOKEN}"},
+            headers={"Authorization": f"Token {integration_value('DADATA_TOKEN')}"},
             json={"lat": float(lat), "lon": float(lon), "count": 1},
             timeout=5,
         )
@@ -200,6 +202,37 @@ def order_detail(request, order_id):
             return HttpResponseForbidden("forbidden")
 
     return render(request, "cart/order_detail.html", {"order": order})
+
+
+@require_POST
+def retry_payment(request, order_id):
+    order = get_object_or_404(Order, order_id=order_id)
+    is_owner = request.user.is_authenticated and order.user_id == request.user.id
+    access_key = request.POST.get("k") or request.GET.get("k", "")
+    if not is_owner and access_key != order.access_key:
+        return HttpResponseForbidden("forbidden")
+
+    payable_statuses = {"created"}
+    if order.kind == Order.Kind.PREORDER:
+        payable_statuses.add("preorder_confirmed")
+    if order.status not in payable_statuses:
+        messages.error(request, "Для этого заказа оплата сейчас недоступна.", extra_tags="global")
+        return redirect(order.get_absolute_url())
+
+    try:
+        if order.kind == Order.Kind.STOCK and not order.ms_order_id:
+            ms_data = create_customer_order(order)
+            if not ms_data or not ms_data.get("id"):
+                raise RuntimeError("MySklad order creation returned no id")
+            order.ms_order_id = ms_data["id"]
+            order.save(update_fields=["ms_order_id"])
+        payment_url = _get_payment_url(order, request)
+    except Exception:
+        logger.exception("Payment retry failed for order %s", order.order_id)
+        messages.error(request, "Не удалось сформировать ссылку оплаты. Попробуйте ещё раз позже.", extra_tags="global")
+        return redirect(order.get_absolute_url())
+
+    return redirect(payment_url)
 
 
 @require_POST
@@ -286,12 +319,85 @@ def checkout(request):
                 extra_tags="global",
             )
             return render(request, "cart/checkout.html", {"form": form, "cart": cart})
+    elif delivery_group == "courier" and pvz_provider == "Яндекс Доставка":
+        if cart.has_preorder_items():
+            messages.error(request, "Курьер Яндекса сегодня недоступен для заказа.", extra_tags="global")
+            return render(request, "cart/checkout.html", {"form": form, "cart": cart})
+        shipping_total = D(str(settings.YANDEX_COURIER_PRICE))
 
     lines = list(iter_cart_variants(cart))
     if not lines:
         return redirect("cart:cart")
 
     email = request.user.email if request.user.is_authenticated else None
+
+    preorder_lines = [(v, q) for v, q in lines if v.is_preorder]
+    stock_lines = [(v, q) for v, q in lines if not v.is_preorder]
+    if preorder_lines:
+                def create_split_order(group_lines, kind, group_shipping, group_discount):
+                        group_subtotal = sum((D(v.price) * int(q) for v, q in group_lines), D("0.00"))
+                        group_total = group_subtotal - group_discount + group_shipping
+                        created_order = Order.objects.create(
+                                user=request.user if request.user.is_authenticated else None,
+                                user_name=form.user_name,
+                                contact_phone=form.cleaned_data.get("contact_phone", ""), email=email,
+                                order_notes=form.cleaned_data.get("order_notes") or "",
+                                subtotal=group_subtotal.quantize(D("0.01")), discount_total=group_discount.quantize(D("0.01")),
+                                shipping_total=group_shipping.quantize(D("0.01")), total=group_total.quantize(D("0.01")),
+                                payment_type="online", kind=kind,
+                                status="pending_confirmation" if kind == Order.Kind.PREORDER else "created",
+                                delivery_method=delivery_method, pvz_provider=pvz_provider, pvz_code=pvz_code,
+                                pvz_address=pvz_address, city=city, promo_code=cart.get_promo_obj(),
+                        )
+                        for v, q in group_lines:
+                                OrderItem.objects.create(order=created_order, variant=v, price=v.price, quantity=q, amount=(D(v.price) * int(q)).quantize(D("0.01")))
+                        return created_order
+
+                stock_subtotal = sum((D(v.price) * int(q) for v, q in stock_lines), D("0.00"))
+                preorder_subtotal = sum((D(v.price) * int(q) for v, q in preorder_lines), D("0.00"))
+                total_subtotal = stock_subtotal + preorder_subtotal
+                stock_discount = (discount * stock_subtotal / total_subtotal).quantize(D("0.01")) if total_subtotal else D("0.00")
+                preorder_discount = discount - stock_discount
+                try:
+                        with transaction.atomic():
+                                preorder_order = create_split_order(preorder_lines, Order.Kind.PREORDER, shipping_total if not stock_lines else D("0.00"), preorder_discount)
+                                stock_order = create_split_order(stock_lines, Order.Kind.STOCK, shipping_total, stock_discount) if stock_lines else None
+                except Exception:
+                        logger.exception("Failed to create split stock/preorder checkout")
+                        messages.error(request, "Не удалось оформить заказ. Попробуйте ещё раз.", extra_tags="global")
+                        return render(request, "cart/checkout.html", {"form": form, "cart": cart})
+
+                payment_url = None
+                if stock_order:
+                        try:
+                                ms_data = create_customer_order(stock_order)
+                                if not ms_data or not ms_data.get("id"):
+                                        raise RuntimeError("MySklad order creation returned no id")
+                                stock_order.ms_order_id = ms_data["id"]
+                                stock_order.save(update_fields=["ms_order_id"])
+                                payment_url = _get_payment_url(stock_order, request)
+                        except Exception:
+                                logger.exception("Stock part creation/payment failed for %s", stock_order.order_id)
+                                messages.error(request, "Заказ создан, но ссылку оплаты не удалось сформировать. Её можно запросить на странице заказа.", extra_tags="global")
+                for created_order in filter(None, (stock_order, preorder_order)):
+                        try:
+                                send_tg_order(created_order, request)
+                                send_order_created_email(email, created_order)
+                        except Exception:
+                                logger.exception("Order notification failed for %s", created_order.order_id)
+                cart.clear()
+                if stock_order and request.user.is_authenticated:
+                        messages.success(
+                                request,
+                                f"Заказ разделён на два: {stock_order.order_id} — товары в наличии, "
+                                f"{preorder_order.order_id} — товары по под заказу. Они будут обрабатываться отдельно.",
+                                extra_tags="split-order",
+                        )
+                        return redirect(f"{reverse('accounts:profile')}#orders")
+                if stock_order:
+                        return redirect(payment_url or stock_order.get_absolute_url())
+                messages.success(request, f"Под заказ {preorder_order.order_id} создан. Оплата появится после подтверждения администратором.", extra_tags="global")
+                return redirect(preorder_order.get_absolute_url())
 
     order = _pending_order(request, lines)
     if not order:

@@ -2,6 +2,7 @@
 // DOM
 const cityInput = document.getElementById('city');
 const cityCodeInput = document.getElementById('city_code');
+const cityRegionInput = document.getElementById('city_region');
 const cityCaption = document.getElementById('city-caption');
 
 const openCityModalBtn = document.getElementById('open-city-modal');
@@ -18,6 +19,7 @@ const pvzProvider = document.getElementById('pvz_provider');
 const pvzCode = document.getElementById('pvz_code');
 const pvzAddress = document.getElementById('pvz_address');
 const picked = document.getElementById('pvz-picked');
+const yandexCourierCard = document.getElementById('yandex-courier-card');
 
 const mapWrap =
     document.getElementById('pvz-map-wrap');  // wrapper с классом .collapsible
@@ -29,6 +31,7 @@ let map, clusterShop, clusterCdek, lastCity = '';
 let currentCityCode = null;
 let citiesLoaded = false;
 let cdekCities = [];
+let activeProviderMode = 'shop';
 
 // ----- Модалка городов -----
 openCityModalBtn.addEventListener('click', async () => {
@@ -95,6 +98,7 @@ function renderCities(cities) {
     div.className = 'city-item';
     div.dataset.city = c.city;
     div.dataset.cityCode = c.code;
+    div.dataset.cityRegion = c.region || '';
     div.textContent = c.city;
 
     cityList.appendChild(div);
@@ -109,8 +113,9 @@ cityList.addEventListener('click', (e) => {
 
   const city = item.dataset.city;
   const cityCode = item.dataset.cityCode;
+  const cityRegion = item.dataset.cityRegion || '';
 
-  setCity(city, cityCode);
+  setCity(city, cityCode, cityRegion);
 
   // return focus and hide modal accessibly
   try { openCityModalBtn.focus(); } catch (ex) {}
@@ -118,7 +123,7 @@ cityList.addEventListener('click', (e) => {
   cityModal.style.display = 'none';
 });
 
-function setCity(city, cityCode = null) {
+function setCity(city, cityCode = null, cityRegion = '') {
   cityInput.value = city;
   cityCaption.textContent = 'г. ' + city;
 
@@ -131,10 +136,16 @@ function setCity(city, cityCode = null) {
     cityCodeInput.value = currentCityCode !== null ? String(currentCityCode) : '';
   }
 
+  const cityInfo = cdekCities.find(c => Number(c.code) === Number(currentCityCode));
+  const region = cityRegion || (cityInfo && cityInfo.region) || '';
+  if (cityRegionInput) cityRegionInput.value = region;
+  updateCourierAvailability(city, region);
+
   try {
     localStorage.setItem('city', JSON.stringify({
       name: city,
-      code: currentCityCode
+      code: currentCityCode,
+      region
     }));
   } catch (e) {}
 
@@ -160,6 +171,15 @@ function setCity(city, cityCode = null) {
     return;
   }
 
+  // Our pickup is the initial delivery method, so open its Moscow map
+  // immediately. A customer can choose another city after switching to CDEK.
+  if (activeProviderMode === 'shop') {
+    const defaultCity =
+        (openCityModalBtn.dataset.defaultCity || '').trim() || 'Москва';
+    setCity(defaultCity, findCityCode(defaultCity));
+    return;
+  }
+
   const saved = localStorage.getItem('city');
 
   if (saved) {
@@ -170,7 +190,7 @@ function setCity(city, cityCode = null) {
         const code = findCityCode(data.name);
 
         currentCityCode = code;
-        setCity(data.name, code);
+        setCity(data.name, code, data.region || '');
         return;
       }
     } catch (e) {}
@@ -251,9 +271,11 @@ methodGroup.addEventListener('click', (e) => {
   panelCourier.hidden = tgt !== 'panel-courier';
 
   if (tgt === 'panel-pvz') {
-    deliveryMethod.value = 'pickup_pvz';
+    activeProviderMode = label.dataset.providerMode || 'shop';
+    deliveryMethod.value = activeProviderMode === 'shop' ? 'pickup_store' : 'pickup_pvz';
     pvzCode.required = true;
     if (addressLine) addressLine.required = false;
+    resetPvzSelection();
     // если ещё не выбрано ПВЗ — раскрываем карту
     if (!pvzCode.value) {
       expandMap();
@@ -261,11 +283,25 @@ methodGroup.addEventListener('click', (e) => {
     }
     ensureMap();
   } else {
-    deliveryMethod.value = 'courier';
+    deliveryMethod.value = 'yandex_courier';
+    pvzProvider.value = 'Яндекс Доставка';
+    pvzCode.value = '';
+    pvzAddress.value = '';
     pvzCode.required = false;
     if (addressLine) addressLine.required = true;
+    setShippingAndTotal(990);
   }
 });
+
+function updateCourierAvailability(city, region) {
+  if (!yandexCourierCard) return;
+  const preorderBlocked = yandexCourierCard.dataset.preorderBlocked === '1';
+  const inArea = String(city).toLowerCase() === 'москва' ||
+      String(region).toLowerCase().includes('московск');
+  const radio = yandexCourierCard.querySelector('input');
+  radio.disabled = preorderBlocked || !inArea;
+  yandexCourierCard.classList.toggle('delivery-card--disabled', radio.disabled);
+}
 
 // ----- Коллапс/экспанд карты -----
 function collapseMap() {
@@ -295,6 +331,7 @@ if (changePvzBtn) {
 }
 
 function resetPvzSelection() {
+  pvzProvider.value = '';
   pvzCode.value = '';
   pvzAddress.value = '';
   picked.textContent = 'не выбрано';
@@ -435,7 +472,10 @@ function formatMoney(n) {
 
 
 function loadPoints(city) {
-  fetch(`/api/pvz/shop/?city=${encodeURIComponent(city)}`)
+  clusterShop.removeAll();
+  clusterCdek.removeAll();
+
+  if (activeProviderMode === 'shop') fetch(`/api/pvz/shop/?city=${encodeURIComponent(city)}`)
     .then(r => r.json())
     .then(points => {
       clusterShop.removeAll();
@@ -448,7 +488,7 @@ function loadPoints(city) {
     })
     .catch(() => {});
 
-  if (!currentCityCode) return;
+  if (activeProviderMode !== 'cdek' || !currentCityCode) return;
 
   fetch(`/api/pvz/cdek/?city_code=${encodeURIComponent(currentCityCode)}`)
     .then(r => r.json())
@@ -476,8 +516,11 @@ function escapeHtml(s) {
 }
 
 // Если стартуем уже на «Самовывоз» — сразу рисуем карту
-const radioPvz = document.getElementById('dg_pvz');
-if (radioPvz && radioPvz.checked && !panelPvz.hidden) ensureMap();
+const radioPickup = document.getElementById('dg_pickup');
+if (radioPickup && radioPickup.checked && !panelPvz.hidden) {
+  deliveryMethod.value = 'pickup_store';
+  ensureMap();
+}
 })();
 
 

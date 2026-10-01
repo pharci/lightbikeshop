@@ -16,6 +16,17 @@
 {% block content %}
 <div id="content-main">
 
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#0f172a;color:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <div>
+      <h2 style="font-size:16px;margin:0 0 4px;color:#fff">Парсер Taobao</h2>
+      <p style="margin:0;color:#cbd5e1">Сканирование корзины, отбор товаров и отправка в LightBikeShop</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+      <a href="{% url 'admin:core_integrationkey_changelist' %}" style="display:inline-flex;align-items:center;white-space:nowrap;background:#fff;color:#0f172a;padding:9px 14px;border-radius:9px;text-decoration:none;font-weight:700">Ключи интеграций</a>
+      <a href="{% url 'core:taobao_parser' %}" style="display:inline-flex;align-items:center;white-space:nowrap;background:#38bdf8;color:#082f49;padding:9px 14px;border-radius:9px;text-decoration:none;font-weight:700">Открыть парсер</a>
+    </div>
+  </div>
+
   <div id="inv-summary" style="background:#fff;border:1px solid #e7e9ee;border-radius:12px;padding:14px;margin-bottom:12px">
     <h2 style="font-size:16px;margin:0 0 6px 0;color:#0f1115">Сводка остатков</h2>
     <p style="margin:0;color:#6b7280">Последнее обновление: {% if inv_last %}{{ inv_last|date:"Y-m-d H:i:s" }}{% else %}—{% endif %}</p>

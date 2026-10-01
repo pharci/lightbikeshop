@@ -3,6 +3,7 @@ from django.urls import reverse, NoReverseMatch
 from django.apps import apps
 from products.models import Category, Brand, Variant
 from .models import Page
+from .integrations import integration_value
 from django.core.cache import cache
 from django.utils.timezone import localtime
 
@@ -140,3 +141,7 @@ def breadcrumbs(request):
 def footer_pages(request):
     cols = {i: list(Page.objects.filter(is_published=True, column=i)) for i in (1,2,3,4)}
     return {"footer_cols": cols}
+
+
+def integration_public_keys(request):
+    return {"YANDEX_MAPS_API_KEY": integration_value("YANDEX_MAPS_API_KEY")}

@@ -17,8 +17,9 @@ const esc = s => String(s || '').replace(
           '>': '&gt;',
           '"': '&quot;',
           '\'': '&#39;'}[m]));
-const emptyHtml =
-    `<div class="cart-empty"><div><div class="cart-empty__title">Корзина пуста</div><div class="cart-empty__text">Добавьте товары из каталога</div></div></div>`;
+const emptyTemplate = document.getElementById('tpl-cart-empty');
+const emptyHtml = emptyTemplate ? emptyTemplate.innerHTML :
+    `<div class="cart-empty"><div class="cart-empty__title">В корзине пока пусто</div></div>`;
 
 // ===== totals =====
 function updateCartSummary() {
@@ -37,9 +38,15 @@ function loadCart() {
     $list.empty();
     if (!items.length) {
       $list.html(emptyHtml);
+      if (window.lucide) window.lucide.createIcons();
       toggleCheckout(false, true);
     } else {
-      $list.html(items.map(renderItem).join(''));
+      const stock = items.filter(x => !(x.variant || x.product || {}).is_preorder);
+      const preorder = items.filter(x => (x.variant || x.product || {}).is_preorder);
+      $list.html(
+          (stock.length ? `<section class="cart-group"><h2 class="cart-group__title">Товары в наличии</h2>${stock.map(renderItem).join('')}</section>` : '') +
+          (preorder.length ? `<section class="cart-group"><h2 class="cart-group__title">Товары под заказ</h2><p class="cart-group__note">Срок доставки 30–45 дней. Оплата после подтверждения администратором.</p>${preorder.map(renderItem).join('')}</section>` : '')
+      );
       recomputeBlocking();
     }
     const c = r.cart || {};
@@ -64,13 +71,14 @@ function renderItem(it) {
       (typeof v.inventory === 'number')              ? v.inventory :
                                                        null;
   const qty = it.quantity || 0;
+  const preorder = Boolean(v.is_preorder);
   const unit = Number(it.unit_price || v.price || 0);
   const total = Math.round(it.product_total_price || 0);
-  const disPlus = (typeof stock === 'number' && qty >= stock) ? 'disabled' : '';
+  const disPlus = (!preorder && typeof stock === 'number' && qty >= stock) ? 'disabled' : '';
   const stockAttr = (stock ?? '');
   return `
     <article class="cart-item" data-variant-id="${id}" data-stock="${
-      stockAttr}">
+      stockAttr}" data-preorder="${preorder ? '1' : '0'}">
       <a class="cart-item__image" href="${url}">${
       img ? `<img src="${img}" alt="${esc(name)}">` : ''}</a>
       <div>
@@ -78,9 +86,9 @@ function renderItem(it) {
       url}"><h3 class="cart-item__title">${esc(name)}</h3></a>
         <div class="cart-item__meta">
           ${slug ? `<span class="meta-chip">арт. ${esc(slug)}</span>` : ''}
-          ${chipAvail(stock)}
+          ${preorder ? `<span class="meta-chip">Предзаказ</span><span class="meta-chip">Доставка ${esc(v.delivery_label || '30–45 дней')}</span>` : chipAvail(stock)}
           ${
-      typeof stock === 'number' ?
+      !preorder && typeof stock === 'number' ?
           `<span class="meta-chip">Остаток: ${stock}</span>` :
           ''}
           ${unit ? `<span class="meta-chip">${fmt(unit)}₽/шт.</span>` : ''}
@@ -94,7 +102,7 @@ function renderItem(it) {
             <button class="counter__btn js-decrease" type="button" data-variant-id="${
       id}">−</button>
             <span class="counter__value" id="product-count-${id}">${
-      qty} шт.</span>
+            qty} ${esc(v.sales_unit || 'шт.')}</span>
             <button class="counter__btn js-increase" type="button" data-variant-id="${
       id}" ${disPlus}>+</button>
           </div>
@@ -136,6 +144,7 @@ function recomputeBlocking() {
   let blocked = false;
   const $items = $list.find('.cart-item');
   $items.each(function() {
+    if (this.dataset.preorder === '1') return;
     const stockAttr = this.dataset.stock;
     const stock = (stockAttr === '' || stockAttr == null) ?
         null :

@@ -9,7 +9,7 @@
 
 {% block styles %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'products/css/card.css' %}">
+  <link rel="stylesheet" href="{% static 'products/css/card.css' %}?v=20260925-1">
   <link rel="stylesheet" href="{% static 'products/css/list.css' %}">
   <link rel="stylesheet" href="{% static 'products/css/catalog.css' %}">
 {% endblock %}
@@ -46,10 +46,9 @@
 
         <details class="group" open>
           <summary><span>Наличие</span></summary>
-          <label class="check">
-            <input type="checkbox" name="in_stock" value="1" {% if selected.in_stock %}checked{% endif %}>
-            <span>В наличии</span>
-          </label>
+          <label class="radio"><input type="radio" name="availability" value="" {% if not selected.availability %}checked{% endif %}><span>Все товары</span></label>
+          <label class="radio"><input type="radio" name="availability" value="stock" {% if selected.availability == 'stock' %}checked{% endif %}><span>В наличии</span></label>
+          <label class="radio"><input type="radio" name="availability" value="preorder" {% if selected.availability == 'preorder' %}checked{% endif %}><span>Под заказ</span></label>
         </details>
 
         <details class="group" open>
@@ -141,8 +140,8 @@
     <section>
       <!-- Чипсы выбранных фильтров -->
       <div class="chips">
-        {% if selected.in_stock %}
-          <button class="chip" data-clear="in_stock">В наличии <span>✕</span></button>
+        {% if selected.availability %}
+          <button class="chip" data-clear="availability">{% if selected.availability == 'stock' %}В наличии{% else %}Под заказ{% endif %} <span>✕</span></button>
         {% endif %}
         {% if selected.price_min %}
           <button class="chip" data-clear="price_min">от {{ selected.price_min }} <span>✕</span></button>

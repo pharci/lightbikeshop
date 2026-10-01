@@ -6,6 +6,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
 from core.moysklad import _get_session
+from core.integrations import integration_value
 
 S = _get_session()
 S.hooks["response"] = [lambda r,*a,**k: print(
@@ -39,7 +40,7 @@ def _iter_stock_rows(params: Dict[str, Any]) -> Iterator[dict]:
             yield r
 
 def sync_inventory() -> dict:
-    params = {"groupBy": "variant", "stockType": "freeStock", "filter": f"storeId={settings.MOYSKLAD_STORE_ID}"}
+    params = {"groupBy": "variant", "stockType": "freeStock", "filter": f"storeId={integration_value('MOYSKLAD_STORE_ID')}"}
     report_ids, to_update = set(), []
 
     for row in _iter_stock_rows(params):

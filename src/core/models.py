@@ -3,6 +3,11 @@ from django.urls import reverse
 from django.core.validators import URLValidator, EmailValidator
 from django.core.exceptions import ValidationError
 import re
+import base64
+import hashlib
+
+from cryptography.fernet import Fernet, InvalidToken
+from django.conf import settings
 
 class SocialLink(models.Model):
     title = models.CharField(max_length=50)           # название: VK, YouTube
@@ -98,5 +103,53 @@ class Page(models.Model):
 
     def __str__(self):
         return self.title
-    
 
+
+class IntegrationKey(models.Model):
+    KEY_CHOICES = [
+        ("CDEK_ID", "СДЭК — Client ID"),
+        ("CDEK_SECRET", "СДЭК — Secret"),
+        ("CDEK_SENDER_CODE", "СДЭК — код города отправителя"),
+        ("YANDEX_MAPS_API_KEY", "Яндекс Карты — API ключ"),
+        ("DADATA_TOKEN", "DaData — токен"),
+        ("T_BANK_TERMINAL_KEY", "Т-Банк — TerminalKey"),
+        ("T_BANK_PASSWORD", "Т-Банк — пароль"),
+        ("MOYSKLAD_TOKEN", "МойСклад — токен"),
+        ("MOYSKLAD_ORGANIZATION_ID", "МойСклад — организация"),
+        ("MOYSKLAD_STORE_ID", "МойСклад — склад"),
+        ("MOYSKLAD_SALESCHANNEL_ID", "МойСклад — канал продаж"),
+        ("OZON_CLIENT_ID", "Ozon — Client ID"),
+        ("OZON_API_KEY", "Ozon — API ключ"),
+        ("WB_API_KEY", "Wildberries — API ключ"),
+        ("TELEGRAM_BOT_TOKEN", "Telegram — токен бота"),
+        ("RECAPTCHA_SITE_KEY", "reCAPTCHA — публичный ключ"),
+        ("RECAPTCHA_SECRET_KEY", "reCAPTCHA — секретный ключ"),
+    ]
+
+    key = models.CharField("Интеграция", max_length=64, choices=KEY_CHOICES, unique=True)
+    encrypted_value = models.TextField("Зашифрованное значение", blank=True, editable=False)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        verbose_name = "Ключ интеграции"
+        verbose_name_plural = "Ключи интеграций"
+        ordering = ("key",)
+
+    def __str__(self):
+        return self.get_key_display()
+
+    @staticmethod
+    def _fernet():
+        digest = hashlib.sha256(settings.SECRET_KEY.encode("utf-8")).digest()
+        return Fernet(base64.urlsafe_b64encode(digest))
+
+    def set_value(self, value):
+        self.encrypted_value = self._fernet().encrypt((value or "").encode()).decode() if value else ""
+
+    def get_value(self):
+        if not self.encrypted_value:
+            return ""
+        try:
+            return self._fernet().decrypt(self.encrypted_value.encode()).decode()
+        except (InvalidToken, ValueError):
+            return ""

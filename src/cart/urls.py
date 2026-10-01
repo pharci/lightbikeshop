@@ -13,6 +13,7 @@ urlpatterns = [
 
     # заказы
     path("orders/<str:order_id>/", order_detail, name="order_detail"),
+    path("orders/<str:order_id>/payment/", retry_payment, name="retry_payment"),
     path("orders/<str:order_id>/status/", order_status, name="order_status"),
 
     # API: заказы

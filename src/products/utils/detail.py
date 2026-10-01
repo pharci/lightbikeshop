@@ -11,9 +11,13 @@ from products.models import (
 def get_variant_or_404(slug) -> Variant:
     return get_object_or_404(
         Variant.objects
-        .select_related("product", "product__brand", "product__category")
+        .select_related("product", "product__brand", "product__category", "preorder_variant")
         .only(
             "id", "slug", "price", "old_price", "inventory", "new", "rec", "is_active", "updated",
+            "fulfillment_type", "preorder_days_min", "preorder_days_max", "sales_unit", "preorder_variant",
+            "preorder_variant__id", "preorder_variant__price", "preorder_variant__inventory",
+            "preorder_variant__fulfillment_type", "preorder_variant__preorder_days_min",
+            "preorder_variant__preorder_days_max", "preorder_variant__sales_unit",
             "product__id", "product__base_name", "product__brand__title", "product__category",
         )
         .prefetch_related(

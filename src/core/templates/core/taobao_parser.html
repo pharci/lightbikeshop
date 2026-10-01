@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}
+
+{% block title %}Парсер Taobao — LightBikeShop{% endblock %}
+
+{% block styles %}
+<style>
+  .parser-page { max-width: 1440px; margin: 0 auto; padding: 16px; }
+  .parser-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+  .parser-head h1 { margin:0; font-size:24px; }
+  .parser-frame { width:100%; height:calc(100vh - 190px); min-height:680px; border:1px solid #dde1e7; border-radius:16px; background:#0b0e12; }
+  @media (max-width:700px) { .parser-page { padding:8px; } .parser-frame { height:calc(100vh - 155px); min-height:600px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="parser-page">
+  <div class="parser-head">
+    <h1>Парсер Taobao</h1>
+    <a href="http://127.0.0.1:18765/" target="_blank" rel="noopener">Открыть отдельно</a>
+  </div>
+  <iframe class="parser-frame" src="{{ parser_url }}" title="Парсер Taobao" allow="clipboard-read; clipboard-write"></iframe>
+</section>
+{% endblock %}

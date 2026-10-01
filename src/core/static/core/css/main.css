@@ -98,6 +98,18 @@ body{
 .menuitem{display:flex; flex-direction:column; align-items:center; gap:4px; text-decoration:none; color:#000; font-size:12px;}
 .menuitem:hover{opacity:.8;}
 .menuitem__icon{position:relative; display:inline-block;}
+.staff-toolbar{
+  display:flex;align-items:center;justify-content:center;gap:8px;padding:7px 12px;
+  overflow-x:auto;background:#17191d;border-bottom:1px solid #292c31;
+  scrollbar-width:none;
+}
+.staff-toolbar::-webkit-scrollbar{display:none}
+.staff-toolbar a{
+  display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;padding:7px 12px;
+  border-radius:9px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;
+}
+.staff-toolbar a:hover{background:#30343a}
+.staff-toolbar svg{width:17px;height:17px;color:#b9d998}
 
 .cart-count{
   position:absolute; top:-6px; right:-8px;

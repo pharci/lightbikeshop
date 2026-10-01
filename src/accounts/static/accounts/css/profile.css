@@ -4,6 +4,12 @@
 
 /* контейнер */
 .container.profile{margin-top:16px;}
+.split-order-notice{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;padding:16px 18px;border:1px solid #bfdbfe;border-radius:14px;background:linear-gradient(135deg,#eff6ff,#f5f3ff);color:#1e3a8a;box-shadow:0 6px 20px rgba(37,99,235,.08)}
+.split-order-notice__icon{flex:0 0 auto;width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:#2563eb;color:#fff}
+.split-order-notice__icon svg{width:22px;height:22px}
+.split-order-notice strong{display:block;margin-bottom:4px;font-size:17px;color:#172554}
+.split-order-notice p{margin:0 0 5px;line-height:1.45;font-weight:600}
+.split-order-notice span{font-size:13px;color:#475569}
 
 /* сетка */
 .profile__grid{display:grid;grid-template-columns:1fr;gap:12px;}

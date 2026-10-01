@@ -3,6 +3,7 @@ import json, logging, hashlib, requests
 from urllib.parse import parse_qs
 
 from django.conf import settings
+from core.integrations import integration_value
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -92,8 +93,8 @@ def tinkoff_token(params: dict, secret_key: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 def _tbank_request_payload(**params):
-    params["TerminalKey"] = settings.T_BANK_TERMINAL_KEY
-    params["Token"] = tinkoff_token(params, settings.T_BANK_PASSWORD)
+    params["TerminalKey"] = integration_value("T_BANK_TERMINAL_KEY")
+    params["Token"] = tinkoff_token(params, integration_value("T_BANK_PASSWORD"))
     return params
 
 
@@ -124,7 +125,7 @@ def check_order(bank_order_id):
 def create_PaymentURL(order, request, bank_order_id=None):
     url = "https://securepay.tinkoff.ru/v2/Init"
     payload = {
-        "TerminalKey": settings.T_BANK_TERMINAL_KEY,
+        "TerminalKey": integration_value("T_BANK_TERMINAL_KEY"),
         "OrderId": str(bank_order_id or order.order_id),
         "Amount": int(D(order.total or 0) * 100),  # копейки с нового поля total
         "PayType": "O",
@@ -133,7 +134,7 @@ def create_PaymentURL(order, request, bank_order_id=None):
         "NotificationURL": request.build_absolute_uri("/api/payments/callback/"),
         "Receipt": build_receipt(order),
     }
-    payload["Token"] = tinkoff_token(payload, settings.T_BANK_PASSWORD)
+    payload["Token"] = tinkoff_token(payload, integration_value("T_BANK_PASSWORD"))
 
     r = requests.post(url, json=payload, timeout=15)
     r.raise_for_status()
@@ -223,7 +224,7 @@ def payment_callback(request):
         return HttpResponse("BAD BODY", status=400)
 
     token = str(data.get("Token") or "")
-    calc = tinkoff_token(data, settings.T_BANK_PASSWORD)
+    calc = tinkoff_token(data, integration_value("T_BANK_PASSWORD"))
     if token.lower() != calc.lower():
         logger.warning("Invalid T-Bank token for order=%s", data.get("OrderId"))
         return HttpResponse("BAD TOKEN", status=400)
@@ -240,7 +241,7 @@ def payment_callback(request):
         or not payment_id
         or not isinstance(success, bool)
         or not status
-        or str(data.get("TerminalKey") or "") != settings.T_BANK_TERMINAL_KEY
+        or str(data.get("TerminalKey") or "") != integration_value("T_BANK_TERMINAL_KEY")
     ):
         return HttpResponse("BAD CALLBACK", status=400)
 
@@ -327,10 +328,14 @@ def payment_callback(request):
                 attempt.payment_id = payment_id
             order.payment_id = payment_id
 
+            is_preorder = order.kind == Order.Kind.PREORDER
             if order.status == new_status:
                 return HttpResponse("OK")
 
-            if order.status not in ("created", "auth"):
+            payable_statuses = {"created", "auth"}
+            if is_preorder and order.status == "preorder_confirmed":
+                payable_statuses.add("preorder_confirmed")
+            if order.status not in payable_statuses:
                 logger.warning(
                     "Ignoring payment transition %s -> %s for order=%s",
                     order.status,
@@ -339,8 +344,11 @@ def payment_callback(request):
                 )
                 return HttpResponse("OK")
 
-            order.status = new_status
-            order.save(update_fields=["status", "payment_id"])
+            if new_status == "declined" and is_preorder:
+                order.save(update_fields=["payment_id"])
+            else:
+                order.status = new_status
+                order.save(update_fields=["status", "payment_id"])
             if attempt:
                 attempt.state = new_status
                 attempt.save(update_fields=["payment_id", "state", "updated"])

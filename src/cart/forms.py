@@ -2,18 +2,20 @@ from django import forms
 from django.core.exceptions import ValidationError
 import re
 
-DELIVERY_GROUP_CHOICES = (("pickup", "Самовывоз"), ("pvz", "ПВЗ"))
+DELIVERY_GROUP_CHOICES = (("pickup", "Самовывоз"), ("pvz", "СДЭК"), ("courier", "Курьер Яндекса"))
 PHONE_RE = re.compile(r'^(?:\+7|8)?\D?(\d{3})\D?(\d{3})\D?(\d{2})\D?(\d{2})$')
 
 class CheckoutForm(forms.Form):
     payment_type   = forms.CharField(initial="online", widget=forms.HiddenInput)
     city           = forms.CharField()
     city_code      = forms.CharField(required=False)
+    city_region    = forms.CharField(required=False)
     delivery_group = forms.ChoiceField(choices=DELIVERY_GROUP_CHOICES, required=False)
     delivery_method= forms.CharField(required=False)
     pvz_provider   = forms.CharField(required=False)
     pvz_code       = forms.CharField(required=False)
     pvz_address    = forms.CharField(required=False)
+    address_line   = forms.CharField(required=False)
 
     last_name      = forms.CharField()
     first_name     = forms.CharField()
@@ -52,11 +54,13 @@ class CheckoutForm(forms.Form):
         dg = s("delivery_group") or None
         dm = s("delivery_method") or None
         city_code = s("city_code") or ""
+        city_region = s("city_region") or ""
         pvz_provider, pvz_code, pvz_address = s("pvz_provider"), s("pvz_code"), s("pvz_address")
+        address_line = s("address_line")
 
         # Автовывод группы по методу/ПВЗ
-        if dm in ("pickup_store", "pickup_pvz"):
-            dg = "pickup" if dm == "pickup_store" else "pvz"
+        if dm in ("pickup_store", "pickup_pvz", "yandex_courier"):
+            dg = {"pickup_store": "pickup", "pickup_pvz": "pvz", "yandex_courier": "courier"}[dm]
         elif pvz_code or pvz_address:
             dg, dm = "pvz", "pickup_pvz"
 
@@ -77,14 +81,26 @@ class CheckoutForm(forms.Form):
                 pvz_address=pvz_address,
             )
         elif dg == "pickup":
-            # Самовывоз из магазина: ПВЗ-поля сбрасываем
+            if not (pvz_provider == "MightBe" and pvz_code and pvz_address):
+                self.add_error("delivery_group", "Выберите наш пункт самовывоза на карте.")
             cd.update(
                 delivery_group="pickup",
                 delivery_method="pickup_store",
                 city_code="",
-                pvz_provider="",
-                pvz_code="",
-                pvz_address="",
+                pvz_provider="MightBe",
+                pvz_code=pvz_code,
+                pvz_address=pvz_address,
+            )
+        elif dg == "courier":
+            is_moscow = city.lower() in {"москва", "moscow"} or "московск" in city_region.lower()
+            if not is_moscow:
+                self.add_error("delivery_group", "Курьер Яндекса сегодня доступен только в Москве и МО.")
+            if not address_line:
+                self.add_error("address_line", "Укажите адрес доставки.")
+            cd.update(
+                delivery_group="courier", delivery_method="yandex_courier",
+                city_code=city_code, pvz_provider="Яндекс Доставка",
+                pvz_code="", pvz_address=address_line,
             )
         else:
             self.add_error("delivery_group", "Неверный способ доставки.")

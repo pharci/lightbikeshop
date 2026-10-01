@@ -67,7 +67,7 @@ class AttributeValueInline(admin.TabularInline):
 class VariantInline(admin.TabularInline):
     model = Variant
     extra = 0
-    fields = ("id", "price", "inventory", "new", "rec")
+    fields = ("id", "price", "inventory", "sales_unit", "fulfillment_type", "new", "rec")
     show_change_link = True
 
 # ---------- Category ----------
@@ -211,7 +211,7 @@ class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
     list_display = (
         "image_preview", "id", "display_name_col", "slug",
         "seller_article", "ozon_article", "wb_article", "price", "old_price",
-        "inventory", "new", "rec", "is_active", "updated",
+        "inventory", "fulfillment_type", "preorder_variant", "new", "rec", "is_active", "updated",
     )
     default_selected_columns = list(list_display)
     list_display_links = ("image_preview", "id", "display_name_col")
@@ -221,7 +221,7 @@ class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
         ("product__brand", admin.RelatedOnlyFieldListFilter),
     )
     search_fields = ("slug", "id", "seller_article", "product__base_name")
-    autocomplete_fields = ("product",)
+    autocomplete_fields = ("product", "preorder_variant")
     inlines = [ImageInline, AttributeValueInline]
     ordering = ("-updated",)
     list_editable = ("old_price", "price", "inventory", "new", "rec", "is_active")
@@ -258,6 +258,104 @@ class VariantAdmin(SortableAdminBase, ColumnToggleModelAdmin):
         if not url:
             return "—"
         return format_html('<img src="{}" style="height:48px;width:auto;border-radius:4px;">', url)
+
+
+class CatalogVariantAdmin(VariantAdmin):
+    list_display = (
+        "catalog_image", "product_summary", "price_summary",
+        "availability_summary", "source_shop", "storefront_link", "updated",
+    )
+    default_selected_columns = list(list_display)
+    list_display_links = ("catalog_image", "product_summary")
+    list_filter = (
+        "is_active", "new", "rec",
+        ("product__category", admin.RelatedOnlyFieldListFilter),
+        ("product__brand", admin.RelatedOnlyFieldListFilter),
+    )
+    list_editable = ()
+    date_hierarchy = None
+    ordering = ("product__brand__title", "product__base_name")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related(
+            Prefetch(
+                "taobao_imports",
+                queryset=TaobaoImportItem.objects.only("id", "variant_id", "store", "updated_at").order_by("-updated_at"),
+                to_attr="admin_imports",
+            )
+        )
+
+    @admin.display(description="Фото")
+    def catalog_image(self, obj):
+        imgs = getattr(obj, "prefetched_images", None) or []
+        url = imgs[0].image.url if imgs and imgs[0].image else obj.main_image_url()
+        return thumb(url, 76)
+
+    @admin.display(description="Товар", ordering="product__base_name")
+    def product_summary(self, obj):
+        brand = obj.product.brand.title if obj.product.brand else "Без бренда"
+        category = obj.product.category.title_singular or obj.product.category.title
+        return format_html(
+            '<div style="min-width:260px;line-height:1.4">'
+            '<strong style="font-size:14px;color:#111827">{}</strong>'
+            '<div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">'
+            '<span style="padding:2px 7px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:11px">{}</span>'
+            '<span style="padding:2px 7px;border-radius:999px;background:#f3f4f6;color:#4b5563;font-size:11px">{}</span>'
+            '</div></div>',
+            obj.display_name(), brand, category,
+        )
+
+    @admin.display(description="Цена", ordering="price")
+    def price_summary(self, obj):
+        old = format_html('<div style="color:#9ca3af;text-decoration:line-through;font-size:11px">{} ₽</div>', f"{obj.old_price:,.0f}".replace(",", " ")) if obj.old_price else ""
+        return format_html(
+            '<div style="white-space:nowrap"><strong style="font-size:16px;color:#111827">{} ₽</strong>{}</div>',
+            f"{obj.price:,.0f}".replace(",", " "), old,
+        )
+
+    @admin.display(description="Статус")
+    def availability_summary(self, obj):
+        if obj.is_preorder:
+            return format_html(
+                '<div style="padding:7px 10px;border-radius:9px;background:#f5f3ff;color:#6d28d9;white-space:nowrap">'
+                '<strong>Под заказ</strong><br><small>{}–{} дней</small></div>',
+                obj.preorder_days_min, obj.preorder_days_max,
+            )
+        if obj.inventory:
+            return format_html(
+                '<div style="padding:7px 10px;border-radius:9px;background:#ecfdf5;color:#047857;white-space:nowrap">'
+                '<strong>В наличии</strong><br><small>{} {}</small></div>',
+                obj.inventory, obj.sales_unit_label,
+            )
+        return format_html(
+            '<div style="padding:7px 10px;border-radius:9px;background:#fef2f2;color:#b91c1c;white-space:nowrap">'
+            '<strong>Закончился</strong><br><small>0 {}</small></div>', obj.sales_unit_label,
+        )
+
+    @admin.display(description="Источник")
+    def source_shop(self, obj):
+        imports = getattr(obj, "admin_imports", [])
+        if not imports:
+            return pill("Склад", "#f3f4f6", "#e5e7eb", "#374151")
+        store = imports[0].store or "Taobao"
+        color = ("#eff6ff", "#bfdbfe", "#1d4ed8") if "touch" in store.lower() else ("#faf5ff", "#e9d5ff", "#7e22ce")
+        return pill(store, *color)
+
+    @admin.display(description="На сайте")
+    def storefront_link(self, obj):
+        return format_html('<a href="{}" target="_blank" style="white-space:nowrap">Открыть ↗</a>', obj.get_absolute_url())
+
+
+@admin.register(StockVariant)
+class StockVariantAdmin(CatalogVariantAdmin):
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(fulfillment_type=Variant.FulfillmentType.STOCK)
+
+
+@admin.register(PreorderVariant)
+class PreorderVariantAdmin(CatalogVariantAdmin):
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(fulfillment_type=Variant.FulfillmentType.PREORDER)
 # ---------- AttributeValue ----------
 
 @admin.register(AttributeValue)
@@ -310,3 +408,17 @@ class RelatedVariantAdmin(admin.ModelAdmin):
 @admin.register(CopurchaseVariantStat)
 class CopurchaseVariantStatAdmin(admin.ModelAdmin):
     list_display = ("variant_min","variant_max","count","last_seen")
+
+
+@admin.register(TaobaoImportItem)
+class TaobaoImportItemAdmin(admin.ModelAdmin):
+    list_display = ("image_preview", "title_ru", "store", "brand_name", "category_name", "variant_name", "price_rub", "available", "status", "updated_at")
+    list_filter = ("status", "store", "available", "category_name", "brand_name")
+    search_fields = ("title_ru", "title_original", "external_id", "brand_name")
+    readonly_fields = ("source_key", "external_id", "store", "title_original", "image_preview", "product_url", "received_at", "updated_at", "raw")
+    list_editable = ("status",)
+    autocomplete_fields = ("product", "variant")
+
+    @admin.display(description="Фото")
+    def image_preview(self, obj):
+        return thumb(obj.image_url, 64)
