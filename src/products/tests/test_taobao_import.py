@@ -1,7 +1,11 @@
 import json
+from unittest.mock import patch
+
+import requests
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from products.models import TaobaoImportItem
+from products.tasks import sync_taobao_parser_minutely
 
 
 @override_settings(TAOBAO_IMPORT_TOKEN="test-secret")
@@ -20,3 +24,10 @@ class TaobaoImportAPITests(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertEqual(TaobaoImportItem.objects.count(), 1)
         self.assertEqual(TaobaoImportItem.objects.get().price_rub, 2090)
+
+
+class TaobaoSyncTaskTests(TestCase):
+    @patch("products.tasks.SyncTaobaoParserCommand.sync", side_effect=requests.ConnectionError("parser is down"))
+    def test_unavailable_parser_is_skipped_without_task_error(self, sync):
+        self.assertEqual(sync_taobao_parser_minutely.run(), 0)
+        sync.assert_called_once()

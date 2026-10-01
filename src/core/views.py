@@ -6,9 +6,9 @@ from .sanitize import clean_html
 from django.utils.safestring import mark_safe
 from django.template.loader import render_to_string
 from django.http import HttpResponse
+from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.clickjacking import xframe_options_sameorigin
 import requests
  
 def home(request):
@@ -49,18 +49,11 @@ def robots_txt(request):
     )
 
 
-@staff_member_required
-def taobao_parser(request):
-    return render(request, "core/taobao_parser.html", {
-        "parser_url": "/taobao-parser/proxy/",
-    })
-
-
 @csrf_exempt
-@xframe_options_sameorigin
 @staff_member_required
 def taobao_parser_proxy(request, path=""):
-    upstream = f"http://127.0.0.1:18765/{path}"
+    parser_url = settings.TAOBAO_PARSER_URL.rstrip("/")
+    upstream = f"{parser_url}/{path}"
     headers = {}
     for name in ("Content-Type", "X-Requested-With"):
         if request.headers.get(name):
@@ -82,17 +75,20 @@ def taobao_parser_proxy(request, path=""):
     content_type = response.headers.get("Content-Type", "application/octet-stream")
     if content_type.startswith(("text/", "application/json")):
         text = body.decode(response.encoding or "utf-8", errors="replace")
+        text = text.replace(f"{parser_url}/", "/taobao/")
         # Keep the nested /api/browser/ route out of the two generic rewrites.
         # Otherwise it is prefixed twice and the dashboard receives a local 404.
         browser_api_marker = "__TAOBAO_BROWSER_API__/"
         text = text.replace("/api/browser/", browser_api_marker)
         for original, proxied in (
-            ("/browser/", "/taobao-parser/proxy/browser/"),
-            ("/download/", "/taobao-parser/proxy/download/"),
-            ("/api/", "/taobao-parser/proxy/api/"),
+            ("/browser/", "/taobao/browser/"),
+            ("/download/", "/taobao/download/"),
+            ("/api/", "/taobao/api/"),
+            ("/assets/", "/taobao/assets/"),
+            ("/static/", "/taobao/static/"),
         ):
             text = text.replace(original, proxied)
-        text = text.replace(browser_api_marker, "/taobao-parser/proxy/api/browser/")
+        text = text.replace(browser_api_marker, "/taobao/api/browser/")
         body = text.encode("utf-8")
         content_type = content_type.replace(response.encoding or "utf-8", "utf-8")
 

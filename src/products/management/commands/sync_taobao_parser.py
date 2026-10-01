@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db import close_old_connections, transaction
@@ -36,8 +37,13 @@ class Command(BaseCommand):
             time.sleep(max(15, options["interval"]))
 
     def sync(self):
-        products = requests.get("http://127.0.0.1:18765/api/products", timeout=30).json()
-        pricing = requests.get("http://127.0.0.1:18765/api/pricing", timeout=10).json()
+        parser_url = settings.TAOBAO_PARSER_URL.rstrip("/")
+        products_response = requests.get(f"{parser_url}/api/products", timeout=30)
+        products_response.raise_for_status()
+        products = products_response.json()
+        pricing_response = requests.get(f"{parser_url}/api/pricing", timeout=10)
+        pricing_response.raise_for_status()
+        pricing = pricing_response.json()
         rate = float(pricing["cbr_rate"]) + float(pricing["surcharge_rub"])
         markup = 1 + float(pricing["markup_percent"]) / 100
         root, _ = Category.objects.get_or_create(title="BMX", defaults={"title_plural": "BMX", "title_singular": "BMX", "slug": "bmx"})

@@ -100,16 +100,17 @@ body{
 .menuitem__icon{position:relative; display:inline-block;}
 .staff-toolbar{
   display:flex;align-items:center;justify-content:center;gap:8px;padding:7px 12px;
-  overflow-x:auto;background:#17191d;border-bottom:1px solid #292c31;
+  overflow-x:auto;background:var(--white);border-bottom:1px solid var(--border);
   scrollbar-width:none;
 }
 .staff-toolbar::-webkit-scrollbar{display:none}
 .staff-toolbar a{
   display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;padding:7px 12px;
-  border-radius:9px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;
+  border:1px solid transparent;border-radius:9px;color:var(--text);text-decoration:none;font-size:13px;font-weight:600;
 }
-.staff-toolbar a:hover{background:#30343a}
-.staff-toolbar svg{width:17px;height:17px;color:#b9d998}
+.staff-toolbar a:hover{background:#f0f6ff;border-color:#d8e6fb;color:#174ea6}
+.staff-toolbar a:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.staff-toolbar svg{width:17px;height:17px;color:var(--link)}
 
 .cart-count{
   position:absolute; top:-6px; right:-8px;
