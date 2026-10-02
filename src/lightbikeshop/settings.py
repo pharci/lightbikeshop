@@ -47,7 +47,10 @@ SECRET_KEY = env_str("DJANGO_SECRET_KEY")
 if not DEBUG and not SECRET_KEY:
     raise RuntimeError("DJANGO_SECRET_KEY must be set in production")
 
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
+ALLOWED_HOSTS = [
+    *env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"]),
+    "taobao.lightbikeshop.ru",
+]
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", [])
 INTERNAL_IPS = ["127.0.0.1"]
 TAOBAO_IMPORT_TOKEN = env_str("TAOBAO_IMPORT_TOKEN", "")

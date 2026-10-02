@@ -13,9 +13,9 @@ class TaobaoParserProxyTests(SimpleTestCase):
 
     @override_settings(TAOBAO_PARSER_URL="http://parser:18765")
     @patch("core.views.requests.request")
-    def test_root_page_and_assets_are_proxied_under_same_origin(self, request_upstream):
+    def test_root_page_and_assets_use_subdomain_root_paths(self, request_upstream):
         request_upstream.return_value = SimpleNamespace(
-            content=b'<script src="/assets/app.js"></script><a href="/api/browser/">API</a>',
+            content=b'<script src="/assets/app.js"></script><link href="/static/app.css"><a href="/api/browser/">API</a>',
             encoding="utf-8",
             status_code=200,
             headers={"Content-Type": "text/html; charset=utf-8"},
@@ -26,8 +26,9 @@ class TaobaoParserProxyTests(SimpleTestCase):
         response = taobao_parser_proxy(request, path="")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"/taobao/assets/app.js", response.content)
-        self.assertIn(b"/taobao/api/browser/", response.content)
+        self.assertIn(b"/assets/app.js", response.content)
+        self.assertIn(b"/taobao-parser-static/app.css", response.content)
+        self.assertIn(b"/api/browser/", response.content)
         request_upstream.assert_called_once()
         self.assertEqual(request_upstream.call_args.args[:2], ("GET", "http://parser:18765/"))
 

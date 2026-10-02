@@ -109,7 +109,7 @@ export default function Home() {
         ) as Order[];
         const orderIds = localOrders.map((order) => order.id).filter(Boolean);
         if (orderIds.length) {
-          await fetch(`/shipment/api/orders/confirmed?t=${Date.now()}`, {
+          await fetch(`/api/orders/confirmed?t=${Date.now()}`, {
             method: "POST",
             cache: "no-store",
             headers: { "Content-Type": "application/json" },
@@ -122,7 +122,7 @@ export default function Home() {
       } catch {
         localStorage.removeItem("confirmedOzonOrders");
       }
-      const response = await fetch(`/shipment/api/orders?t=${Date.now()}`, {
+      const response = await fetch(`/api/orders?t=${Date.now()}`, {
         cache: "no-store",
         headers: { "Cache-Control": "no-cache" },
       });
@@ -242,7 +242,7 @@ export default function Home() {
     setForming(market);
     setFormation(undefined);
     try {
-      const response = await fetch(`/shipment/api/shipments/form?t=${Date.now()}`, {
+      const response = await fetch(`/api/shipments/form?t=${Date.now()}`, {
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
@@ -309,7 +309,7 @@ export default function Home() {
         ...supply.boxStickers.map((sticker) => ({ dataUrl: sticker.dataUrl })),
         ...(supply.qrDataUrl ? [{ dataUrl: supply.qrDataUrl }] : []),
       ];
-      const response = await fetch("/shipment/api/moysklad/upload", {
+      const response = await fetch("/api/moysklad/upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

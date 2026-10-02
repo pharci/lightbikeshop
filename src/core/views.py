@@ -75,20 +75,8 @@ def taobao_parser_proxy(request, path=""):
     content_type = response.headers.get("Content-Type", "application/octet-stream")
     if content_type.startswith(("text/", "application/json")):
         text = body.decode(response.encoding or "utf-8", errors="replace")
-        text = text.replace(f"{parser_url}/", "/taobao/")
-        # Keep the nested /api/browser/ route out of the two generic rewrites.
-        # Otherwise it is prefixed twice and the dashboard receives a local 404.
-        browser_api_marker = "__TAOBAO_BROWSER_API__/"
-        text = text.replace("/api/browser/", browser_api_marker)
-        for original, proxied in (
-            ("/browser/", "/taobao/browser/"),
-            ("/download/", "/taobao/download/"),
-            ("/api/", "/taobao/api/"),
-            ("/assets/", "/taobao/assets/"),
-            ("/static/", "/taobao/static/"),
-        ):
-            text = text.replace(original, proxied)
-        text = text.replace(browser_api_marker, "/taobao/api/browser/")
+        text = text.replace(f"{parser_url}/", "/")
+        text = text.replace("/static/", "/taobao-parser-static/")
         body = text.encode("utf-8")
         content_type = content_type.replace(response.encoding or "utf-8", "utf-8")
 
